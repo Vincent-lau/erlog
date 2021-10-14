@@ -1,0 +1,6 @@
+-sname erlog
+
+-setcookie erlog_cookie
+
++K true
++A30
