@@ -1,7 +1,7 @@
 -module(utils).
 -compile(export_all).
 
--include("data_repr.hrl").
+-include("../include/data_repr.hrl").
 
 filteri(Predi, L) ->
   filteri_rec(Predi, lists:zip(L, lists:seq(1, length(L)))).
@@ -25,6 +25,20 @@ to_string(L = [H|_]) when is_list(H) ->
   string:join(L, ",");
 to_string(L = [H|_]) when is_atom(H) ->
   string:join(atom_to_list(L), ", ").
-pretty_print(X) ->
+ppt(X) ->
   S = to_string(X),
-  io:format("~s", [S]).
+  io:format("~s~n", [S]).
+
+-define(debug, 1).
+-ifdef(debug).
+dbg_ppt(X) ->
+  S = to_string(X),
+  io:format(standard_error, "~s~n", [S]).
+dbg_format(Format, Data) ->
+  io:format(standard_error, Format, Data).
+-else.
+dbg_ppt(_) ->
+  ok.
+dbg_format(_, _) -> 
+  ok.
+-endif.

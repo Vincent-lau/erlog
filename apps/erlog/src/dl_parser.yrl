@@ -3,13 +3,20 @@ Header "%% Copyright (C)"
 "%% @Author Vincent".
 
 
-Nonterminals dl_atoms dl_atom dl_rule dl_rule_head dl_rule_body dl_term dl_terms.
+Nonterminals dl_prog dl_atoms dl_atom dl_rules dl_rule dl_rule_head dl_rule_body dl_term dl_terms.
 Terminals dl_const dl_var '(' ')' ':-' ',' '.'.
-Rootsymbol dl_rule.
+Rootsymbol dl_prog.
 Endsymbol '$end'.
 
+dl_prog -> dl_rules :
+  '$1'.
+dl_rules -> dl_rule :
+  ['$1'].
+dl_rules -> dl_rule dl_rules :
+  ['$1' | '$2'].
 dl_rule -> dl_rule_head ':-' dl_rule_body '.' : 
   cons_dl_rule('$1', '$3').
+
 dl_rule_head -> dl_atom : 
   '$1'.
 dl_rule_body -> dl_atoms :

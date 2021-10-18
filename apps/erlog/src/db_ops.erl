@@ -2,7 +2,7 @@
 
 -compile(export_all).
 
--include("data_repr.hrl").
+-include("../include/data_repr.hrl").
 
 -spec get_rel_by_name(dl_db_instance(), string()) -> dl_db_instance().
 get_rel_by_name(DBInstance, Name) ->

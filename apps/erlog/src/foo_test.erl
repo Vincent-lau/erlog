@@ -1,8 +1,8 @@
--module(test).
+-module(foo_test).
 
 -compile(export_all).
 
--include("data_repr.hrl").
+-include("../include/data_repr.hrl").
 
 % TODO write proper test for parser and lexer
 start() ->
@@ -24,5 +24,5 @@ start2() ->
   compile:file(utils),
   code:purge(utils),
   code:load_file(utils),
-  utils:pretty_print(R),
+  utils:ppt(R),
   io:format("~n").

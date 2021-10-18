@@ -2,7 +2,7 @@
 
 -compile(export_all).
 
--include("data_repr.hrl").
+-include("../include/data_repr.hrl").
 
 %% we consider the simple case first
 %% two relations, assuming that the column to be joined is the last of the first

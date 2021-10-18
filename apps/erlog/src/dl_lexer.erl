@@ -12,7 +12,7 @@
 -export([format_error/1]).
 
 %% User code. This is placed here to allow extra attributes.
--file("./dl_lexer.xrl", 37).
+-file("/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/erlog/src/dl_lexer.xrl", 37).
 
 -file("/Users/vincent/bin/erls/24.1/lib/parsetools-2.3.1/include/leexinc.hrl", 14).
 
@@ -305,7 +305,7 @@ adjust_line(T, A, [_|Cs], L) ->
 %% return signal either an unrecognised character or end of current
 %% input.
 
--file("./dl_lexer.erl", 307).
+-file("/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/erlog/src/dl_lexer.erl", 307).
 yystate() -> 7.
 
 yystate(10, Ics, Line, Tlen, _, _) ->
@@ -409,47 +409,47 @@ yyaction(8, TokenLen, YYtcs, TokenLine) ->
 yyaction(_, _, _, _) -> error.
 
 -compile({inline,yyaction_0/0}).
--file("./dl_lexer.xrl", 23).
+-file("/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/erlog/src/dl_lexer.xrl", 23).
 yyaction_0() ->
      skip_token .
 
 -compile({inline,yyaction_1/0}).
--file("./dl_lexer.xrl", 24).
+-file("/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/erlog/src/dl_lexer.xrl", 24).
 yyaction_1() ->
      skip_token .
 
 -compile({inline,yyaction_2/2}).
--file("./dl_lexer.xrl", 26).
+-file("/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/erlog/src/dl_lexer.xrl", 26).
 yyaction_2(TokenChars, TokenLine) ->
      { token, { dl_const, TokenLine, list_to_atom (TokenChars) } } .
 
 -compile({inline,yyaction_3/2}).
--file("./dl_lexer.xrl", 28).
+-file("/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/erlog/src/dl_lexer.xrl", 28).
 yyaction_3(TokenChars, TokenLine) ->
      { token, { dl_var, TokenLine, TokenChars } } .
 
 -compile({inline,yyaction_4/2}).
--file("./dl_lexer.xrl", 29).
+-file("/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/erlog/src/dl_lexer.xrl", 29).
 yyaction_4(TokenChars, TokenLine) ->
      { token, { list_to_atom (TokenChars), TokenLine } } .
 
 -compile({inline,yyaction_5/2}).
--file("./dl_lexer.xrl", 30).
+-file("/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/erlog/src/dl_lexer.xrl", 30).
 yyaction_5(TokenChars, TokenLine) ->
      { token, { list_to_atom (TokenChars), TokenLine } } .
 
 -compile({inline,yyaction_6/2}).
--file("./dl_lexer.xrl", 31).
+-file("/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/erlog/src/dl_lexer.xrl", 31).
 yyaction_6(TokenChars, TokenLine) ->
      { token, { list_to_atom (TokenChars), TokenLine } } .
 
 -compile({inline,yyaction_7/2}).
--file("./dl_lexer.xrl", 32).
+-file("/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/erlog/src/dl_lexer.xrl", 32).
 yyaction_7(TokenChars, TokenLine) ->
      { token, { list_to_atom (TokenChars), TokenLine } } .
 
 -compile({inline,yyaction_8/2}).
--file("./dl_lexer.xrl", 33).
+-file("/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/erlog/src/dl_lexer.xrl", 33).
 yyaction_8(TokenChars, TokenLine) ->
      { token, { list_to_atom (TokenChars), TokenLine } } .
 

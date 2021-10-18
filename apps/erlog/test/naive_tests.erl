@@ -2,7 +2,7 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
--include("data_repr.hrl").
+-include("../include/data_repr.hrl").
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% TESTS DESCRIPTIONS %%%
@@ -31,12 +31,13 @@ start_initial() ->
   {Program, EDB}.
 
 start_one_iter() ->
-  [#dl_atom{pred_sym = "link", args = [a, b]},
-   #dl_atom{pred_sym = "link", args = [b, c]},
-   #dl_atom{pred_sym = "link", args = [c, d]},
-   #dl_atom{pred_sym = "reachable", args = [a, b]},
-   #dl_atom{pred_sym = "reachable", args = [b, c]},
-   #dl_atom{pred_sym = "reachable", args = [c, d]}].
+  {tc_prog(),
+   [#dl_atom{pred_sym = "link", args = [a, b]},
+    #dl_atom{pred_sym = "link", args = [b, c]},
+    #dl_atom{pred_sym = "link", args = [c, d]},
+    #dl_atom{pred_sym = "reachable", args = [a, b]},
+    #dl_atom{pred_sym = "reachable", args = [b, c]},
+    #dl_atom{pred_sym = "reachable", args = [c, d]}]}.
 
 %%%%%%%%%%%%%%%%%%%%
 %%% ACTUAL TESTS %%%
@@ -47,6 +48,7 @@ eval_to_end({Program, EDB}) ->
   [?_assertEqual(final_db(), FinalIDB)].
 
 trans_closure_rule({[_, Rule2], EDB}) ->
+  utils:dbg_format("~p~n", [EDB]),
   DeltaAtoms = naive:eval_one_rule(Rule2, EDB),
   [?_assertEqual([#dl_atom{pred_sym = "reachable", args = [a, c]},
                   #dl_atom{pred_sym = "reachable", args = [b, d]}],
@@ -76,3 +78,16 @@ final_db() ->
    #dl_atom{pred_sym = "link", args = [a, b]},
    #dl_atom{pred_sym = "link", args = [b, c]},
    #dl_atom{pred_sym = "link", args = [c, d]}].
+
+tc_prog() ->
+  R1 = #dl_rule{head = reachable_atom("X", "Y"), body = [link_atom("X", "Y")]},
+  R2 =
+    #dl_rule{head = reachable_atom("X", "Y"),
+             body = [link_atom("X", "Z"), reachable_atom("Z", "Y")]},
+  [R1, R2].
+
+reachable_atom(Arg1, Arg2) ->
+  #dl_atom{pred_sym = reachable, args = [Arg1, Arg2]}.
+
+link_atom(Arg1, Arg2) ->
+  #dl_atom{pred_sym = link, args = [Arg1, Arg2]}.
