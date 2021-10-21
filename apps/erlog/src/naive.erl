@@ -29,29 +29,25 @@ eval_one_rule(#dl_rule{head = Head, body = [R1 = #dl_atom{}]}, IDB) ->
   Atoms = db_ops:get_rel_by_pred(IDB, R1#dl_atom.pred_sym),
   db_ops:rename_pred(Atoms, Head#dl_atom.pred_sym).
 
-
-
 %% this function applies rules to the IDB once and return the new DB instance
 -spec eval_one_iter(dl_program(), dl_db_instance()) -> dl_db_instance().
 eval_one_iter(Program, IDB) ->
-  lists:flatmap(fun(Rule) -> eval_one_rule(Rule, IDB) end, Program).
-
+  % Instance is a list of dl_db_instance()
+  Instance = lists:map(fun(Rule) -> eval_one_rule(Rule, IDB) end, Program),
+  db_ops:flatten(Instance).
 
 
 % TODO list ordering matter, in general list is not a good choice, consider using set
 -spec is_fixpoint(dl_db_instance(), dl_db_instance()) -> boolean().
 is_fixpoint(OldDB, NewDB) ->
-  lists:sort(OldDB) =:= lists:sort(NewDB).
-
-
+  db_ops:equal(OldDB, NewDB).
 
 %% calls eval one until a fixpoint is reached
 %% returns the final db instance
 -spec eval_all(dl_program(), dl_db_instance()) -> dl_db_instance().
 eval_all(Program, IDB) ->
   NewDB = eval_one_iter(Program, IDB),
-  NewDB2 = lists:filter(fun (A) -> not lists:member(A, IDB) end, NewDB),
-  FullDB = IDB ++ NewDB2,
+  FullDB = db_ops:add_db_unique(IDB, NewDB),
   utils:dbg_format("full db is ~p~n, IDB ~p~n", [FullDB, IDB]),
   case is_fixpoint(FullDB, IDB) of
     true ->
@@ -59,9 +55,6 @@ eval_all(Program, IDB) ->
     false ->
       eval_all(Program, FullDB)
   end.
-
-
-
 
 % reachable(X, Y) :- link(X, Y).
 % reachable(X,Y) :- reachable(X, Z), link(Z, Y).
