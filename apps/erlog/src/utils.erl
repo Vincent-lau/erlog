@@ -16,6 +16,7 @@ filteri_rec(Predi, [{E, Idx} | T]) ->
 filteri_rec(_, []) -> [].
 
 
+-spec to_string(dl_atom() | dl_rule()) -> string().
 to_string(#dl_atom{pred_sym = Sym, args = Args}) ->
   io_lib:format("~w(~s)", [Sym, to_string(Args)]);
 to_string(#dl_rule{head = Head, body = Body}) ->
@@ -24,7 +25,10 @@ to_string(#dl_rule{head = Head, body = Body}) ->
 to_string(L = [H|_]) when is_list(H) ->
   string:join(L, ",");
 to_string(L = [H|_]) when is_atom(H) ->
-  string:join(atom_to_list(L), ", ").
+  L2 = lists:map(fun atom_to_list/1, L),
+  string:join(L2, ", ").
+
+-spec ppt(dl_atom() | dl_rule()) -> ok.
 ppt(X) ->
   S = to_string(X),
   io:format("~s~n", [S]).

@@ -4,9 +4,13 @@
 
 -include("../include/data_repr.hrl").
 
--spec get_rel_by_name(dl_db_instance(), string()) -> dl_db_instance().
-get_rel_by_name(DBInstance, Name) ->
+-spec get_rel_by_pred(dl_db_instance(), atom()) -> dl_db_instance().
+get_rel_by_pred(DBInstance, Name) ->
   lists:filter(fun(#dl_atom{pred_sym = N}) -> Name =:= N end, DBInstance).
+
+-spec rename_pred(dl_db_instance(), dl_const()) -> dl_db_instance().
+rename_pred(DB, NewPred) ->
+  lists:map(fun (A) -> A#dl_atom{pred_sym = NewPred} end, DB).
 
 %% this uses the underlying assumption that an erlang record is a tuple
 %%
@@ -21,23 +25,23 @@ project(DBInstance, Cols) ->
             end,
             DBInstance).
 
--spec join(dl_knowledgebase(), string(), string(), integer(), integer(), string()) ->
+-spec join(dl_knowledgebase(), atom(), atom(), integer(), integer(), atom()) ->
             [dl_atom()].
-join(Kb, Pred_sym1, Pred_sym2, C1, C2, ResName) ->
-  Atoms1 = lists:filter(fun(#dl_atom{pred_sym = Sym}) -> Pred_sym1 =:= Sym end, Kb),
-  Atoms2 = lists:filter(fun(#dl_atom{pred_sym = Sym}) -> Pred_sym2 =:= Sym end, Kb),
+join(Kb, PredSym1, PredSym2, C1, C2, ResName) ->
+  Atoms1 = lists:filter(fun(#dl_atom{pred_sym = Sym}) -> PredSym1 =:= Sym end, Kb),
+  Atoms2 = lists:filter(fun(#dl_atom{pred_sym = Sym}) -> PredSym2 =:= Sym end, Kb),
   lists:flatmap(fun(Atom) -> join_one(Atoms2, C1, C2, ResName, Atom) end, Atoms1).
 
--spec join_one([dl_atom()], integer(), integer(), string(), dl_atom()) -> [dl_atom()].
-join_one(Dl_atoms, C1, C2, ResName, #dl_atom{args = Args}) ->
+-spec join_one([dl_atom()], integer(), integer(), atom(), dl_atom()) -> [dl_atom()].
+join_one(DlAtoms, C1, C2, ResName, #dl_atom{args = Args}) ->
   Nth = lists:nth(C1, Args),
-  Selected_atoms =
-    lists:filter(fun(#dl_atom{args = Args2}) -> lists:nth(C2, Args2) =:= Nth end, Dl_atoms),
-  Selected_args =
+  SelectedAtoms =
+    lists:filter(fun(#dl_atom{args = Args2}) -> lists:nth(C2, Args2) =:= Nth end, DlAtoms),
+  SelectedArgs =
     lists:map(fun(#dl_atom{args = Args2}) ->
                  {L, [_ | R]} = lists:split(C2 - 1, Args2),
                  L ++ R
               end,
-              Selected_atoms),
+              SelectedAtoms),
   lists:map(fun(Args2) -> #dl_atom{pred_sym = ResName, args = Args ++ Args2} end,
-            Selected_args).
+            SelectedArgs).
