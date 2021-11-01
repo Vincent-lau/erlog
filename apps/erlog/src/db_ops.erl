@@ -4,19 +4,16 @@
 
 -include("../include/data_repr.hrl").
 
--spec get_rel_by_pred(dl_db_instance(), atom()) -> dl_db_instance().
-get_rel_by_pred(DBInstance, Name) ->
-  filter(fun(#dl_atom{pred_sym = N}) -> Name =:= N end, DBInstance).
+%%----------------------------------------------------------------------
+%% RA operations
+%%----------------------------------------------------------------------
 
--spec rename_pred(dl_db_instance(), dl_const()) -> dl_db_instance().
-rename_pred(DB, NewPred) ->
-  map(fun(A) -> A#dl_atom{pred_sym = NewPred} end, DB).
 
-%% this uses the underlying assumption that an erlang record is a tuple
-%%
-% -spec relation_arity(tuple()) -> integer().
-% relation_arity(R) ->
-%   tuple_size(R) - 1.
+-spec product(dl_db_instance(), dl_db_instance()) -> dl_db_instance().
+product(DB1, DB2) ->
+  % TODO
+  [].
+
 
 -spec project(dl_db_instance(), [integer()]) -> dl_db_instance().
 project(DBInstance, Cols) ->
@@ -45,6 +42,22 @@ join_one(DlAtoms, C1, C2, ResName, #dl_atom{args = Args}) ->
         end,
         SelectedAtoms),
   map(fun(Args2) -> #dl_atom{pred_sym = ResName, args = Args ++ Args2} end, SelectedArgs).
+
+%%----------------------------------------------------------------------
+%% operations on atoms in the db
+%%----------------------------------------------------------------------
+
+-spec get_rel_by_pred(atom(), dl_db_instance()) -> dl_db_instance().
+get_rel_by_pred(Name, DBInstance) ->
+  filter(fun(#dl_atom{pred_sym = N}) -> Name =:= N end, DBInstance).
+
+-spec rename_pred(dl_db_instance(), dl_const()) -> dl_db_instance().
+rename_pred(DB, NewPred) ->
+  map(fun(A) -> A#dl_atom{pred_sym = NewPred} end, DB).
+
+%%----------------------------------------------------------------------
+%% operations on db representations
+%%----------------------------------------------------------------------
 
 lists_filteri(Predi, L) ->
   lists_filteri_rec(Predi, lists:zip(L, lists:seq(1, length(L)))).
@@ -101,3 +114,8 @@ from_list(L) ->
 -spec flatten([dl_db_instance()]) -> dl_db_instance().
 flatten(L) ->
   sets:union(L).
+
+-spec print_db(dl_db_instance()) -> atom().
+print_db(DB) ->
+  L = sets:to_list(DB),
+  lists:foreach(fun(Atom) -> utils:ppt(Atom) end, L).

@@ -1,9 +1,8 @@
 -module(utils).
+
 -compile(export_all).
 
 -include("../include/data_repr.hrl").
-
-
 
 -spec to_string(dl_atom() | dl_rule()) -> string().
 to_string(#dl_atom{pred_sym = Sym, args = Args}) ->
@@ -11,9 +10,9 @@ to_string(#dl_atom{pred_sym = Sym, args = Args}) ->
 to_string(#dl_rule{head = Head, body = Body}) ->
   Atoms = lists:map(fun to_string/1, Body),
   to_string(Head) ++ " :- " ++ string:join(Atoms, ", ") ++ ".";
-to_string(L = [H|_]) when is_list(H) ->
+to_string(L = [H | _]) when is_list(H) ->
   string:join(L, ",");
-to_string(L = [H|_]) when is_atom(H) ->
+to_string(L = [H | _]) when is_atom(H) ->
   L2 = lists:map(fun atom_to_list/1, L),
   string:join(L2, ", ").
 
@@ -22,16 +21,22 @@ ppt(X) ->
   S = to_string(X),
   io:format("~s~n", [S]).
 
--define(debug, 1).
+% -define(debug, 0).
 -ifdef(debug).
+
 dbg_ppt(X) ->
   S = to_string(X),
   io:format(standard_error, "~s~n", [S]).
+
 dbg_format(Format, Data) ->
   io:format(standard_error, Format, Data).
+
 -else.
+
 dbg_ppt(_) ->
   ok.
-dbg_format(_, _) -> 
+
+dbg_format(_, _) ->
   ok.
+
 -endif.
