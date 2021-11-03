@@ -23,20 +23,27 @@ read_input(S) ->
   end.
 
 start() ->
+  ets:new(table, [named_table]),
+  % open file and read program
   {ok, Stream} = file:open("apps/erlog/test/test_tc.dl", [read]),
   Tokens = read_and_lex(Stream),
   {ok, Prog} = dl_parser:parse(Tokens),
   file:close(Stream),
+  % open file and read input
   {ok, Stream2} = file:open("apps/erlog/test/edge.facts", [read]),
   Input = read_input(Stream2),
   file:close(Stream2),
+  % preprocess rules
+  Prog2 = preproc:process(Prog),
+  utils:ppt(Prog2),
+  % create EDB from input relations
   EDB =
     db_ops:from_list(
       lists:map(fun(Args) -> #dl_atom{pred_sym = link, args = Args} end, Input)),
-  Res = naive:eval_all(Prog, EDB),
-  db_ops:print_db(db_ops:get_rel_by_pred(reachable, Res)).
-
-
+  Res = naive:eval_all(Prog2, EDB),
+  db_ops:print_db(
+    db_ops:get_rel_by_pred(reachable, Res)),
+  ets:delete(table).
 
 start2() ->
   A = #dl_atom{pred_sym = reachable, args = ["X", "Y"]},

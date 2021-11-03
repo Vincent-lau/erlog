@@ -8,7 +8,6 @@
 -include("data_repr.hrl").
 
 cons_dl_rule(Head, Body) ->
-  io:format("sym is ~p and arg is ~p~n", [Head, Body]),
   % Body2 = lists:map(fun ({_, _, B}) -> B end, Body),
   #dl_rule{head = Head, body = Body}.
 
@@ -188,7 +187,7 @@ yecctoken2string(Other) ->
 
 
 
--file("/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/erlog/src/dl_parser.erl", 191).
+-file("/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/erlog/src/dl_parser.erl", 190).
 
 -dialyzer({nowarn_function, yeccpars2/7}).
 -compile({nowarn_unused_function,  yeccpars2/7}).
@@ -594,4 +593,4 @@ yeccpars2_22_(__Stack0) ->
   end | __Stack].
 
 
--file("/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/erlog/src/dl_parser.yrl", 53).
+-file("/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/erlog/src/dl_parser.yrl", 52).

@@ -20,8 +20,7 @@ project_test_() ->
   [{"Basic projection test", {setup, fun start/0, fun project_2tuples/1}},
    {"Projecting multiple cols", {setup, fun start/0, fun project_multiple/1}}].
 
-lists_filteri_test_() ->
-  [test_even()].
+
 
 %%%%%%%%%%%%%%%%%%%%%%%
 %%% SETUP FUNCTIONS %%%
@@ -57,7 +56,7 @@ join_singleton_list(_) ->
   Link2 = #dl_atom{pred_sym = link, args = [b, d]},
   Reachable = #dl_atom{pred_sym = reachable, args = [a, b]},
   Kb = db_ops:from_list([Link1, Link2, Reachable]),
-  Delta = db_ops:join(Kb, reachable, link, 2, 1, reachable),
+  Delta = db_ops:join(Kb, reachable, link, [2], [1], reachable),
   [?_assertEqual(db_ops:from_list([#dl_atom{pred_sym = reachable, args = [a, b, c]},
                                    #dl_atom{pred_sym = reachable, args = [a, b, d]}]),
                  Delta)].
@@ -68,7 +67,7 @@ join_two_lists(_) ->
   Reachable1 = #dl_atom{pred_sym = reachable, args = [a, b]},
   Reachable2 = #dl_atom{pred_sym = reachable, args = [a, c]},
   Kb = db_ops:from_list([Link1, Link2, Reachable1, Reachable2]),
-  Delta = db_ops:join(Kb, reachable, link, 2, 1, reachable),
+  Delta = db_ops:join(Kb, reachable, link, [2], [1], reachable),
   [?_assertEqual(db_ops:from_list([#dl_atom{pred_sym = reachable, args = [a, b, c]},
                                    #dl_atom{pred_sym = reachable, args = [a, c, d]}]),
                  Delta)].
@@ -78,7 +77,7 @@ join_3_tuples(_) ->
   Link2 = #dl_atom{pred_sym = link, args = [b, d, e]},
   Reachable = #dl_atom{pred_sym = reachable, args = [a, f, b]},
   Kb = db_ops:from_list([Link1, Link2, Reachable]),
-  Delta = db_ops:join(Kb, reachable, link, 3, 1, reachable),
+  Delta = db_ops:join(Kb, reachable, link, [3], [1], reachable),
   [?_assertEqual(db_ops:from_list([#dl_atom{pred_sym = reachable, args = [a, f, b, c, d]},
                                    #dl_atom{pred_sym = reachable, args = [a, f, b, d, e]}]),
                  Delta)].
@@ -88,10 +87,7 @@ join_on_inner_cols(_) ->
   Link2 = #dl_atom{pred_sym = link, args = [b, d, e]},
   Reachable = #dl_atom{pred_sym = reachable, args = [a, d, f]},
   Kb = db_ops:from_list([Link1, Link2, Reachable]),
-  Delta = db_ops:join(Kb, reachable, link, 2, 3, reachable),
+  Delta = db_ops:join(Kb, reachable, link, [2], [3], reachable),
   [?_assertEqual(db_ops:from_list([#dl_atom{pred_sym = reachable, args = [a, d, f, b, c]}]),
                  Delta)].
 
-test_even() ->
-  L = db_ops:lists_filteri(fun(X) -> X rem 2 == 0 end, lists:seq(1, 10)),
-  ?_assertEqual([2, 4, 6, 8, 10], L).

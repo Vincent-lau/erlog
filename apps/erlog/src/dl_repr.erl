@@ -6,7 +6,7 @@
 
 -spec cons_atom(string(), [dl_term()]) -> dl_atom().
 cons_atom(PredSym, Terms) ->
-  #dl_atom{pred_sym = PredSym, args = Terms}.
+  #dl_atom{pred_sym = list_to_atom(PredSym), args = Terms}.
 
 -spec cons_rule(dl_atom(), [dl_atom()]) -> dl_rule().
 cons_rule(Head, Body) ->
@@ -20,6 +20,10 @@ cons_term(T) when is_list(T) ->
     false ->
       list_to_atom(T)
   end.
+
+-spec cons_args_from_list([string()]) -> [dl_term()].
+cons_args_from_list(L) ->
+  lists:map(fun cons_term/1, L).
 
 
 %% from the outside world, should only see strings

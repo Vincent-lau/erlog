@@ -8,7 +8,7 @@ EOL = \n|\r\n|\r
 BRAC = \(|\)
 TERMINATOR = \.
 CONNECT = :-
-
+COMMENT = (//)
 
 % D = [0-9]
 
@@ -22,6 +22,7 @@ Rules.
 % {D}+\.{D}+((E|e)(\+|\-)?{D}+)? :
 %   {token,{float,TokenLine,list_to_float(TokenChars)}}. 
 
+{COMMENT}.*{EOL} : skip_token.
 {WHITESPACE} : skip_token.
 {EOL} : skip_token. 
 {Const} : 

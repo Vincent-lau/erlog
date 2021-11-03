@@ -43,8 +43,8 @@ lex_one_rule_multi_body(_) ->
 
 lex_tc_from_file(S) ->
   Tokens = read_and_lex(S),
-  utils:dbg_format("~p~n", [Tokens]),
-  utils:dbg_format("~p~n", [tc1_tks("X", "Y", 1) ++ tc2_tks("X", "Y", "Z", 1)]),
+  % utils:dbg_format("~p~n", [Tokens]),
+  % utils:dbg_format("~p~n", [tc1_tks("X", "Y", 1) ++ tc2_tks("X", "Y", "Z", 1)]),
   ?_assertEqual(tc1_tks("X", "Y", 1) ++ tc2_tks("X", "Y", "Z", 1), Tokens).
 
 %%%%%%%%%%%%%%%%%%%%%%%%

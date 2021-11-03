@@ -8,13 +8,17 @@
 %%% TESTS DESCRIPTIONS %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 
-collect_args_test_() ->
+combine_atoms_test_() ->
   [{"test basic combinging multiple atoms",
     {setup, fun start/0, fun stop/1, fun combine_two/1}}].
 
 rule_part_test_() ->
   [{"test partition rule with three body atoms",
     {setup, fun start2/0, fun stop/1, fun part_three/1}}].
+
+combine_args_test_() ->
+  [{"combining args will preserve order",
+    {setup, fun start/0, fun combine_two_args_out_of_order/1}}].
 
 %%%%%%%%%%%%%%%%%%%%%%%
 %%% SETUP FUNCTIONS %%%
@@ -42,7 +46,7 @@ stop(_) ->
 %%%%%%%%%%%%%%%%%%%%
 
 combine_two(Atoms) ->
-  R = preproc:collect_args(Atoms),
+  R = preproc:combine_atoms(Atoms),
   [?_assertEqual(["X", "Y", "Z"],
                  dl_repr:get_atom_args(
                    dl_repr:get_rule_head(R)))].
@@ -50,6 +54,12 @@ combine_two(Atoms) ->
 part_three(R) ->
   NewR = preproc:rule_part(R),
   [?_assertEqual(part_res(), NewR)].
+
+combine_two_args_out_of_order(_) ->
+  A = ["Z", "X", "Y"],
+  B = ["X", "W"],
+  R = preproc:combine_args([A, B]),
+  ?_assertEqual(["Z", "X", "Y", "W"], R).
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 %%% HELPER FUNCTIONS %%%

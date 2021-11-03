@@ -1,2 +1,5 @@
 reachable(X, Y) :- link(X, Y).
 reachable(X, Y) :- link(X, Z), reachable(Z, Y).
+
+// rsg(X,Y) :- flat(X, Y).
+// rsg(X, Y) :- up(X, X1), rsg(Y1, X1), down(Y1, Y).

@@ -8,7 +8,6 @@
 -behaviour(supervisor).
 
 -export([start_link/0]).
-
 -export([init/1]).
 
 -define(SERVER, ?MODULE).
@@ -26,10 +25,14 @@ start_link() ->
 %%                  type => worker(),       % optional
 %%                  modules => modules()}   % optional
 init([]) ->
-    SupFlags = #{strategy => one_for_all,
-                 intensity => 0,
-                 period => 1},
-    ChildSpecs = [],
+    SupFlags =
+        #{strategy => one_for_all,
+          intensity => 0,
+          period => 1},
+    ChildSpecs =
+        [#{id => main,
+           start => {erlog_srv, start_link, []},
+           shutdown => 5000}],
     {ok, {SupFlags, ChildSpecs}}.
 
 %% internal functions

@@ -8,37 +8,36 @@
 %% RA operations
 %%----------------------------------------------------------------------
 
-
--spec product(dl_db_instance(), dl_db_instance()) -> dl_db_instance().
-product(DB1, DB2) ->
+-spec product(dl_db_instance(), dl_const(), dl_const()) -> dl_db_instance().
+product(DB, PredSym1, PredSym2) ->
   % TODO
   [].
-
 
 -spec project(dl_db_instance(), [integer()]) -> dl_db_instance().
 project(DBInstance, Cols) ->
   map(fun(Atom = #dl_atom{args = Args}) ->
-         Atom#dl_atom{args = lists_filteri(fun(I) -> lists:member(I, Cols) end, Args)}
+         Atom#dl_atom{args = listsi:filteri(fun(_, I) -> lists:member(I, Cols) end, Args)}
       end,
       DBInstance).
 
--spec join(dl_db_instance(), atom(), atom(), integer(), integer(), atom()) ->
+-spec join(dl_db_instance(), atom(), atom(), [integer()], [integer()], atom()) ->
             dl_db_instance().
 join(Kb, PredSym1, PredSym2, C1, C2, ResName) ->
   Atoms1 = filter(fun(#dl_atom{pred_sym = Sym}) -> PredSym1 =:= Sym end, Kb),
   Atoms2 = filter(fun(#dl_atom{pred_sym = Sym}) -> PredSym2 =:= Sym end, Kb),
-  flatmap(fun(Atom) -> join_one(Atoms2, C1, C2, ResName, Atom) end, Atoms1).
+  flatmap(fun(Atom) -> join_one(Atoms2, Atom, C1, C2, ResName) end, Atoms1).
 
--spec join_one(dl_db_instance(), integer(), integer(), atom(), dl_atom()) ->
+-spec join_one(dl_db_instance(), dl_atom(), [integer()], [integer()], dl_const()) ->
                 dl_db_instance().
-join_one(DlAtoms, C1, C2, ResName, #dl_atom{args = Args}) ->
-  Nth = nth_arg(C1, Args),
+join_one(DlAtoms, #dl_atom{args = Args}, C1, C2, ResName) ->
   SelectedAtoms =
-    filter(fun(#dl_atom{args = Args2}) -> nth_arg(C2, Args2) =:= Nth end, DlAtoms),
+    filter(fun(#dl_atom{args = Args2}) ->
+              lists:sort(nth_args(C2, Args2)) =:= lists:sort(nth_args(C1, Args))
+           end,
+           DlAtoms),
   SelectedArgs =
     map(fun(#dl_atom{args = Args2}) ->
-           {L, [_ | R]} = split_args(C2 - 1, Args2),
-           L ++ R
+           lists:filter(fun(A) -> not lists:member(A, Args) end, Args2)
         end,
         SelectedAtoms),
   map(fun(Args2) -> #dl_atom{pred_sym = ResName, args = Args ++ Args2} end, SelectedArgs).
@@ -47,8 +46,8 @@ join_one(DlAtoms, C1, C2, ResName, #dl_atom{args = Args}) ->
 %% operations on atoms in the db
 %%----------------------------------------------------------------------
 
--spec get_rel_by_pred(atom(), dl_db_instance()) -> dl_db_instance().
-get_rel_by_pred(Name, DBInstance) ->
+-spec get_rel_by_pred(dl_db_instance(), dl_const()) -> dl_db_instance().
+get_rel_by_pred(DBInstance, Name) ->
   filter(fun(#dl_atom{pred_sym = N}) -> Name =:= N end, DBInstance).
 
 -spec rename_pred(dl_db_instance(), dl_const()) -> dl_db_instance().
@@ -59,23 +58,10 @@ rename_pred(DB, NewPred) ->
 %% operations on db representations
 %%----------------------------------------------------------------------
 
-lists_filteri(Predi, L) ->
-  lists_filteri_rec(Predi, lists:zip(L, lists:seq(1, length(L)))).
-
-lists_filteri_rec(Predi, [{E, Idx} | T]) ->
-  case Predi(Idx) of
-    true ->
-      [E | lists_filteri_rec(Predi, T)];
-    false ->
-      lists_filteri_rec(Predi, T)
-  end;
-lists_filteri_rec(_, []) ->
-  [].
-
 -spec filteri(fun((dl_atom()) -> boolean()), dl_db_instance()) -> dl_db_instance().
 filteri(Predi, Set) ->
   L = sets:to_list(Set),
-  L2 = lists_filteri(Predi, L),
+  L2 = listsi:filteri(Predi, L),
   sets:from_list(L2).
 
 map(Fun, Set) ->
@@ -93,8 +79,10 @@ flatmap(Fun, Set) ->
 filter(Pred, Set) ->
   sets:filter(Pred, Set).
 
-nth_arg(N, Args) ->
-  lists:nth(N, Args).
+nth_args([], _) ->
+  [];
+nth_args([H | T], Args) ->
+  [lists:nth(H, Args) | nth_args(T, Args)].
 
 split_args(N, Args) ->
   lists:split(N, Args).
@@ -118,4 +106,4 @@ flatten(L) ->
 -spec print_db(dl_db_instance()) -> atom().
 print_db(DB) ->
   L = sets:to_list(DB),
-  lists:foreach(fun(Atom) -> utils:ppt(Atom) end, L).
+  lists:foreach(fun(Atom) -> utils:dbg_ppt(Atom) end, L).

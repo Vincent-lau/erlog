@@ -41,7 +41,6 @@ Erlang code.
 -include("data_repr.hrl").
 
 cons_dl_rule(Head, Body) ->
-  io:format("sym is ~p and arg is ~p~n", [Head, Body]),
   % Body2 = lists:map(fun ({_, _, B}) -> B end, Body),
   #dl_rule{head = Head, body = Body}.
 
