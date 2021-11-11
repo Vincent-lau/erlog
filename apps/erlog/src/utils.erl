@@ -4,7 +4,7 @@
 
 -include("../include/data_repr.hrl").
 
-
+-include_lib("kernel/include/logger.hrl").
 
 -spec to_string(dl_atom() | dl_rule()) -> string().
 to_string(#dl_atom{pred_sym = Sym, args = Args}) ->
@@ -28,23 +28,11 @@ ppt(X = #dl_rule{}) ->
 ppt(L) when is_list(L) ->
   lists:foreach(fun ppt/1, L).
 
--define(debug, 0).
-
--ifdef(debug).
-
 dbg_ppt(X) ->
   S = to_string(X),
-  io:format(standard_error, "~s~n", [S]).
+  dbg_format("~s~n", [S]).
 
 dbg_format(Format, Data) ->
-  io:format(standard_error, Format, Data).
+  logger:set_primary_config(level, all),
+  logger:debug(Format, Data).
 
--else.
-
-dbg_ppt(_) ->
-  ok.
-
-dbg_format(_, _) ->
-  ok.
-
--endif.

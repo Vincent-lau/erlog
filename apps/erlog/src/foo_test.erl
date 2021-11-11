@@ -41,8 +41,9 @@ start() ->
     db_ops:from_list(
       lists:map(fun(Args) -> #dl_atom{pred_sym = link, args = Args} end, Input)),
   Res = naive:eval_all(Prog2, EDB),
-  db_ops:print_db(
-    db_ops:get_rel_by_pred(reachable, Res)),
+  utils:dbg_format("The result database is ~s~n",
+                   [db_ops:db_to_string(
+                      db_ops:get_rel_by_pred(reachable, Res))]),
   ets:delete(table).
 
 start2() ->

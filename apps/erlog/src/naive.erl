@@ -6,7 +6,7 @@
 
 %%----------------------------------------------------------------------
 %% Function: get_proj_cols
-%% Purpose: Find Cols of Args2 that is in Args1, 1-based index
+%% Purpose: Find columns of Args2 that is in Args1, 1-based index
 %% Args:
 %% Returns:
 %% e.g. (T, Y, L) (G, T, Y, S, L, P) -> (2, 3, 5)
@@ -24,7 +24,7 @@ get_proj_cols(Args1, Args2) ->
 %%----------------------------------------------------------------------
 %% Function: get_overlap_cols
 %% Purpose:
-%% Args: Two lists of arguments
+%% Args: Args1 and Args2 Two lists of arguments
 %% Returns: {L1,L2}, where each L1 contains the col# in L1 that overlaps with Args2
 %%----------------------------------------------------------------------
 get_overlap_cols(Args1, Args2) ->
@@ -34,9 +34,12 @@ get_overlap_cols(Args1, Args2) ->
 %% Function: project_onto_head
 %% Purpose: given a database instance that contains relations with the
 %% same name, project all of them according to the cols
-%% Args:
-%% Returns:
-%% Example: P(A, B) :- R(A, B, C, D) so project cols are [1,2]
+%% Args: Atoms as the db instance, Cols as the columns that we need to project
+%% and Name as the name of the predicate onto which we project
+%% Returns: a new db instance that we have the new projected db
+%% Example: P(A, B) :- R(A, B, C, D) so project cols are [1,2] and we
+%% project everything in Atoms (which are supposed to be Rs) and rename
+%% them to P
 %%----------------------------------------------------------------------
 -spec project_onto_head(dl_db_instance(), [integer()], dl_const()) -> dl_db_instance().
 project_onto_head(Atoms, Cols, Name) ->
@@ -59,6 +62,8 @@ project_onto_head(Atoms, Cols, Name) ->
 %% P(A, B, C, X, Y, Z) :- R(A, B, C), S(X, Y, Z).
 %%
 %% JOIN (or more general ones)
+%% join of two predicates that does not overlap is a product operation
+%% and join of two predicates that completely overlaps is an intersection
 %% J(A, B, C, D) :- R(A, B), S(B, C, D).
 %%----------------------------------------------------------------------
 -spec eval_one_rule(dl_rule(), dl_db_instance()) -> dl_db_instance().
@@ -70,31 +75,36 @@ eval_one_rule(#dl_rule{head = Head, body = [B1 = #dl_atom{}]}, IDB) ->
   Cols = get_proj_cols(dl_repr:get_atom_args(Head), dl_repr:get_atom_args(B1)),
   project_onto_head(Atoms, Cols, Head#dl_atom.pred_sym);
 % PRODUCT and JOIN
-eval_one_rule(Rule = #dl_rule{head = Head, body = [R1 = #dl_atom{}, R2 = #dl_atom{}]},
+eval_one_rule(Rule = #dl_rule{head = Head, body = [A1 = #dl_atom{}, A2 = #dl_atom{}]},
               IDB) ->
-  case get_overlap_cols(R1#dl_atom.args, R2#dl_atom.args) of
-    {[], []} ->
-      % PRODUCT
-      % TODO maybe there is no need to separate product and join
-      % join becomes product when there is no overlap
-      NewAtoms = db_ops:product(IDB, R1#dl_atom.pred_sym, R2#dl_atom.pred_sym),
-      Cols = get_proj_cols(dl_repr:get_atom_args(Head), R1#dl_atom.args ++ R2#dl_atom.args),
-      project_onto_head(NewAtoms, Cols, Head#dl_atom.pred_sym);
+  case get_overlap_cols(A1#dl_atom.args, A2#dl_atom.args) of
+    % {[], []} ->
+    % PRODUCT
+    % TODO maybe there is no need to separate product and join
+    % join becomes product when there is no overlap
+    % NewAtoms = db_ops:product(IDB, A1#dl_atom.pred_sym, A2#dl_atom.pred_sym),
+    % Cols = get_proj_cols(dl_repr:get_atom_args(Head), A1#dl_atom.args ++ A2#dl_atom.args),
+    % project_onto_head(NewAtoms, Cols, Head#dl_atom.pred_sym);
     {L1, L2} ->
       % JOIN
       % e.g. J(A, B, C, D) :- R(A, B, C), S(B, C, D).
       NewAtoms =
         db_ops:join(IDB,
-                    R1#dl_atom.pred_sym,
-                    R2#dl_atom.pred_sym,
+                    A1#dl_atom.pred_sym,
+                    A2#dl_atom.pred_sym,
                     L1,
                     L2,
                     Rule#dl_rule.head#dl_atom.pred_sym),
-      utils:dbg_format("~p ~p ~p~n",
-                       [R1#dl_atom.args, R2#dl_atom.args, R1#dl_atom.args ++ R2#dl_atom.args]),
+      utils:dbg_format("joined atoms are ~s~n", [db_ops:db_to_string(NewAtoms)]),
+      utils:dbg_format("body atom1 has args~p body atom2 has args~p their combined "
+                       "args is ~p~n",
+                       [A1#dl_atom.args,
+                        A2#dl_atom.args,
+                        preproc:combine_args([A1#dl_atom.args, A2#dl_atom.args])]),
       Cols =
         get_proj_cols(dl_repr:get_atom_args(Head),
-                      preproc:combine_args([R1#dl_atom.args, R2#dl_atom.args])),
+                      preproc:combine_args([A1#dl_atom.args, A2#dl_atom.args])),
+      utils:dbg_format("projection cols are ~p~n", [Cols]),
       project_onto_head(NewAtoms, Cols, Head#dl_atom.pred_sym)
   end.
 

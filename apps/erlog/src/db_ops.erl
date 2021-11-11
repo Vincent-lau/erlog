@@ -25,6 +25,7 @@ project(DBInstance, Cols) ->
 join(Kb, PredSym1, PredSym2, C1, C2, ResName) ->
   Atoms1 = filter(fun(#dl_atom{pred_sym = Sym}) -> PredSym1 =:= Sym end, Kb),
   Atoms2 = filter(fun(#dl_atom{pred_sym = Sym}) -> PredSym2 =:= Sym end, Kb),
+  utils:dbg_format("knowledgebase is ~s sym1 is ~p sym2 is ~p~n", [db_ops:db_to_string(Kb), PredSym1, PredSym2]),
   flatmap(fun(Atom) -> join_one(Atoms2, Atom, C1, C2, ResName) end, Atoms1).
 
 -spec join_one(dl_db_instance(), dl_atom(), [integer()], [integer()], dl_const()) ->
@@ -35,6 +36,9 @@ join_one(DlAtoms, #dl_atom{args = Args}, C1, C2, ResName) ->
               lists:sort(nth_args(C2, Args2)) =:= lists:sort(nth_args(C1, Args))
            end,
            DlAtoms),
+  utils:dbg_format("dlatoms are ~s~n", [db_ops:db_to_string(DlAtoms)]),
+  utils:dbg_format("nth args ~p~n", [nth_args(C1, Args)]),
+  utils:dbg_format("selected atoms are ~s~n", [db_ops:db_to_string(SelectedAtoms)]),
   SelectedArgs =
     map(fun(#dl_atom{args = Args2}) ->
            lists:filter(fun(A) -> not lists:member(A, Args) end, Args2)
@@ -103,7 +107,7 @@ from_list(L) ->
 flatten(L) ->
   sets:union(L).
 
--spec print_db(dl_db_instance()) -> atom().
-print_db(DB) ->
+-spec db_to_string(dl_db_instance()) -> string().
+db_to_string(DB) ->
   L = sets:to_list(DB),
-  lists:foreach(fun(Atom) -> utils:dbg_ppt(Atom) end, L).
+  lists:join("\n", lists:map(fun(Atom) -> utils:to_string(Atom) end, L)).

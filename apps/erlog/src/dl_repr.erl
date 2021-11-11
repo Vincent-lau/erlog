@@ -30,9 +30,12 @@ cons_args_from_list(L) ->
 -spec get_atom_args(dl_atom()) -> [string()].
 get_atom_args(#dl_atom{args = Args}) -> Args.
 
-get_atom_name(#dl_atom{pred_sym = S}) -> S.
+get_atom_name(#dl_atom{pred_sym = S}) -> atom_to_list(S).
 
 get_rule_head(#dl_rule{head = Head}) -> Head.
+
+-spec get_rule_headname(dl_rule()) -> string().
+get_rule_headname(#dl_rule{head = Head}) -> get_atom_name(Head).
 
 get_rule_body(#dl_rule{body = Body}) -> Body.
 
