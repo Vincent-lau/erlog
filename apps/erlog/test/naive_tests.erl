@@ -1,7 +1,6 @@
 -module(naive_tests).
 
 -include_lib("eunit/include/eunit.hrl").
--include_lib("kernel/include/logger.hrl").
 
 -include("../include/data_repr.hrl").
 
@@ -137,9 +136,6 @@ eval_complete_overlapping_cols(_) ->
                       dl_repr:cons_atom("R", dl_repr:cons_args_from_list(["b", "c"]))]),
   NewDB = naive:eval_one_rule(R, DB),
   Ans = db_ops:from_list([dl_repr:cons_atom("P", dl_repr:cons_args_from_list(["b", "c"]))]),
-  utils:dbg_format("NewDB is ~s~n", [db_ops:db_to_string(NewDB)]),
-  utils:dbg_format("Ans is ~s~n", [db_ops:db_to_string(Ans)]),
-  utils:dbg_format("subtraction ~p~n", [sets:subtract(Ans, NewDB)]),
   ?_assertEqual(Ans, NewDB).
 
 %%%%%%%%%%%%%%%%%%%%%%%%

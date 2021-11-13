@@ -33,6 +33,11 @@ dbg_ppt(X) ->
   dbg_format("~s~n", [S]).
 
 dbg_format(Format, Data) ->
-  logger:set_primary_config(level, all),
-  logger:debug(Format, Data).
+  io:format(standard_error, Format, Data).
+
+
+dbg_log(Format, Data) ->
+  % logger:set_primary_config(level, all),
+  ?LOG_DEBUG(Format, Data).
+
 

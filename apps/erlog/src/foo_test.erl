@@ -3,6 +3,7 @@
 -compile(export_all).
 
 -include("../include/data_repr.hrl").
+-include("../include/utils.hrl").
 
 read_and_lex(S) ->
   case io:get_line(S, '') of
@@ -35,15 +36,16 @@ start() ->
   file:close(Stream2),
   % preprocess rules
   Prog2 = preproc:process(Prog),
+  io:format("Input program is:~n"),
   utils:ppt(Prog2),
   % create EDB from input relations
   EDB =
     db_ops:from_list(
       lists:map(fun(Args) -> #dl_atom{pred_sym = link, args = Args} end, Input)),
   Res = naive:eval_all(Prog2, EDB),
-  utils:dbg_format("The result database is ~s~n",
-                   [db_ops:db_to_string(
-                      db_ops:get_rel_by_pred(reachable, Res))]),
+  io:format("The result database is:~n~s~n",
+            [db_ops:db_to_string(
+               db_ops:get_rel_by_pred(reachable, Res))]),
   ets:delete(table).
 
 start2() ->
@@ -55,3 +57,4 @@ start2() ->
   code:load_file(utils),
   utils:ppt(R),
   io:format("~n").
+

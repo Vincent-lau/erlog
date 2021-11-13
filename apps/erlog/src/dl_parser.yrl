@@ -3,10 +3,13 @@ Header "%% Copyright (C)"
 "%% @Author Vincent".
 
 
-Nonterminals dl_prog dl_atoms dl_atom dl_rules dl_rule dl_rule_head dl_rule_body dl_term dl_terms.
+Nonterminals dl_start dl_prog dl_atoms dl_atom dl_rules dl_rule dl_rule_head dl_rule_body dl_term dl_terms.
 Terminals dl_const dl_var '(' ')' ':-' ',' '.'.
-Rootsymbol dl_prog.
+Rootsymbol dl_start.
 Endsymbol '$end'.
+
+dl_start -> dl_prog : '$1'.
+dl_start -> dl_atom : '$1'.
 
 dl_prog -> dl_rules :
   '$1'.
@@ -38,6 +41,7 @@ dl_term -> dl_var :
 
 Erlang code.
 
+% XXX use dl_repr to do this
 -include("data_repr.hrl").
 
 cons_dl_rule(Head, Body) ->

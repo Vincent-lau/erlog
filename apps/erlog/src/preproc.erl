@@ -44,10 +44,12 @@ combine_atoms(HeadName, Atoms) ->
 
 %%----------------------------------------------------------------------
 %% Function:
-%% Purpose: Takes a list of atoms, generate a head atom that has all the args
-%% and the head atom has a random name
-%% Args: A list of atoms
-%% Returns: A rule
+%% Purpose: Takes a list of list of args, flatten the list and unique all
+%% args according to the order they appear
+%% Args: A list of lists of args
+%% Returns: A flattened list with unique args
+%%
+%% Example: [[c, b, a], [a, b, d]] -> [c, b, a, d]
 %%----------------------------------------------------------------------
 -spec combine_args([[dl_term()]]) -> [dl_term()].
 combine_args(ArgsL) ->

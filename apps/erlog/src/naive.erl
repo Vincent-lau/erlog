@@ -4,6 +4,8 @@
 
 -include("../include/data_repr.hrl").
 
+-include_lib("../include/utils.hrl").
+
 %%----------------------------------------------------------------------
 %% Function: get_proj_cols
 %% Purpose: Find columns of Args2 that is in Args1, 1-based index
@@ -37,14 +39,18 @@ get_overlap_cols(Args1, Args2) ->
 %% Args: Atoms as the db instance, Cols as the columns that we need to project
 %% and Name as the name of the predicate onto which we project
 %% Returns: a new db instance that we have the new projected db
+%%
 %% Example: P(A, B) :- R(A, B, C, D) so project cols are [1,2] and we
 %% project everything in Atoms (which are supposed to be Rs) and rename
 %% them to P
 %%----------------------------------------------------------------------
 -spec project_onto_head(dl_db_instance(), [integer()], dl_const()) -> dl_db_instance().
 project_onto_head(Atoms, Cols, Name) ->
+  ?LOG_TOPIC_DEBUG(project_onto_head,
+                   #{db_pre_projection => db_ops:db_to_string(Atoms), projected_cols => Cols}),
   Proj = db_ops:project(Atoms, Cols),
-  db_ops:rename_pred(Proj, Name).
+  ?LOG_TOPIC_DEBUG(project_onto_head, #{projected_db => db_ops:db_to_string(Proj)}),
+  db_ops:rename_pred(Name, Proj).
 
 %%----------------------------------------------------------------------
 %% Function: eval_one_rule
@@ -71,7 +77,7 @@ project_onto_head(Atoms, Cols, Name) ->
 eval_one_rule(#dl_rule{head = Head, body = [B1 = #dl_atom{}]}, IDB) ->
   % first find all relations with the same pred as the rule in IDB
   % then need to find columns that needs to be projected
-  Atoms = db_ops:get_rel_by_pred(IDB, B1#dl_atom.pred_sym),
+  Atoms = db_ops:get_rel_by_pred(B1#dl_atom.pred_sym, IDB),
   Cols = get_proj_cols(dl_repr:get_atom_args(Head), dl_repr:get_atom_args(B1)),
   project_onto_head(Atoms, Cols, Head#dl_atom.pred_sym);
 % PRODUCT and JOIN
@@ -80,7 +86,6 @@ eval_one_rule(Rule = #dl_rule{head = Head, body = [A1 = #dl_atom{}, A2 = #dl_ato
   case get_overlap_cols(A1#dl_atom.args, A2#dl_atom.args) of
     % {[], []} ->
     % PRODUCT
-    % TODO maybe there is no need to separate product and join
     % join becomes product when there is no overlap
     % NewAtoms = db_ops:product(IDB, A1#dl_atom.pred_sym, A2#dl_atom.pred_sym),
     % Cols = get_proj_cols(dl_repr:get_atom_args(Head), A1#dl_atom.args ++ A2#dl_atom.args),
@@ -95,16 +100,14 @@ eval_one_rule(Rule = #dl_rule{head = Head, body = [A1 = #dl_atom{}, A2 = #dl_ato
                     L1,
                     L2,
                     Rule#dl_rule.head#dl_atom.pred_sym),
-      utils:dbg_format("joined atoms are ~s~n", [db_ops:db_to_string(NewAtoms)]),
-      utils:dbg_format("body atom1 has args~p body atom2 has args~p their combined "
-                       "args is ~p~n",
-                       [A1#dl_atom.args,
-                        A2#dl_atom.args,
-                        preproc:combine_args([A1#dl_atom.args, A2#dl_atom.args])]),
+      ?LOG_TOPIC_DEBUG(eval_one_rule,
+                       #{atoms_to_be_joined => db_ops:db_to_string(IDB),
+                         c1 => L1,
+                         c2 => L2}),
+      ?LOG_TOPIC(eval_one_rule, debug, #{joined_atoms => db_ops:db_to_string(NewAtoms)}),
       Cols =
         get_proj_cols(dl_repr:get_atom_args(Head),
                       preproc:combine_args([A1#dl_atom.args, A2#dl_atom.args])),
-      utils:dbg_format("projection cols are ~p~n", [Cols]),
       project_onto_head(NewAtoms, Cols, Head#dl_atom.pred_sym)
   end.
 
@@ -123,8 +126,12 @@ is_fixpoint(OldDB, NewDB) ->
 %% returns the final db instance
 -spec eval_all(dl_program(), dl_db_instance()) -> dl_db_instance().
 eval_all(Program, EDB) ->
+  ?LOG_TOPIC_DEBUG(eval, #{initial_db => db_ops:db_to_string(EDB)}),
   NewDB = imm_conseq(Program, EDB),
+  ?LOG_TOPIC_DEBUG(eval, #{after_imm_cq_db => db_ops:db_to_string(NewDB)}),
   FullDB = db_ops:add_db_unique(EDB, NewDB),
+  ?LOG_TOPIC_DEBUG(eval, #{added_new_tuples_to_db => db_ops:db_to_string(FullDB)}),
+
   case is_fixpoint(FullDB, EDB) of
     true ->
       FullDB;
