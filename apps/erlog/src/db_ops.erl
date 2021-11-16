@@ -2,6 +2,8 @@
 
 -compile(export_all).
 
+-import(dl_repr, [cons_const/1]).
+
 -include("../include/data_repr.hrl").
 -include("../include/utils.hrl").
 
@@ -11,9 +13,6 @@
 
 -spec project(dl_db_instance(), [integer()]) -> dl_db_instance().
 project(DBInstance, Cols) ->
-  ?LOG_TOPIC_DEBUG(db_ops_project,
-                   #{projection_cols => Cols,
-                     db_pre_projection => db_ops:db_to_string(DBInstance)}),
   map(fun(Atom = #dl_atom{args = Args}) ->
          Atom#dl_atom{args = listsi:filteri(fun(_, I) -> lists:member(I, Cols) end, Args)}
       end,
@@ -98,7 +97,7 @@ split_args(N, Args) ->
 
 -spec equal(dl_db_instance(), dl_db_instance()) -> boolean().
 equal(DB1, DB2) ->
-  DB1 =:= DB2.
+  sets:is_subset(DB1, DB2) andalso sets:is_subset(DB2, DB1).
 
 -spec add_db_unique(dl_db_instance(), dl_db_instance()) -> dl_db_instance().
 add_db_unique(CurDB, NewDB) ->

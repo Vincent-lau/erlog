@@ -1,4 +1,4 @@
--module(naive).
+-module(eval).
 
 -compile(export_all).
 
@@ -46,10 +46,7 @@ get_overlap_cols(Args1, Args2) ->
 %%----------------------------------------------------------------------
 -spec project_onto_head(dl_db_instance(), [integer()], dl_const()) -> dl_db_instance().
 project_onto_head(Atoms, Cols, Name) ->
-  ?LOG_TOPIC_DEBUG(project_onto_head,
-                   #{db_pre_projection => db_ops:db_to_string(Atoms), projected_cols => Cols}),
   Proj = db_ops:project(Atoms, Cols),
-  ?LOG_TOPIC_DEBUG(project_onto_head, #{projected_db => db_ops:db_to_string(Proj)}),
   db_ops:rename_pred(Name, Proj).
 
 %%----------------------------------------------------------------------
@@ -101,10 +98,11 @@ eval_one_rule(Rule = #dl_rule{head = Head, body = [A1 = #dl_atom{}, A2 = #dl_ato
                     L2,
                     Rule#dl_rule.head#dl_atom.pred_sym),
       ?LOG_TOPIC_DEBUG(eval_one_rule,
-                       #{atoms_to_be_joined => db_ops:db_to_string(IDB),
+                       #{rule => utils:to_string(Rule),
+                         atoms_to_be_joined => db_ops:db_to_string(IDB),
                          c1 => L1,
                          c2 => L2}),
-      ?LOG_TOPIC(eval_one_rule, debug, #{joined_atoms => db_ops:db_to_string(NewAtoms)}),
+      ?LOG_TOPIC_DEBUG(eval_one_rule, #{joined_atoms => db_ops:db_to_string(NewAtoms)}),
       Cols =
         get_proj_cols(dl_repr:get_atom_args(Head),
                       preproc:combine_args([A1#dl_atom.args, A2#dl_atom.args])),
@@ -126,11 +124,11 @@ is_fixpoint(OldDB, NewDB) ->
 %% returns the final db instance
 -spec eval_all(dl_program(), dl_db_instance()) -> dl_db_instance().
 eval_all(Program, EDB) ->
-  ?LOG_TOPIC_DEBUG(eval, #{initial_db => db_ops:db_to_string(EDB)}),
+  ?LOG_TOPIC_DEBUG(eval_all, #{initial_db => db_ops:db_to_string(EDB)}),
   NewDB = imm_conseq(Program, EDB),
-  ?LOG_TOPIC_DEBUG(eval, #{after_imm_cq_db => db_ops:db_to_string(NewDB)}),
+  ?LOG_TOPIC_DEBUG(eval_all, #{after_imm_cq_db => db_ops:db_to_string(NewDB)}),
   FullDB = db_ops:add_db_unique(EDB, NewDB),
-  ?LOG_TOPIC_DEBUG(eval, #{added_new_tuples_to_db => db_ops:db_to_string(FullDB)}),
+  ?LOG_TOPIC_DEBUG(eval_all, #{added_new_tuples_to_db => db_ops:db_to_string(FullDB)}),
 
   case is_fixpoint(FullDB, EDB) of
     true ->

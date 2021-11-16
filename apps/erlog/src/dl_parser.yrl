@@ -9,7 +9,7 @@ Rootsymbol dl_start.
 Endsymbol '$end'.
 
 dl_start -> dl_prog : '$1'.
-dl_start -> dl_atom : '$1'.
+dl_start -> dl_atoms : '$1'.
 
 dl_prog -> dl_rules :
   '$1'.
@@ -26,6 +26,8 @@ dl_rule_body -> dl_atoms :
   '$1'.
 dl_atoms -> dl_atom ','  dl_atoms : 
   [ '$1' | '$3' ].
+dl_atoms -> dl_atom dl_atoms:
+  [ '$1' | '$2' ].
 dl_atoms -> dl_atom : 
   ['$1'].
 dl_atom -> dl_const '(' dl_terms ')' : 

@@ -1,8 +1,10 @@
--module(naive_tests).
+-module(eval_tests).
 
 -include_lib("eunit/include/eunit.hrl").
 
 -include("../include/data_repr.hrl").
+
+-import(dl_repr, [cons_atom/2, cons_rule/2, cons_args_from_list/1, get_rule_headname/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% TESTS DESCRIPTIONS %%%
@@ -48,17 +50,17 @@ start_one_iter() ->
 %%%%%%%%%%%%%%%%%%%%
 
 eval_to_end({Program, EDB}) ->
-  FinalIDB = naive:eval_all(Program, EDB),
+  FinalIDB = eval:eval_all(Program, EDB),
   [?_assertEqual(final_db(), FinalIDB)].
 
 trans_closure_rule({[_, Rule2], EDB}) ->
-  DeltaAtoms = naive:eval_one_rule(Rule2, EDB),
+  DeltaAtoms = eval:eval_one_rule(Rule2, EDB),
   [?_assertEqual(db_ops:from_list([#dl_atom{pred_sym = reachable, args = [a, c]},
                                    #dl_atom{pred_sym = reachable, args = [b, d]}]),
                  DeltaAtoms)].
 
 singleton_rule({[R1, _], EDB}) ->
-  DeltaAtoms = naive:eval_one_rule(R1, EDB),
+  DeltaAtoms = eval:eval_one_rule(R1, EDB),
   [?_assertEqual(db_ops:from_list([#dl_atom{pred_sym = reachable, args = [a, b]},
                                    #dl_atom{pred_sym = reachable, args = [b, c]},
                                    #dl_atom{pred_sym = reachable, args = [c, d]}]),
@@ -66,76 +68,57 @@ singleton_rule({[R1, _], EDB}) ->
 
 multi_proj_cols(_) ->
   {Args1, Args2} = overlapping_args(),
-  L = naive:get_proj_cols(Args1, Args2),
+  L = eval:get_proj_cols(Args1, Args2),
   [?_assertEqual([2, 3, 5], L)].
 
 multi_overlap_cols(_) ->
   {Args1, Args2} = overlapping_args(),
-  {L1, L2} = naive:get_overlap_cols(Args1, Args2),
+  {L1, L2} = eval:get_overlap_cols(Args1, Args2),
   [?_assertEqual(length(L1), length(L2)),
    ?_assertEqual([1, 2, 3], L1),
    ?_assertEqual([2, 3, 5], L2)].
 
 eval_multi_overlapping_cols(_) ->
-  R = dl_repr:cons_rule(
-        dl_repr:cons_atom("R", dl_repr:cons_args_from_list(["X", "Y", "L", "G", "T", "S", "P"])),
-        [dl_repr:cons_atom("R1", dl_repr:cons_args_from_list(["X", "Y", "L"])),
-         dl_repr:cons_atom("R2", dl_repr:cons_args_from_list(["G", "T", "Y", "S", "L", "P"]))]),
+  R = cons_rule(cons_atom("R", cons_args_from_list(["X", "Y", "L", "G", "T", "S", "P"])),
+                [cons_atom("R1", cons_args_from_list(["X", "Y", "L"])),
+                 cons_atom("R2", cons_args_from_list(["G", "T", "Y", "S", "L", "P"]))]),
   DB =
-    db_ops:from_list([dl_repr:cons_atom("R1", dl_repr:cons_args_from_list(["a", "b", "c"])),
-                      dl_repr:cons_atom("R2",
-                                        dl_repr:cons_args_from_list(["d",
-                                                                     "f",
-                                                                     "b",
-                                                                     "e",
-                                                                     "c",
-                                                                     "g"])),
-                      dl_repr:cons_atom("R2",
-                                        dl_repr:cons_args_from_list(["d",
-                                                                     "f",
-                                                                     "b",
-                                                                     "e",
-                                                                     "b",
-                                                                     "g"]))]),
-  NewDB = naive:eval_one_rule(R, DB),
+    db_ops:from_list([cons_atom("R1", cons_args_from_list(["a", "b", "c"])),
+                      cons_atom("R2", cons_args_from_list(["d", "f", "b", "e", "c", "g"])),
+                      cons_atom("R2", cons_args_from_list(["d", "f", "b", "e", "b", "g"]))]),
+  NewDB = eval:eval_one_rule(R, DB),
   Ans =
-    db_ops:from_list([dl_repr:cons_atom(
-                        dl_repr:get_rule_headname(R),
-                        dl_repr:cons_args_from_list(["a", "b", "c", "d", "f", "e", "g"]))]),
+    db_ops:from_list([cons_atom(get_rule_headname(R),
+                                cons_args_from_list(["a", "b", "c", "d", "f", "e", "g"]))]),
 
   [?_assertEqual(Ans, NewDB)].
 
 eval_no_overlapping_cols(_) ->
-  R = dl_repr:cons_rule(
-        dl_repr:cons_atom("R", dl_repr:cons_args_from_list(["M", "N", "P", "Q"])),
-        [dl_repr:cons_atom("R1", dl_repr:cons_args_from_list(["M", "N"])),
-         dl_repr:cons_atom("R2", dl_repr:cons_args_from_list(["P", "Q"]))]),
+  R = cons_rule(cons_atom("R", cons_args_from_list(["M", "N", "P", "Q"])),
+                [cons_atom("R1", cons_args_from_list(["M", "N"])),
+                 cons_atom("R2", cons_args_from_list(["P", "Q"]))]),
   DB =
-    db_ops:from_list([dl_repr:cons_atom("R1", dl_repr:cons_args_from_list(["a", "b"])),
-                      dl_repr:cons_atom("R1", dl_repr:cons_args_from_list(["c", "d"])),
-                      dl_repr:cons_atom("R2", dl_repr:cons_args_from_list(["e", "f"]))]),
-  NewDB = naive:eval_one_rule(R, DB),
+    db_ops:from_list([cons_atom("R1", cons_args_from_list(["a", "b"])),
+                      cons_atom("R1", cons_args_from_list(["c", "d"])),
+                      cons_atom("R2", cons_args_from_list(["e", "f"]))]),
+  NewDB = eval:eval_one_rule(R, DB),
   Ans =
-    db_ops:from_list([dl_repr:cons_atom(
-                        dl_repr:get_rule_headname(R),
-                        dl_repr:cons_args_from_list(["a", "b", "e", "f"])),
-                      dl_repr:cons_atom(
-                        dl_repr:get_rule_headname(R),
-                        dl_repr:cons_args_from_list(["c", "d", "e", "f"]))]),
+    db_ops:from_list([cons_atom(get_rule_headname(R),
+                                cons_args_from_list(["a", "b", "e", "f"])),
+                      cons_atom(get_rule_headname(R), cons_args_from_list(["c", "d", "e", "f"]))]),
   ?_assertEqual(Ans, NewDB).
 
 % TODO use parser to generate these stuff
 eval_complete_overlapping_cols(_) ->
-  R = dl_repr:cons_rule(
-        dl_repr:cons_atom("P", dl_repr:cons_args_from_list(["X", "Y"])),
-        [dl_repr:cons_atom("Q", dl_repr:cons_args_from_list(["X", "Y"])),
-         dl_repr:cons_atom("R", dl_repr:cons_args_from_list(["X", "Y"]))]),
+  R = cons_rule(cons_atom("P", cons_args_from_list(["X", "Y"])),
+                [cons_atom("Q", cons_args_from_list(["X", "Y"])),
+                 cons_atom("R", cons_args_from_list(["X", "Y"]))]),
   DB =
-    db_ops:from_list([dl_repr:cons_atom("Q", dl_repr:cons_args_from_list(["a", "b"])),
-                      dl_repr:cons_atom("Q", dl_repr:cons_args_from_list(["b", "c"])),
-                      dl_repr:cons_atom("R", dl_repr:cons_args_from_list(["b", "c"]))]),
-  NewDB = naive:eval_one_rule(R, DB),
-  Ans = db_ops:from_list([dl_repr:cons_atom("P", dl_repr:cons_args_from_list(["b", "c"]))]),
+    db_ops:from_list([cons_atom("Q", cons_args_from_list(["a", "b"])),
+                      cons_atom("Q", cons_args_from_list(["b", "c"])),
+                      cons_atom("R", cons_args_from_list(["b", "c"]))]),
+  NewDB = eval:eval_one_rule(R, DB),
+  Ans = db_ops:from_list([cons_atom("P", cons_args_from_list(["b", "c"]))]),
   ?_assertEqual(Ans, NewDB).
 
 %%%%%%%%%%%%%%%%%%%%%%%%
@@ -182,6 +165,6 @@ link_atom(Arg1, Arg2) ->
   #dl_atom{pred_sym = link, args = [Arg1, Arg2]}.
 
 overlapping_args() ->
-  Args1 = dl_repr:cons_args_from_list(["T", "Y", "L"]),
-  Args2 = dl_repr:cons_args_from_list(["G", "T", "Y", "S", "L", "P"]),
+  Args1 = cons_args_from_list(["T", "Y", "L"]),
+  Args2 = cons_args_from_list(["G", "T", "Y", "S", "L", "P"]),
   {Args1, Args2}.

@@ -4,7 +4,7 @@
 
 -record(dl_atom, {pred_sym, args}).
 
--type dl_atom() :: #dl_atom{pred_sym :: atom(), args :: [dl_term()]}.
+-type dl_atom() :: #dl_atom{pred_sym :: dl_const(), args :: [dl_term()]}.
 
 -record(dl_rule, {head, body}).
 

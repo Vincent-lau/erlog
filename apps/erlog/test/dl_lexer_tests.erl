@@ -21,7 +21,7 @@ start() ->
   ok.
 
 start_file() ->
-  {ok, Stream} = file:open("apps/erlog/test/test_tc.dl", [read]),
+  {ok, Stream} = file:open("apps/erlog/test/eval_SUITE_data/tc.dl", [read]),
   Stream.
 
 cleanup_file(S) ->

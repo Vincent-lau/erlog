@@ -68,12 +68,12 @@ combine_args(ArgsL) ->
 
 -spec random_name() -> string().
 random_name() ->
-  N = case ets:lookup(table, counter) of
+  N = case ets:lookup(dl_atom_names, counter) of
         [] ->
           0;
         [{_, X}] ->
           X
       end,
   Name = "_name" ++ integer_to_list(N),
-  ets:insert(table, {counter, N + 1}),
+  ets:insert(dl_atom_names, {counter, N + 1}),
   Name.

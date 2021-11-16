@@ -25,13 +25,13 @@ combine_args_test_() ->
 %%%%%%%%%%%%%%%%%%%%%%
 
 start() ->
-  ets:new(table, [named_table, public]),
+  ets:new(dl_atom_names, [named_table, public]),
   A1 = dl_repr:cons_atom("c", ["X", "Y"]),
   A2 = dl_repr:cons_atom("d", ["Y", "Z"]),
   [A1, A2].
 
 start2() ->
-  ets:new(table, [named_table, public]),
+  ets:new(dl_atom_names, [named_table, public]),
   A1 = dl_repr:cons_atom("a", ["X", "Y", "Z"]),
   A2 = dl_repr:cons_atom("b", ["W", "X"]),
   A3 = dl_repr:cons_atom("c", ["X", "Y"]),
@@ -39,7 +39,7 @@ start2() ->
   dl_repr:cons_rule(A1, [A2, A3, A4]).
 
 stop(_) ->
-  ets:delete(table).
+  ets:delete(dl_atom_names).
 
 %%%%%%%%%%%%%%%%%%%%
 %%% ACTUAL TESTS %%%

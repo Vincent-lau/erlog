@@ -6,18 +6,27 @@
 
 -include_lib("kernel/include/logger.hrl").
 
--spec to_string(dl_atom() | dl_rule()) -> string().
+-spec to_string(dl_atom() | dl_rule() | dl_program() | [dl_atom()]) -> string().
+to_string(Atoms = [#dl_atom{} | _]) ->
+  AtomS = lists:map(fun to_string/1, Atoms),
+  lists:join("\n", AtomS);
+to_string(P = [#dl_rule{} | _]) ->
+  Rules = lists:map(fun to_string/1, P),
+  lists:join("\n", Rules);
 to_string(#dl_atom{pred_sym = Sym, args = Args}) ->
   io_lib:format("~w(~s)", [Sym, to_string(Args)]);
 to_string(#dl_rule{head = Head, body = Body}) ->
   Atoms = lists:map(fun to_string/1, Body),
-  to_string(Head) ++ " :- " ++ string:join(Atoms, ", ") ++ ".";
-to_string(L = [H | _]) when is_list(H) ->
-  string:join(L, ",");
-to_string(L = [H | _]) when is_atom(H) ->
+  to_string(Head) ++ " :- " ++ lists:join(", ", Atoms) ++ ".";
+to_string(L = [H | _])
+  when is_list(H) -> % when the arg is a var/string
+  lists:join(",", L);
+to_string(L = [H | _])
+  when is_atom(H) -> % when the args is a const
   L2 = lists:map(fun atom_to_list/1, L),
-  string:join(L2, ", ").
+  lists:join(", ", L2).
 
+% TODO remove this function
 -spec ppt(dl_atom() | dl_rule() | dl_program()) -> ok.
 ppt(X = #dl_atom{}) ->
   S = to_string(X),
@@ -35,9 +44,6 @@ dbg_ppt(X) ->
 dbg_format(Format, Data) ->
   io:format(standard_error, Format, Data).
 
-
 dbg_log(Format, Data) ->
   % logger:set_primary_config(level, all),
   ?LOG_DEBUG(Format, Data).
-
-
