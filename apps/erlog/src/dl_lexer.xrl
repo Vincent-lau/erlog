@@ -9,6 +9,10 @@ BRAC = \(|\)
 TERMINATOR = \.
 CONNECT = :-
 COMMENT = (//)
+QUOTE = "
+
+
+%" this line is to make syntax highlighting work
 
 % D = [0-9]
 
@@ -25,8 +29,10 @@ Rules.
 {COMMENT}.*{EOL} : skip_token.
 {WHITESPACE} : skip_token.
 {EOL} : skip_token. 
-{Const} : 
+{Const} :
   {token, {dl_const, TokenLine, list_to_atom(TokenChars)}}.
+{QUOTE}{Const}{QUOTE} : 
+  {token, {dl_const, TokenLine, list_to_atom(string:trim(TokenChars, both, "\""))}}.
 {Var} :
   {token, {dl_var, TokenLine, TokenChars}}.
 {COMMA} : {token, {list_to_atom(TokenChars), TokenLine}}.

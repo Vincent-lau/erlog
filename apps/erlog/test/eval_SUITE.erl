@@ -25,16 +25,12 @@ end_per_testcase(rsg_tests, Config) ->
 eval_tests(Config, ProgName, QryName) ->
   % open file and read program
   {ok, Stream} = file:open(?config(data_dir, Config) ++ ProgName ++ ".dl", [read]),
-  Prog = lex_and_parse(Stream),
+  {Facts, Rules} = lex_and_parse(Stream),
   file:close(Stream),
   % preprocess rules
-  Prog2 = preproc:process(Prog),
+  Prog2 = preproc:process(Rules),
   ct:pal("Input program is:~n~s~n", [utils:to_string(Prog2)]),
 
-  % open file and read input
-  {ok, Stream2} = file:open(?config(data_dir, Config) ++ ProgName ++ ".facts", [read]),
-  Facts = lex_and_parse(Stream2),
-  file:close(Stream2),
   ct:pal("input data is ~p~n", [Facts]),
   % create EDB from input relations
   EDB = db_ops:from_list(Facts),
@@ -57,7 +53,9 @@ rsg_tests(Config) ->
 lex_and_parse(S) ->
   Tokens = read_and_lex(S),
   {ok, Prog} = dl_parser:parse(Tokens),
-  Prog.
+  Facts = lists:filter(fun dl_repr:is_dl_atom/1, Prog),
+  Rules = lists:filter(fun dl_repr:is_dl_rule/1, Prog),
+  {Facts, Rules}.
 
 read_and_lex(S) ->
   case io:get_line(S, '') of

@@ -73,8 +73,10 @@ start3() ->
   {ok, Stream} = file:open("apps/erlog/test/eval_SUITE_data/tc.dl", [read]),
   Tokens = read_and_lex(Stream),
   {ok, Prog} = dl_parser:parse(Tokens),
+  Facts = lists:filter(fun(F) -> element(1, F) =:= dl_atom end, Prog),
+  Rules = lists:filter(fun(R) -> element(1, R) =:= dl_rule end, Prog),
   file:close(Stream),
-  io:format("~s~n", [utils:to_string(Prog)]),
+  io:format("Prog is ~n~s~n Facts are ~n~s~n", [utils:to_string(Rules), utils:to_string(Facts)]),
   ets:delete(dl_atom_names).
 
 start4() ->

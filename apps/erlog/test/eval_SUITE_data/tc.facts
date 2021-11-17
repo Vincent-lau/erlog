@@ -1,6 +1,0 @@
-link(a, b)
-link(b, c)
-link(c, c)
-link(c, d)
-link(d,	e)
-link(e,	f)
