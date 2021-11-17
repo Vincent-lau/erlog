@@ -12,16 +12,24 @@
 %% Args:
 %% Returns:
 %% e.g. (T, Y, L) (G, T, Y, S, L, P) -> (2, 3, 5)
+%% this needs to be order preserving as well, i.e. matching the head of
+%% the rule
+%% e.g.
+%% (X, Y) :- (Y, X) -> then we should project column 2 first and then
+%% column 1, and then the return value of this function should be [2, 1]
+%%
+%% so the strategy is to iterate over Args1 and see whether each element
+%% is in Args2, if so, what is the index of that element in *Args1*
 %%----------------------------------------------------------------------
 -spec get_proj_cols([string()], [string()]) -> [integer()].
 get_proj_cols(Args1, Args2) ->
-  listsi:filtermapi(fun(E, Idx) ->
-                       case lists:member(E, Args1) of
-                         false -> false;
-                         true -> {true, Idx}
-                       end
-                    end,
-                    Args2).
+  lists:filtermap(fun(E) ->
+                     case listsi:index_of(E, Args2) of
+                       not_found -> false;
+                       I -> {true, I}
+                     end
+                  end,
+                  Args1).
 
 %%----------------------------------------------------------------------
 %% Function: get_overlap_cols

@@ -11,7 +11,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 get_proj_cols_test_() ->
-  [{"test getting correct projection cols", {setup, fun start/0, fun multi_proj_cols/1}}].
+  [{"test getting correct projection cols", {setup, fun start/0, fun multi_proj_cols/1}},
+  {"test swapping column order", {setup, fun start/0, fun swap_cols/1}}].
 
 get_overlap_cols_test_() ->
   [{"test getting correct overlapping cols",
@@ -70,6 +71,13 @@ multi_proj_cols(_) ->
   {Args1, Args2} = overlapping_args(),
   L = eval:get_proj_cols(Args1, Args2),
   [?_assertEqual([2, 3, 5], L)].
+
+swap_cols(_) ->
+  Args1 = cons_args_from_list(["X", "Y"]),
+  Args2 = cons_args_from_list(["Y", "X"]),
+  L = eval:get_proj_cols(Args1, Args2),
+  ?_assertEqual([2, 1], L).
+
 
 multi_overlap_cols(_) ->
   {Args1, Args2} = overlapping_args(),

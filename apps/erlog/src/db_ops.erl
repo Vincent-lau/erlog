@@ -11,12 +11,43 @@
 %% RA operations
 %%----------------------------------------------------------------------
 
+%%----------------------------------------------------------------------
+%% Function: project
+%% Purpose: given a db instance, and columns to project, output the db
+%% with all atoms projected. This needs to be order preserving.
+%% Args:
+%% Returns:
+%%
+%% Example: ordering preserving P(a, b, c) [2,1] -> P(b, a)
+%%----------------------------------------------------------------------
 -spec project(dl_db_instance(), [integer()]) -> dl_db_instance().
 project(DBInstance, Cols) ->
-  map(fun(Atom = #dl_atom{args = Args}) ->
-         Atom#dl_atom{args = listsi:filteri(fun(_, I) -> lists:member(I, Cols) end, Args)}
-      end,
-      DBInstance).
+  map(fun(Atom) -> project_atom(Atom, Cols) end, DBInstance).
+
+%%----------------------------------------------------------------------
+%% Function: project_atom
+%% Purpose: given an atom and columns to be projected, project the atom
+%% preserving the order
+%% Args:
+%% Returns:
+%%
+%%----------------------------------------------------------------------
+-spec project_atom(dl_atom(), [integer()]) -> dl_atom().
+project_atom(A = #dl_atom{args = Args}, Cols) ->
+  A#dl_atom{args = project_args(Args, Cols)}.
+
+%%----------------------------------------------------------------------
+%% Function: project_args
+%% Purpose: order preserving argument projection
+%% Args:
+%% Returns:
+%%
+%%----------------------------------------------------------------------
+-spec project_args([dl_term()], [integer()]) -> [dl_term()].
+project_args(_, []) ->
+  [];
+project_args(Args, [C | Cs]) ->
+  [lists:nth(C, Args) | project_args(Args, Cs)].
 
 -spec join(dl_db_instance(), atom(), atom(), [integer()], [integer()], atom()) ->
             dl_db_instance().
@@ -64,6 +95,10 @@ rename_pred(NewPred, DB) ->
 %%----------------------------------------------------------------------
 %% operations on db representations
 %%----------------------------------------------------------------------
+
+-spec new() -> dl_db_instance().
+new() ->
+  sets:new().
 
 -spec filteri(fun((dl_atom()) -> boolean()), dl_db_instance()) -> dl_db_instance().
 filteri(Predi, Set) ->

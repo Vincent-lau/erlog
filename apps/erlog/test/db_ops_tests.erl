@@ -4,6 +4,9 @@
 
 -include("../include/data_repr.hrl").
 
+-import(dl_repr, [cons_atom/2]).
+-import(db_ops, [from_list/1]).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% TESTS DESCRIPTIONS %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -18,9 +21,8 @@ join_test_() ->
 
 project_test_() ->
   [{"Basic projection test", {setup, fun start/0, fun project_2tuples/1}},
-   {"Projecting multiple cols", {setup, fun start/0, fun project_multiple/1}}].
-
-
+   {"Projecting multiple cols", {setup, fun start/0, fun project_multiple/1}},
+   {"Projection preserves ordering", {setup, fun start/0, fun ordered_projection/1}}].
 
 %%%%%%%%%%%%%%%%%%%%%%%
 %%% SETUP FUNCTIONS %%%
@@ -50,6 +52,11 @@ project_2tuples(_) ->
   [?_assertEqual(db_ops:from_list([#dl_atom{pred_sym = t1, args = [c]},
                                    #dl_atom{pred_sym = t2, args = [d]}]),
                  R)].
+
+ordered_projection(_) ->
+  DB = from_list([cons_atom("t1", ["a", "b", "c"])]),
+  R = db_ops:project(DB, [3, 1, 2]),
+  ?_assertEqual(from_list([cons_atom("t1", ["c", "a", "b"])]), R).
 
 join_singleton_list(_) ->
   Link1 = #dl_atom{pred_sym = link, args = [b, c]},
@@ -90,4 +97,3 @@ join_on_inner_cols(_) ->
   Delta = db_ops:join(Kb, reachable, link, [2], [3], reachable),
   [?_assertEqual(db_ops:from_list([#dl_atom{pred_sym = reachable, args = [a, d, f, b, c]}]),
                  Delta)].
-

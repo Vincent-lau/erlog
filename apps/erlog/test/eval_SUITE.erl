@@ -3,23 +3,28 @@
 -include_lib("common_test/include/ct.hrl").
 
 -export([all/0, init_per_testcase/2, end_per_testcase/2]).
--export([tc_tests/1, rsg_tests/1]).
+-export([tc_tests/1, rsg_tests/1, marrying_a_widower_tests/1]).
 
 -import(dl_repr, [cons_atom/2, cons_const/1]).
 
 all() ->
-  [tc_tests, rsg_tests].
+  [tc_tests, rsg_tests, marrying_a_widower_tests].
 
 init_per_testcase(tc_tests, Config) ->
   TabId = ets:new(dl_atom_names, [named_table]),
   [{table, TabId} | Config];
 init_per_testcase(rsg_tests, Config) ->
   TabId = ets:new(dl_atom_names, [named_table]),
+  [{table, TabId} | Config];
+init_per_testcase(marrying_a_widower_tests, Config) ->
+  TabId = ets:new(dl_atom_names, [named_table]),
   [{table, TabId} | Config].
 
 end_per_testcase(tc_tests, Config) ->
   ets:delete(?config(table, Config));
 end_per_testcase(rsg_tests, Config) ->
+  ets:delete(?config(table, Config));
+end_per_testcase(marrying_a_widower_tests, Config) ->
   ets:delete(?config(table, Config)).
 
 eval_tests(Config, ProgName, QryName) ->
@@ -49,6 +54,9 @@ tc_tests(Config) ->
 
 rsg_tests(Config) ->
   eval_tests(Config, "rsg", "rsg").
+
+marrying_a_widower_tests(Config) ->
+  eval_tests(Config, "marrying-a-widower", "grandfather").
 
 lex_and_parse(S) ->
   Tokens = read_and_lex(S),
