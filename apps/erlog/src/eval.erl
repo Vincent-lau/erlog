@@ -6,6 +6,8 @@
 
 -include_lib("../include/utils.hrl").
 
+-import(db_ops, [db_to_string/1]).
+
 %%----------------------------------------------------------------------
 %% Function: get_proj_cols
 %% Purpose: Find columns of Args2 that is in Args1, 1-based index
@@ -128,11 +130,53 @@ imm_conseq(Program, IDB) ->
 is_fixpoint(OldDB, NewDB) ->
   db_ops:equal(OldDB, NewDB).
 
+is_fixpoint(NewDB) ->
+  db_ops:is_empty(NewDB).
+
+
+%%----------------------------------------------------------------------
+%% Function: static_relation
+%% Purpose: Given a rule, return whether the head of the rule is a static
+%% relation by looking at its body. If ALL body atoms appear in the EDB,
+%% then yes.
+%% Args:
+%% Returns:
+%%----------------------------------------------------------------------
+-spec static_relation(dl_rule(), dl_db_instance()) -> boolean().
+static_relation(#dl_rule{body = Body}, EDB) ->
+  lists:all(fun(#dl_atom{pred_sym = PS}) ->
+               DB = db_ops:get_rel_by_pred(PS, EDB),
+               not db_ops:is_empty(DB)
+            end,
+            Body).
+
+-spec find_static_db(dl_program(), dl_db_instance(), dl_db_instance()) ->
+                      dl_db_instance().
+find_static_db(Program, EDB, OneIterDB) ->
+  StaticNames =
+    lists:filtermap(fun(Rule = #dl_rule{head = #dl_atom{pred_sym = PS}}) ->
+                       case static_relation(Rule, EDB) of
+                         false -> false;
+                         true -> {true, PS}
+                       end
+                    end,
+                    Program),
+  StaticDBL =
+    lists:map(fun(Name) -> db_ops:get_rel_by_pred(Name, OneIterDB) end, StaticNames),
+  db_ops:add_db_unique(db_ops:flatten(StaticDBL), EDB).
+
 %% calls eval one until a fixpoint is reached
 %% returns the final db instance
 -spec eval_all(dl_program(), dl_db_instance()) -> dl_db_instance().
 eval_all(Program, EDB) ->
   ?LOG_TOPIC_DEBUG(eval_all, #{initial_db => db_ops:db_to_string(EDB)}),
+  NewDB = imm_conseq(Program, EDB),
+  % static db should be complete after one iteration
+  StaticDB = find_static_db(Program, EDB, NewDB),
+  ?LOG_TOPIC_DEBUG(eval_seminaive, #{static_db => db_ops:db_to_string(StaticDB)}),
+  eval_seminaive(Program, db_ops:add_db_unique(EDB, NewDB), StaticDB, NewDB).
+
+eval_naive(Program, EDB) ->
   NewDB = imm_conseq(Program, EDB),
   ?LOG_TOPIC_DEBUG(eval_all, #{after_imm_cq_db => db_ops:db_to_string(NewDB)}),
   FullDB = db_ops:add_db_unique(EDB, NewDB),
@@ -143,6 +187,28 @@ eval_all(Program, EDB) ->
       FullDB;
     false ->
       eval_all(Program, FullDB)
+  end.
+
+-spec eval_seminaive(dl_program(),
+                     dl_db_instance(),
+                     dl_db_instance(),
+                     dl_db_instance()) ->
+                      dl_db_instance().
+eval_seminaive(Program, FullDB, StaticDB, DeltaDB) ->
+  ?LOG_TOPIC_DEBUG(eval_seminaive, #{current_full_db => db_ops:db_to_string(FullDB)}),
+  ?LOG_TOPIC_DEBUG(eval_seminaive, #{current_delta => db_ops:db_to_string(DeltaDB)}),
+  GeneratedDB = imm_conseq(Program, db_ops:add_db_unique(StaticDB, DeltaDB)),
+  NewFullDB = db_ops:add_db_unique(FullDB, DeltaDB),
+  NewDB = db_ops:diff(GeneratedDB, NewFullDB),
+  ?LOG_TOPIC_DEBUG(eval_seminaive, #{new_facts_learned => db_ops:db_to_string(NewDB)}),
+  ?LOG_TOPIC_DEBUG(eval_seminaive,
+                   #{added_delta_tuples_to_db => db_ops:db_to_string(FullDB)}),
+
+  case is_fixpoint(NewDB) of
+    true ->
+      NewFullDB;
+    false ->
+      eval_seminaive(Program, NewFullDB, StaticDB, NewDB)
   end.
 
 % reachable(X, Y) :- link(X, Y).

@@ -43,9 +43,8 @@ lex_one_rule_multi_body(_) ->
 
 lex_tc_from_file(S) ->
   Tokens = read_and_lex(S),
-  % utils:dbg_format("~p~n", [Tokens]),
-  % utils:dbg_format("~p~n", [tc1_tks("X", "Y", 1) ++ tc2_tks("X", "Y", "Z", 1)]),
-  ?_assertEqual(tc1_tks("X", "Y", 1) ++ tc2_tks("X", "Y", "Z", 1), Tokens).
+  ?_assertEqual(tc_facts_tks() ++ tc1_tks("X", "Y", 1) ++ tc2_tks("X", "Y", "Z", 1),
+                Tokens).
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 %%% HELPER FUNCTIONS %%%
@@ -98,3 +97,12 @@ tc2_tks(Sym1, Sym2, Sym3, LineNo) ->
    {dl_var, LineNo, Sym2},
    {')', LineNo},
    {'.', LineNo}].
+
+tc_facts_tks() ->
+  [{dl_const, 1, link}, {'(', 1}, {dl_const, 1, a}, {',', 1}, {dl_const, 1, b}, {')', 1},
+   {'.', 1}, {dl_const, 1, link}, {'(', 1}, {dl_const, 1, b}, {',', 1}, {dl_const, 1, c},
+   {')', 1}, {'.', 1}, {dl_const, 1, link}, {'(', 1}, {dl_const, 1, c}, {',', 1},
+   {dl_const, 1, c}, {')', 1}, {'.', 1}, {dl_const, 1, link}, {'(', 1}, {dl_const, 1, c},
+   {',', 1}, {dl_const, 1, d}, {')', 1}, {'.', 1}, {dl_const, 1, link}, {'(', 1},
+   {dl_const, 1, d}, {',', 1}, {dl_const, 1, e}, {')', 1}, {'.', 1}, {dl_const, 1, link},
+   {'(', 1}, {dl_const, 1, e}, {',', 1}, {dl_const, 1, f}, {')', 1}, {'.', 1}].

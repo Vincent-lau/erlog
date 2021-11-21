@@ -40,7 +40,6 @@ parse_multiple_rules(R) ->
   R2 =
     #dl_rule{head = reachable_atom("X", "Y"),
              body = [link_atom("X", "Z"), reachable_atom("Z", "Y")]},
-  utils:dbg_ppt(lists:nth(2, P1)),
   P2 = [R1, R2],
   [?_assertEqual(lists:nth(1, P1), R1),
    ?_assertEqual(lists:nth(2, P1), R2),

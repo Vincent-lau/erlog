@@ -1,5 +1,6 @@
 Definitions.
 
+DECL = \.((decl)|(output)|(input)) 
 Const = [a-z][0-9a-zA-Z_]*
 Var = [A-Z_][0-9a-zA-Z_]*
 WHITESPACE = [\s\t]
@@ -26,6 +27,7 @@ Rules.
 % {D}+\.{D}+((E|e)(\+|\-)?{D}+)? :
 %   {token,{float,TokenLine,list_to_float(TokenChars)}}. 
 
+{DECL}.*{EOL} : skip_token.
 {COMMENT}.*{EOL} : skip_token.
 {WHITESPACE} : skip_token.
 {EOL} : skip_token. 

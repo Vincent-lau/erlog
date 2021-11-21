@@ -18,6 +18,10 @@ get_overlap_cols_test_() ->
   [{"test getting correct overlapping cols",
     {setup, fun start/0, fun multi_overlap_cols/1}}].
 
+
+static_relation_test_() ->
+  {"test finding static relations", {setup, fun start/0, fun static_rel_not_from_input/1}}.
+    
 eval_one_rule_test_() ->
   [{"test eval once for iteration 2 of TC",
     {setup, fun start_one_iter/0, fun trans_closure_rule/1}},
@@ -30,6 +34,7 @@ eval_one_rule_test_() ->
     {setup, fun start/0, fun eval_no_overlapping_cols/1}},
    {"test eval join of complete overlapping columns",
     {setup, fun start/0, fun eval_complete_overlapping_cols/1}}].
+
 
 %%%%%%%%%%%%%%%%%%%%%%%
 %%% SETUP FUNCTIONS %%%
@@ -50,9 +55,33 @@ start_one_iter() ->
 %%% ACTUAL TESTS %%%
 %%%%%%%%%%%%%%%%%%%%
 
+static_rel_not_from_input(_) ->
+  Input = 
+  "
+    link2(X, Y) :- link(X, Y). 
+    reachable(X, Y) :- reachable(X, Z), link(Z, Y).
+    link(\"a\", \"b\").
+    link(\"b\", \"c\").
+  ",
+  {Rules, F} = preproc:lex_and_parse(Input),
+  Facts = db_ops:from_list(F),
+  OneIterDB = eval:imm_conseq(Rules, Facts),
+  StaticDB = eval:find_static_db(Rules, Facts, OneIterDB),
+
+  {_, AnsF} = preproc:lex_and_parse("
+    link(\"a\", \"b\").
+    link(\"b\", \"c\").
+    link2(\"a\", \"b\").
+    link2(\"b\", \"c\").
+  "),
+  AnsFacts = db_ops:from_list(AnsF),
+  ?_assertEqual(AnsFacts, StaticDB).
+   
+
+
 eval_to_end({Program, EDB}) ->
   FinalIDB = eval:eval_all(Program, EDB),
-  [?_assertEqual(final_db(), FinalIDB)].
+  ?_assertEqual(final_db(), FinalIDB).
 
 trans_closure_rule({[_, Rule2], EDB}) ->
   DeltaAtoms = eval:eval_one_rule(Rule2, EDB),

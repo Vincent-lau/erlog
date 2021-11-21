@@ -64,12 +64,6 @@ join_one(DlAtoms, #dl_atom{args = Args1}, C1, C2, ResName) ->
               lists:sort(nth_args(C2, Args2)) =:= lists:sort(nth_args(C1, Args1))
            end,
            DlAtoms),
-  % ?LOG_TOPIC_DEBUG(join_one, "dl atoms are ~s~n", [db_ops:db_to_string(DlAtoms)]),
-  % ?LOG_TOPIC_DEBUG(join_one, "input atom has args ~p~n", [Args1]),
-  % ?LOG_TOPIC(join_one,
-  %            debug,
-  %            "selected atoms are ~s~n",
-  %            [db_ops:db_to_string(SelectedAtoms)]),
   RemoveJoinColArgs =
     map(fun(A = #dl_atom{args = Args2}) ->
            NewArgs = listsi:filteri(fun(_, I) -> not lists:member(I, C2) end, Args2),
@@ -100,7 +94,23 @@ rename_pred(NewPred, DB) ->
 new() ->
   sets:new().
 
--spec filteri(fun((dl_atom()) -> boolean()), dl_db_instance()) -> dl_db_instance().
+-spec is_empty(dl_db_instance()) -> boolean().
+is_empty(DB) ->
+  sets:is_empty(DB).
+
+
+%%----------------------------------------------------------------------
+%% Function: diff
+%% Purpose: find all atoms that are in DB1 but not in DB2
+%% Args:
+%% Returns:
+%%
+%%----------------------------------------------------------------------
+-spec diff(dl_db_instance(), dl_db_instance()) -> dl_db_instance().
+diff(DB1, DB2) ->
+  sets:subtract(DB1, DB2).
+
+-spec filteri(fun((dl_atom(), integer()) -> boolean()), dl_db_instance()) -> dl_db_instance().
 filteri(Predi, Set) ->
   L = sets:to_list(Set),
   L2 = listsi:filteri(Predi, L),

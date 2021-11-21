@@ -1,3 +1,8 @@
+.decl flat(a: symbol, b: symbol)
+.decl up(a: symbol, b: symbol)
+.decl down(a: symbol, b: symbol)
+
+
 flat("g", "f").
 flat("m", "n").
 flat("m", "o").
@@ -11,6 +16,9 @@ up("j", "o").
 down("p", "k").
 up("f", "m").
 
+
+.decl rsg(a: symbol, b: symbol)
+.output rsg
 
 
 rsg(X,Y) :- flat(X, Y).
