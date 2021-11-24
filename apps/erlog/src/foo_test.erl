@@ -3,7 +3,7 @@
 -compile(export_all).
 
 -include("../include/data_repr.hrl").
--include("../include/utils.hrl").
+-include("../include/log_utils.hrl").
 
 read_and_lex(S) ->
   case io:get_line(S, '') of
@@ -35,25 +35,21 @@ cons_db_from_data(Data, AtomName) ->
 start() ->
   ets:new(dl_atom_names, [named_table]),
   % open file and read program
-  {ok, Stream} = file:open("apps/erlog/test/eval_SUITE_data/rsg.dl", [read]),
-  Prog = lex_and_parse(Stream),
+  {ok, Stream} = file:open("apps/erlog/test/eval_SUITE_data/tc-large.dl", [read]),
+  {Rules, Facts} = preproc:lex_and_parse(Stream),
   file:close(Stream),
   % preprocess rules
-  Prog2 = preproc:process(Prog),
+  Prog2 = preproc:process_rules(Rules),
   io:format("Input program is:~n~s~n", [utils:to_string(Prog2)]),
 
-  % open file and read input
-  {ok, Stream2} = file:open("apps/erlog/test/eval_SUITE_data/rsg.facts", [read]),
-  Facts = lex_and_parse(Stream2),
-  file:close(Stream2),
   io:format("input data is ~p~n", [Facts]),
   % create EDB from input relations
   EDB = db_ops:from_list(Facts),
   Res = eval:eval_all(Prog2, EDB),
   ResQ = db_ops:get_rel_by_pred(reachable, Res),
-  {ok, Stream3} = file:open("apps/erlog/test/eval_SUITE_data/rsg.csv", [read]),
+  {ok, Stream3} = file:open("apps/erlog/test/eval_SUITE_data/tc_large.csv", [read]),
   Output = read_data(Stream3),
-  Ans = cons_db_from_data(Output, "rsg"),
+  Ans = cons_db_from_data(Output, "tc_large"),
   io:format("The result database is:~n~s~n", [db_ops:db_to_string(ResQ)]),
   ets:delete(dl_atom_names).
 
@@ -70,11 +66,8 @@ start2() ->
 start3() ->
   ets:new(dl_atom_names, [named_table]),
   % open file and read program
-  {ok, Stream} = file:open("apps/erlog/test/eval_SUITE_data/tc.dl", [read]),
-  Tokens = read_and_lex(Stream),
-  {ok, Prog} = dl_parser:parse(Tokens),
-  Facts = lists:filter(fun(F) -> element(1, F) =:= dl_atom end, Prog),
-  Rules = lists:filter(fun(R) -> element(1, R) =:= dl_rule end, Prog),
+  {ok, Stream} = file:open("apps/erlog/test/eval_SUITE_data/tc-large.dl", [read]),
+  {Rules, Facts} = preproc:lex_and_parse(Stream),
   file:close(Stream),
   io:format("Prog is ~n~s~n Facts are ~n~s~n", [utils:to_string(Rules), utils:to_string(Facts)]),
   ets:delete(dl_atom_names).

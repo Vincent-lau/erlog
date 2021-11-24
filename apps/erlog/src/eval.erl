@@ -4,9 +4,10 @@
 
 -include("../include/data_repr.hrl").
 
--include_lib("../include/utils.hrl").
+-include_lib("../include/log_utils.hrl").
 
 -import(db_ops, [db_to_string/1]).
+-import(dl_repr, [get_rule_head/1, get_atom_name/1]).
 
 %%----------------------------------------------------------------------
 %% Function: get_proj_cols
@@ -133,29 +134,38 @@ is_fixpoint(OldDB, NewDB) ->
 is_fixpoint(NewDB) ->
   db_ops:is_empty(NewDB).
 
-
 %%----------------------------------------------------------------------
 %% Function: static_relation
 %% Purpose: Given a rule, return whether the head of the rule is a static
-%% relation by looking at its body. If ALL body atoms appear in the EDB,
-%% then yes.
+%% relation. A static relation is one whose body atoms are completely in
+%% the EDB and there will be no new atoms generated in later iterations.
+%% E.g. reachable(X, Y) :- link(X, Y) -> true
 %% Args:
 %% Returns:
 %%----------------------------------------------------------------------
--spec static_relation(dl_rule(), dl_db_instance()) -> boolean().
-static_relation(#dl_rule{body = Body}, EDB) ->
-  lists:all(fun(#dl_atom{pred_sym = PS}) ->
-               DB = db_ops:get_rel_by_pred(PS, EDB),
-               not db_ops:is_empty(DB)
-            end,
-            Body).
+-spec static_relation(dl_rule(), dl_program()) -> boolean().
+static_relation(#dl_rule{body = Body}, Rules) ->
+  HeadNames =
+    sets:from_list(
+      lists:map(fun(R) -> get_atom_name(get_rule_head(R)) end, Rules)),
+  lists:all(fun(Atom) -> not sets:is_element(get_atom_name(Atom), HeadNames) end, Body).
+
+%%----------------------------------------------------------------------
+%% Function: find_static_db
+%% Purpose: Given a rule, return whether the head of the rule is a static
+%% relation by looking at its body. If ALL body atoms appear in the EDB,
+%% then yes.
+%% E.g. reachable(X, Y) :- link(X, Y) -> true
+%% Args:
+%% Returns:
+%%----------------------------------------------------------------------
 
 -spec find_static_db(dl_program(), dl_db_instance(), dl_db_instance()) ->
                       dl_db_instance().
 find_static_db(Program, EDB, OneIterDB) ->
   StaticNames =
     lists:filtermap(fun(Rule = #dl_rule{head = #dl_atom{pred_sym = PS}}) ->
-                       case static_relation(Rule, EDB) of
+                       case static_relation(Rule, Program) of
                          false -> false;
                          true -> {true, PS}
                        end
@@ -163,18 +173,24 @@ find_static_db(Program, EDB, OneIterDB) ->
                     Program),
   StaticDBL =
     lists:map(fun(Name) -> db_ops:get_rel_by_pred(Name, OneIterDB) end, StaticNames),
-  db_ops:add_db_unique(db_ops:flatten(StaticDBL), EDB).
+  db_ops:add_db_unique(
+    db_ops:flatten(StaticDBL), EDB).
 
 %% calls eval one until a fixpoint is reached
 %% returns the final db instance
 -spec eval_all(dl_program(), dl_db_instance()) -> dl_db_instance().
 eval_all(Program, EDB) ->
-  ?LOG_TOPIC_DEBUG(eval_all, #{initial_db => db_ops:db_to_string(EDB)}),
+  ?LOG_TOPIC_DEBUG(eval_all, #{initial_db => db_to_string(EDB)}),
   NewDB = imm_conseq(Program, EDB),
+  FullDB = db_ops:add_db_unique(NewDB, EDB),
   % static db should be complete after one iteration
-  StaticDB = find_static_db(Program, EDB, NewDB),
-  ?LOG_TOPIC_DEBUG(eval_seminaive, #{static_db => db_ops:db_to_string(StaticDB)}),
-  eval_seminaive(Program, db_ops:add_db_unique(EDB, NewDB), StaticDB, NewDB).
+  StaticDB = FullDB,
+  ?LOG_TOPIC_DEBUG(eval_seminaive, #{static_db => db_to_string(StaticDB)}),
+
+  NonStaticProg = lists:filter(fun(R) -> not static_relation(R, Program) end, Program),
+
+  ?LOG_TOPIC_DEBUG(eval_seminaive, #{non_static_rules => utils:to_string(NonStaticProg)}),
+  eval_seminaive(NonStaticProg, FullDB, StaticDB, NewDB).
 
 eval_naive(Program, EDB) ->
   NewDB = imm_conseq(Program, EDB),
@@ -186,7 +202,7 @@ eval_naive(Program, EDB) ->
     true ->
       FullDB;
     false ->
-      eval_all(Program, FullDB)
+      eval_naive(Program, FullDB)
   end.
 
 -spec eval_seminaive(dl_program(),

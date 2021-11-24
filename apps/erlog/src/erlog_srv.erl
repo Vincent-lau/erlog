@@ -11,6 +11,7 @@ init([]) ->
   process_flag(trap_exit, true),
   % ets:new(table, [named_table, public]),
   io:format("Hello, heavy world!~n"),
+
   {ok, []}.
 
 terminate(shutdown, State) ->

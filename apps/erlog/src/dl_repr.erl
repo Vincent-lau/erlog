@@ -51,6 +51,7 @@ cons_args_from_list(L) ->
 get_atom_args(#dl_atom{args = Args}) ->
   Args.
 
+-spec get_atom_name(dl_atom()) -> string().
 get_atom_name(#dl_atom{pred_sym = S}) ->
   atom_to_list(S).
 

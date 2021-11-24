@@ -27,8 +27,8 @@ read_and_lex(S) ->
       Tokens ++ read_and_lex(S)
   end.
 
--spec process(dl_program()) -> dl_program().
-process(Prog) ->
+-spec process_rules(dl_program()) -> dl_program().
+process_rules(Prog) ->
   lists:flatmap(fun rule_part/1, Prog).
 
 % partition rules with more than two body atoms into a list of

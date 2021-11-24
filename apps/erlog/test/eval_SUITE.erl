@@ -44,7 +44,7 @@ eval_tests(Config, ProgName, QryName) ->
   {Facts, Rules} = preproc:lex_and_parse(Stream),
   file:close(Stream),
   % preprocess rules
-  Prog2 = preproc:process(Rules),
+  Prog2 = preproc:process_rules(Rules),
   ct:pal("Input program is:~n~s~n", [utils:to_string(Prog2)]),
 
   ct:pal("input data is ~p~n", [Facts]),

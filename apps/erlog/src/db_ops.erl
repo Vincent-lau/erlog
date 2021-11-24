@@ -5,7 +5,7 @@
 -import(dl_repr, [cons_const/1]).
 
 -include("../include/data_repr.hrl").
--include("../include/utils.hrl").
+-include("../include/log_utils.hrl").
 
 %%----------------------------------------------------------------------
 %% RA operations
