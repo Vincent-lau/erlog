@@ -108,12 +108,11 @@ eval_one_rule(Rule = #dl_rule{head = Head, body = [A1 = #dl_atom{}, A2 = #dl_ato
                     L1,
                     L2,
                     Rule#dl_rule.head#dl_atom.pred_sym),
-      ?LOG_TOPIC_DEBUG(eval_one_rule,
-                       #{rule => utils:to_string(Rule),
-                         atoms_to_be_joined => db_ops:db_to_string(IDB),
-                         c1 => L1,
-                         c2 => L2}),
-      ?LOG_TOPIC_DEBUG(eval_one_rule, #{joined_atoms => db_ops:db_to_string(NewAtoms)}),
+      ?LOG_DEBUG(#{rule => utils:to_string(Rule),
+                   atoms_to_be_joined => db_ops:db_to_string(IDB),
+                   c1 => L1,
+                   c2 => L2}),
+      ?LOG_DEBUG(#{joined_atoms => db_ops:db_to_string(NewAtoms)}),
       Cols =
         get_proj_cols(dl_repr:get_atom_args(Head),
                       preproc:combine_args([A1#dl_atom.args, A2#dl_atom.args])),
@@ -180,23 +179,23 @@ find_static_db(Program, EDB, OneIterDB) ->
 %% returns the final db instance
 -spec eval_all(dl_program(), dl_db_instance()) -> dl_db_instance().
 eval_all(Program, EDB) ->
-  ?LOG_TOPIC_DEBUG(eval_all, #{initial_db => db_to_string(EDB)}),
+  ?LOG_DEBUG(#{initial_db => db_to_string(EDB)}),
   NewDB = imm_conseq(Program, EDB),
   FullDB = db_ops:add_db_unique(NewDB, EDB),
   % static db should be complete after one iteration
   StaticDB = FullDB,
-  ?LOG_TOPIC_DEBUG(eval_seminaive, #{static_db => db_to_string(StaticDB)}),
+  ?LOG_DEBUG(#{static_db => db_to_string(StaticDB)}),
 
   NonStaticProg = lists:filter(fun(R) -> not static_relation(R, Program) end, Program),
 
-  ?LOG_TOPIC_DEBUG(eval_seminaive, #{non_static_rules => utils:to_string(NonStaticProg)}),
+  ?LOG_DEBUG(#{non_static_rules => utils:to_string(NonStaticProg)}),
   eval_seminaive(NonStaticProg, FullDB, StaticDB, NewDB).
 
 eval_naive(Program, EDB) ->
   NewDB = imm_conseq(Program, EDB),
-  ?LOG_TOPIC_DEBUG(eval_all, #{after_imm_cq_db => db_ops:db_to_string(NewDB)}),
+  ?LOG_DEBUG(#{after_imm_cq_db => db_ops:db_to_string(NewDB)}),
   FullDB = db_ops:add_db_unique(EDB, NewDB),
-  ?LOG_TOPIC_DEBUG(eval_all, #{added_new_tuples_to_db => db_ops:db_to_string(FullDB)}),
+  ?LOG_DEBUG(#{added_new_tuples_to_db => db_ops:db_to_string(FullDB)}),
 
   case is_fixpoint(FullDB, EDB) of
     true ->
@@ -211,14 +210,13 @@ eval_naive(Program, EDB) ->
                      dl_db_instance()) ->
                       dl_db_instance().
 eval_seminaive(Program, FullDB, StaticDB, DeltaDB) ->
-  ?LOG_TOPIC_DEBUG(eval_seminaive, #{current_full_db => db_ops:db_to_string(FullDB)}),
-  ?LOG_TOPIC_DEBUG(eval_seminaive, #{current_delta => db_ops:db_to_string(DeltaDB)}),
+  ?LOG_DEBUG(#{current_full_db => db_ops:db_to_string(FullDB)}),
+  ?LOG_DEBUG(#{current_delta => db_ops:db_to_string(DeltaDB)}),
   GeneratedDB = imm_conseq(Program, db_ops:add_db_unique(StaticDB, DeltaDB)),
   NewFullDB = db_ops:add_db_unique(FullDB, DeltaDB),
   NewDB = db_ops:diff(GeneratedDB, NewFullDB),
-  ?LOG_TOPIC_DEBUG(eval_seminaive, #{new_facts_learned => db_ops:db_to_string(NewDB)}),
-  ?LOG_TOPIC_DEBUG(eval_seminaive,
-                   #{added_delta_tuples_to_db => db_ops:db_to_string(FullDB)}),
+  ?LOG_DEBUG(#{new_facts_learned => db_ops:db_to_string(NewDB)}),
+  ?LOG_DEBUG(#{added_delta_tuples_to_db => db_ops:db_to_string(FullDB)}),
 
   case is_fixpoint(NewDB) of
     true ->

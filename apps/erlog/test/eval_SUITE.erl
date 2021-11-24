@@ -4,12 +4,17 @@
 
 -export([all/0, init_per_testcase/2, end_per_testcase/2]).
 -export([tc_tests/1, tc_large_tests/1, rsg_tests/1, marrying_a_widower_tests/1,
-         nonlinear_ancestor_test/1]).
+         nonlinear_ancestor_tests/1, scc_tests/1]).
 
 -import(dl_repr, [cons_atom/2, cons_const/1]).
 
 all() ->
-  [tc_tests, tc_large_tests, rsg_tests, marrying_a_widower_tests, nonlinear_ancestor_test].
+  [tc_tests,
+   tc_large_tests,
+   rsg_tests,
+   marrying_a_widower_tests,
+   scc_tests,
+   nonlinear_ancestor_tests].
 
 init_per_testcase(tc_tests, Config) ->
   TabId = ets:new(dl_atom_names, [named_table]),
@@ -17,10 +22,13 @@ init_per_testcase(tc_tests, Config) ->
 init_per_testcase(tc_large_tests, Config) ->
   TabId = ets:new(dl_atom_names, [named_table]),
   [{table, TabId} | Config];
-init_per_testcase(nonlinear_ancestor_test, Config) ->
+init_per_testcase(nonlinear_ancestor_tests, Config) ->
   TabId = ets:new(dl_atom_names, [named_table]),
   [{table, TabId} | Config];
 init_per_testcase(rsg_tests, Config) ->
+  TabId = ets:new(dl_atom_names, [named_table]),
+  [{table, TabId} | Config];
+init_per_testcase(scc_tests, Config) ->
   TabId = ets:new(dl_atom_names, [named_table]),
   [{table, TabId} | Config];
 init_per_testcase(marrying_a_widower_tests, Config) ->
@@ -31,9 +39,11 @@ end_per_testcase(tc_tests, Config) ->
   ets:delete(?config(table, Config));
 end_per_testcase(tc_large_tests, Config) ->
   ets:delete(?config(table, Config));
-end_per_testcase(nonlinear_ancestor_test, Config) ->
+end_per_testcase(nonlinear_ancestor_tests, Config) ->
   ets:delete(?config(table, Config));
 end_per_testcase(rsg_tests, Config) ->
+  ets:delete(?config(table, Config));
+end_per_testcase(scc_tests, Config) ->
   ets:delete(?config(table, Config));
 end_per_testcase(marrying_a_widower_tests, Config) ->
   ets:delete(?config(table, Config)).
@@ -66,11 +76,14 @@ tc_tests(Config) ->
 tc_large_tests(Config) ->
   eval_tests(Config, "tc-large", "tc_large").
 
-nonlinear_ancestor_test(Config) ->
+nonlinear_ancestor_tests(Config) ->
   eval_tests(Config, "non-linear-ancestor", "ancestor").
 
 rsg_tests(Config) ->
   eval_tests(Config, "rsg", "rsg").
+
+scc_tests(Config) ->
+  eval_tests(Config, "scc", "scc").
 
 marrying_a_widower_tests(Config) ->
   eval_tests(Config, "marrying-a-widower", "grandfather").
