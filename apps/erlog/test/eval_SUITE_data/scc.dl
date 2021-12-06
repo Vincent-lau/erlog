@@ -1,0 +1,18 @@
+.decl link(a: symbol, b:symbol)
+
+link("a", "b").
+link("b", "c").
+link("c", "c").
+link("c", "d").
+link("d",	"e").
+link("e",	"f").
+link("f", "a").
+
+.decl reachable(a: symbol, b:symbol)
+.decl scc(a: symbol, b:symbol)
+.output scc 
+
+reachable(X, Y) :- link(X, Y).
+reachable(X, Y) :- link(X, Z), reachable(Z, Y).
+
+scc(X, Y) :- reachable(X, Y), reachable(Y, X).
