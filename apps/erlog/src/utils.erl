@@ -13,18 +13,24 @@ to_string(Atoms = [#dl_atom{} | _]) ->
 to_string(P = [#dl_rule{} | _]) ->
   Rules = lists:map(fun to_string/1, P),
   lists:join("\n", Rules);
-to_string(#dl_atom{pred_sym = Sym, args = Args}) ->
-  io_lib:format("~w(~s)", [Sym, to_string(Args)]);
+to_string(A = #dl_atom{pred_sym = Sym}) ->
+  io_lib:format("~w(~s)", [Sym, args_to_string(dl_repr:get_atom_args(A))]);
 to_string(#dl_rule{head = Head, body = Body}) ->
   Atoms = lists:map(fun to_string/1, Body),
-  to_string(Head) ++ " :- " ++ lists:join(", ", Atoms) ++ ".";
-to_string(L = [H | _])
-  when is_list(H) -> % when the arg is a var/string
-  lists:join(",", L);
-to_string(L = [H | _])
-  when is_atom(H) -> % when the args is a const
-  L2 = lists:map(fun atom_to_list/1, L),
-  lists:join(", ", L2).
+  to_string(Head) ++ " :- " ++ lists:join(", ", Atoms) ++ ".".
+
+-spec args_to_string([string()]) -> string().
+args_to_string(Args) ->
+  lists:join(", ", lists:map(fun(A) -> "\"" ++ A ++ "\"" end, Args)).
+
+% TODO fix this so to use dl_repr calls
+% to_string(L = [H | _])
+%   when dl_repr:is_dl_var(H) -> % when the arg is a var/string
+%   lists:join(",", lists:map(fun (S) -> ("\"" ++ S ++ "\"") end, L));
+% to_string(L = [H | _])
+%   when is_atom(H) -> % when the args is a const
+%   L2 = lists:map(fun atom_to_list/1, L),
+%   lists:join(", ", lists:map(fun (S) -> ("\"" ++ S ++ "\"") end, L2)).
 
 % TODO remove this function
 -spec ppt(dl_atom() | dl_rule() | dl_program()) -> ok.
