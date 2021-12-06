@@ -82,6 +82,13 @@ join_one(DlAtoms, #dl_atom{args = Args1}, C1, C2, ResName) ->
 get_rel_by_pred(Name, DBInstance) ->
   filter(fun(#dl_atom{pred_sym = N}) -> Name =:= N end, DBInstance).
 
+-spec get_rel_by_pred_and_rest(dl_const(), dl_db_instance()) ->
+                                {dl_db_instance(), dl_db_instance()}.
+get_rel_by_pred_and_rest(Name, DBInstance) ->
+  Rel = filter(fun(#dl_atom{pred_sym = N}) -> Name =:= N end, DBInstance),
+  NonRel = filter(fun(#dl_atom{pred_sym = N}) -> Name =/= N end, DBInstance),
+  {Rel, NonRel}.
+
 -spec rename_pred(dl_const(), dl_db_instance()) -> dl_db_instance().
 rename_pred(NewPred, DB) ->
   map(fun(A) -> A#dl_atom{pred_sym = NewPred} end, DB).
@@ -98,7 +105,6 @@ new() ->
 is_empty(DB) ->
   sets:is_empty(DB).
 
-
 %%----------------------------------------------------------------------
 %% Function: diff
 %% Purpose: find all atoms that are in DB1 but not in DB2
@@ -110,7 +116,8 @@ is_empty(DB) ->
 diff(DB1, DB2) ->
   sets:subtract(DB1, DB2).
 
--spec filteri(fun((dl_atom(), integer()) -> boolean()), dl_db_instance()) -> dl_db_instance().
+-spec filteri(fun((dl_atom(), integer()) -> boolean()), dl_db_instance()) ->
+               dl_db_instance().
 filteri(Predi, Set) ->
   L = sets:to_list(Set),
   L2 = listsi:filteri(Predi, L),
@@ -131,6 +138,10 @@ flatmap(Fun, Set) ->
 
 filter(Pred, Set) ->
   sets:filter(Pred, Set).
+
+foreach(Fun, Set) ->
+  L = sets:to_list(Set),
+  lists:foreach(Fun, L).
 
 nth_args([], _) ->
   [];
