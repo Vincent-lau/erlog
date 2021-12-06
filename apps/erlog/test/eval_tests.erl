@@ -68,7 +68,7 @@ static_rel_not_from_input(_) ->
   OneIterDB = eval:imm_conseq(Rules, Facts),
   StaticDB = eval:find_static_db(Rules, Facts, OneIterDB),
 
-  {_, AnsF} = preproc:lex_and_parse("
+  {_R, AnsF} = preproc:lex_and_parse("
     link(\"a\", \"b\").
     link(\"b\", \"c\").
     link2(\"a\", \"b\").
@@ -76,7 +76,6 @@ static_rel_not_from_input(_) ->
   "),
   AnsFacts = db_ops:from_list(AnsF),
   ?_assertEqual(AnsFacts, StaticDB).
-   
 
 
 eval_to_end({Program, EDB}) ->

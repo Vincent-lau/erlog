@@ -9,7 +9,7 @@
 %% Returns:
 %% This is O(N) algorithm! Use with care.
 %%----------------------------------------------------------------------
--spec index_of(any(), [any()]) -> integer() | not_found.
+-spec index_of(any(), list()) -> integer() | not_found.
 index_of(N, L) ->
   index_of(N, L, 1).
 
@@ -20,7 +20,7 @@ index_of(N, [H | _], I) when N =:= H ->
 index_of(N, [_ | T], I) ->
   index_of(N, T, I + 1).
 
--spec filteri(fun((any(), integer()) -> boolean()), [any()]) -> [any()].
+-spec filteri(fun((any(), integer()) -> boolean()), list()) -> list().
 filteri(Predi, L) ->
   foldri(fun(E, Idx, Acc) ->
             case Predi(E, Idx) of
