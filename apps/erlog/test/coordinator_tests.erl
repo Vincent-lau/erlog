@@ -30,7 +30,7 @@ hash_frag_test_() ->
 %%%%%%%%%%%%%%%%%%%%%%
 
 start() ->
-  FileName = io_lib:format("~stask-~s", [?INTER_DIR, "foo"]),
+  FileName = io_lib:format("~stask-~s", [?inter_dir, "foo"]),
   {ok, Stream} = file:open(FileName, [write, read]),
   Stream.
 
