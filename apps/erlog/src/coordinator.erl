@@ -7,6 +7,7 @@
 -include_lib("kernel/include/logger.hrl").
 
 -import(db_ops, [db_to_string/1]).
+-import(dl_repr, [get_rule_headname/1]).
 
 -export([start_link/1, get_prog/1, get_static_db/1, get_num_tasks/1, assign_task/1,
          finish_task/2, stop_coordinator/1]).
@@ -63,7 +64,6 @@ stop_coordinator(Pid) ->
 % read in rules and
 -spec init([string()]) -> {ok, state()}.
 init([ProgName]) ->
-  ok = file:del_dir_r("apps/erlog/test/tmp"),
   ok = file:make_dir("apps/erlog/test/tmp"),
   {ok, Stream} = file:open("apps/erlog/test/eval_SUITE_data/" ++ ProgName, [read]),
   {Facts, Rules} = preproc:lex_and_parse(Stream),
@@ -71,16 +71,18 @@ init([ProgName]) ->
   % preprocess rules
   Program = preproc:process_rules(Rules),
   ?LOG_DEBUG(#{input_prog => utils:to_string(Program)}),
-  ?LOG_DEBUG(#{input_data => db_to_string(Facts)}),
+  ?LOG_DEBUG(#{input_data => Facts}),
   % create EDB from input relations
   EDB = db_ops:from_list(Facts),
 
   % the coordinator would do a first round of evaluation to find all static relations
   NewDB = eval:imm_conseq(Program, EDB),
-  FullDB = db_ops:add_db_unique(NewDB, EDB),
+  FullDB = db_ops:union(NewDB, EDB),
   StaticDB = FullDB,
   % this is the program that will be sent to workers
-  NonStaticProg = lists:filter(fun(R) -> not eval:static_relation(R, Program) end, Program),
+  NonStaticProg =
+    lists:filter(fun(R) -> not eval:static_relation(get_rule_headname(R), Program) end,
+                 Program),
 
   frag:hash_frag(FullDB, NonStaticProg, ?NUM_TASKS, 1, ?inter_dir),
   Tasks = [tasks:new_task(X, 1) || X <- lists:seq(1, ?NUM_TASKS)],
@@ -92,10 +94,10 @@ init([ProgName]) ->
                non_static_prog = NonStaticProg}}.
 
 handle_call(prog, _From, State = #coor_state{non_static_prog = NonStaticProg}) ->
-  ?LOG_DEBUG(#{assigned_prog_to_worker => db_to_string(State#coor_state.non_static_prog)}),
+  ?LOG_DEBUG(#{assigned_prog_to_worker => utils:to_string(NonStaticProg)}),
   {reply, NonStaticProg, State};
 handle_call(static_db, _From, State = #coor_state{static_db = StaticDB}) ->
-  ?LOG_DEBUG(#{static_db_given_to_worker => StaticDB}),
+  ?LOG_DEBUG(#{static_db_given_to_worker => db_to_string(StaticDB)}),
   {reply, StaticDB, State};
 handle_call(num_tasks, _From, State = #coor_state{num_tasks = NumTasks}) ->
   {reply, NumTasks, State};
@@ -115,6 +117,7 @@ handle_info(Msg, State) ->
   {noreply, State}.
 
 terminate(normal, _State) ->
+  ok = file:del_dir_r("apps/erlog/test/tmp"),
   io:format("coordinator terminated~n"),
   ok.
 
