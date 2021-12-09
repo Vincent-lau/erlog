@@ -155,8 +155,8 @@ split_args(N, Args) ->
 equal(DB1, DB2) ->
   sets:is_subset(DB1, DB2) andalso sets:is_subset(DB2, DB1).
 
--spec add_db_unique(dl_db_instance(), dl_db_instance()) -> dl_db_instance().
-add_db_unique(CurDB, NewDB) ->
+-spec union(dl_db_instance(), dl_db_instance()) -> dl_db_instance().
+union(CurDB, NewDB) ->
   sets:union(CurDB, NewDB).
 
 -spec from_list([dl_atom()]) -> dl_db_instance().
