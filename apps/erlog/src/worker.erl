@@ -7,7 +7,7 @@
 
 -include_lib("kernel/include/logger.hrl").
 
--import(db_ops, [db_to_string/1]).
+-import(dbs, [db_to_string/1]).
 
 -define(coor_node, coor@vincembp).
 
@@ -29,11 +29,11 @@ work(Pid, Prog, StaticDB, NumTasks)->
       {ok, Stream}  = file:open(FileName, [read]),
       {F, _R} = preproc:lex_and_parse(Stream),
       file:close(Stream),
-      Facts = db_ops:from_list(F),
+      Facts = dbs:from_list(F),
       ?LOG_DEBUG(#{facts => db_to_string(Facts), rules => Prog}),
       NewDB = eval:imm_conseq(Prog, Facts),
       ?LOG_DEBUG(#{new_db => db_to_string(NewDB)}),
-      DeltaDB = db_ops:diff(NewDB, Facts),
+      DeltaDB = dbs:diff(NewDB, Facts),
       % hash the new DB locally and write to disk
       % with only tuples that have not been generated before
       frag:hash_frag(DeltaDB, Prog, NumTasks, StageNum + 1, ?inter_dir),

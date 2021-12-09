@@ -60,7 +60,7 @@ hash_frag_of_tc(_) ->
     reachable(X, Y) :- link(X, Z), reachable(Z, Y).
   ",
   {F, Rules} = preproc:lex_and_parse(Input),
-  Facts = db_ops:from_list(F),
+  Facts = dbs:from_list(F),
   coordinator:hash_frag(Facts, Rules, ?NUM_TASKS),
   
   ?_assert(true).
@@ -81,7 +81,7 @@ basic_part_with_tc_rules(Stream) ->
     reachable(X, Y) :- link(X, Z), reachable(Z, Y).
   ",
   {F, Rules} = preproc:lex_and_parse(Input),
-  Facts = db_ops:from_list(F),
+  Facts = dbs:from_list(F),
   A = cons_atom("reachable", ["b", "c"]),
   Num = erlang:phash2(get_atom_args_by_index([2], A), ?NUM_TASKS) + 1,
   coordinator:part_by_rules(Facts, Rules, Num, Stream),

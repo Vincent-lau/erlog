@@ -1,6 +1,7 @@
 -module(coordinator_SUITE).
 
 -include_lib("common_test/include/ct.hrl").
+-import(dl_repr, [cons_const/1, cons_atom/2]).
 
 -compile(export_all).
 
@@ -55,16 +56,16 @@ eval_tests(Config, ProgName, QryName) ->
 
   ct:pal("input data is ~p~n", [Facts]),
   % create EDB from input relations
-  EDB = db_ops:from_list(Facts),
+  EDB = dbs:from_list(Facts),
   Res = eval:eval_all(Prog2, EDB),
-  ct:pal("Total result db is~n~s~n", [db_ops:db_to_string(Res)]),
-  ResQ = db_ops:get_rel_by_pred(cons_const(QryName), Res),
+  ct:pal("Total result db is~n~s~n", [dbs:db_to_string(Res)]),
+  ResQ = dbs:get_rel_by_pred(cons_const(QryName), Res),
   {ok, Stream3} = file:open(?config(data_dir, Config) ++ QryName ++ ".csv", [read]),
   Output = read_data(Stream3),
   Ans = cons_db_from_data(Output, QryName),
   ct:pal("The result database is:~n~s~n and the ans db is ~n~s~n",
-         [db_ops:db_to_string(ResQ), db_ops:db_to_string(Ans)]),
-  true = db_ops:equal(Ans, ResQ).
+         [dbs:db_to_string(ResQ), dbs:db_to_string(Ans)]),
+  true = dbs:equal(Ans, ResQ).
 
 tc_tests(Config) ->
   eval_tests(Config, "tc", "reachable").
@@ -94,5 +95,5 @@ read_data(S) ->
   end.
 
 cons_db_from_data(Data, AtomName) ->
-  db_ops:from_list(
+  dbs:from_list(
     lists:map(fun(Args) -> cons_atom(AtomName, Args) end, Data)).

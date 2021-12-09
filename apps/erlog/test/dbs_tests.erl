@@ -1,11 +1,11 @@
--module(db_ops_tests).
+-module(dbs_tests).
 
 -include_lib("eunit/include/eunit.hrl").
 
 -include("../include/data_repr.hrl").
 
 -import(dl_repr, [cons_atom/2]).
--import(db_ops, [from_list/1]).
+-import(dbs, [from_list/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% TESTS DESCRIPTIONS %%%
@@ -37,34 +37,34 @@ start() ->
 
 project_multiple(_) ->
   DB =
-    db_ops:from_list([#dl_atom{pred_sym = t1, args = [a, b, c, d]},
+    dbs:from_list([#dl_atom{pred_sym = t1, args = [a, b, c, d]},
                       #dl_atom{pred_sym = t2, args = [a, d, e, f]}]),
-  R = db_ops:project(DB, [2, 4]),
-  [?_assertEqual(db_ops:from_list([#dl_atom{pred_sym = t1, args = [b, d]},
+  R = dbs:project(DB, [2, 4]),
+  [?_assertEqual(dbs:from_list([#dl_atom{pred_sym = t1, args = [b, d]},
                                    #dl_atom{pred_sym = t2, args = [d, f]}]),
                  R)].
 
 project_2tuples(_) ->
   DB =
-    db_ops:from_list([#dl_atom{pred_sym = t1, args = [b, c]},
+    dbs:from_list([#dl_atom{pred_sym = t1, args = [b, c]},
                       #dl_atom{pred_sym = t2, args = [a, d]}]),
-  R = db_ops:project(DB, [2]),
-  [?_assertEqual(db_ops:from_list([#dl_atom{pred_sym = t1, args = [c]},
+  R = dbs:project(DB, [2]),
+  [?_assertEqual(dbs:from_list([#dl_atom{pred_sym = t1, args = [c]},
                                    #dl_atom{pred_sym = t2, args = [d]}]),
                  R)].
 
 ordered_projection(_) ->
   DB = from_list([cons_atom("t1", ["a", "b", "c"])]),
-  R = db_ops:project(DB, [3, 1, 2]),
+  R = dbs:project(DB, [3, 1, 2]),
   ?_assertEqual(from_list([cons_atom("t1", ["c", "a", "b"])]), R).
 
 join_singleton_list(_) ->
   Link1 = #dl_atom{pred_sym = link, args = [b, c]},
   Link2 = #dl_atom{pred_sym = link, args = [b, d]},
   Reachable = #dl_atom{pred_sym = reachable, args = [a, b]},
-  Kb = db_ops:from_list([Link1, Link2, Reachable]),
-  Delta = db_ops:join(Kb, reachable, link, [2], [1], reachable),
-  [?_assertEqual(db_ops:from_list([#dl_atom{pred_sym = reachable, args = [a, b, c]},
+  Kb = dbs:from_list([Link1, Link2, Reachable]),
+  Delta = dbs:join(Kb, reachable, link, [2], [1], reachable),
+  [?_assertEqual(dbs:from_list([#dl_atom{pred_sym = reachable, args = [a, b, c]},
                                    #dl_atom{pred_sym = reachable, args = [a, b, d]}]),
                  Delta)].
 
@@ -73,9 +73,9 @@ join_two_lists(_) ->
   Link2 = #dl_atom{pred_sym = link, args = [c, d]},
   Reachable1 = #dl_atom{pred_sym = reachable, args = [a, b]},
   Reachable2 = #dl_atom{pred_sym = reachable, args = [a, c]},
-  Kb = db_ops:from_list([Link1, Link2, Reachable1, Reachable2]),
-  Delta = db_ops:join(Kb, reachable, link, [2], [1], reachable),
-  [?_assertEqual(db_ops:from_list([#dl_atom{pred_sym = reachable, args = [a, b, c]},
+  Kb = dbs:from_list([Link1, Link2, Reachable1, Reachable2]),
+  Delta = dbs:join(Kb, reachable, link, [2], [1], reachable),
+  [?_assertEqual(dbs:from_list([#dl_atom{pred_sym = reachable, args = [a, b, c]},
                                    #dl_atom{pred_sym = reachable, args = [a, c, d]}]),
                  Delta)].
 
@@ -83,9 +83,9 @@ join_3_tuples(_) ->
   Link1 = #dl_atom{pred_sym = link, args = [b, c, d]},
   Link2 = #dl_atom{pred_sym = link, args = [b, d, e]},
   Reachable = #dl_atom{pred_sym = reachable, args = [a, f, b]},
-  Kb = db_ops:from_list([Link1, Link2, Reachable]),
-  Delta = db_ops:join(Kb, reachable, link, [3], [1], reachable),
-  [?_assertEqual(db_ops:from_list([#dl_atom{pred_sym = reachable, args = [a, f, b, c, d]},
+  Kb = dbs:from_list([Link1, Link2, Reachable]),
+  Delta = dbs:join(Kb, reachable, link, [3], [1], reachable),
+  [?_assertEqual(dbs:from_list([#dl_atom{pred_sym = reachable, args = [a, f, b, c, d]},
                                    #dl_atom{pred_sym = reachable, args = [a, f, b, d, e]}]),
                  Delta)].
 
@@ -93,7 +93,7 @@ join_on_inner_cols(_) ->
   Link1 = #dl_atom{pred_sym = link, args = [b, c, d]},
   Link2 = #dl_atom{pred_sym = link, args = [b, d, e]},
   Reachable = #dl_atom{pred_sym = reachable, args = [a, d, f]},
-  Kb = db_ops:from_list([Link1, Link2, Reachable]),
-  Delta = db_ops:join(Kb, reachable, link, [2], [3], reachable),
-  [?_assertEqual(db_ops:from_list([#dl_atom{pred_sym = reachable, args = [a, d, f, b, c]}]),
+  Kb = dbs:from_list([Link1, Link2, Reachable]),
+  Delta = dbs:join(Kb, reachable, link, [2], [3], reachable),
+  [?_assertEqual(dbs:from_list([#dl_atom{pred_sym = reachable, args = [a, d, f, b, c]}]),
                  Delta)].

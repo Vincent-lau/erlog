@@ -1,11 +1,10 @@
--module(db_ops).
+-module(dbs).
 
 -compile(export_all).
 
 -import(dl_repr, [cons_const/1]).
 
 -include("../include/data_repr.hrl").
--include("../include/log_utils.hrl").
 
 %%----------------------------------------------------------------------
 %% RA operations
@@ -49,12 +48,18 @@ project_args(_, []) ->
 project_args(Args, [C | Cs]) ->
   [lists:nth(C, Args) | project_args(Args, Cs)].
 
--spec join(dl_db_instance(), atom(), atom(), [integer()], [integer()], atom()) ->
+
+%%----------------------------------------------------------------------
+%% @doc
+%% given two database instances, join them together to get a new db
+%% 
+%% @end
+%%----------------------------------------------------------------------
+
+-spec join(dl_db_instance(), dl_db_instance(), [integer()], [integer()], atom()) ->
             dl_db_instance().
-join(Kb, PredSym1, PredSym2, C1, C2, ResName) ->
-  Atoms1 = filter(fun(#dl_atom{pred_sym = Sym}) -> PredSym1 =:= Sym end, Kb),
-  Atoms2 = filter(fun(#dl_atom{pred_sym = Sym}) -> PredSym2 =:= Sym end, Kb),
-  flatmap(fun(Atom) -> join_one(Atoms2, Atom, C1, C2, ResName) end, Atoms1).
+join(DB1, DB2, C1, C2, ResName) ->
+  flatmap(fun(Atom) -> join_one(DB2, Atom, C1, C2, ResName) end, DB1).
 
 -spec join_one(dl_db_instance(), dl_atom(), [integer()], [integer()], dl_const()) ->
                 dl_db_instance().

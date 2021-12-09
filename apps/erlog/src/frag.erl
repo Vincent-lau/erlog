@@ -48,7 +48,7 @@ hash_and_write_one(Atom, Cols, TaskNum, TotTasks, Stream) ->
                      file:io_device()) ->
                       ok.
 hash_and_write(Atoms, Cols, TaskNum, TotTasks, Stream) ->
-  db_ops:foreach(fun(Atom) -> hash_and_write_one(Atom, Cols, TaskNum, TotTasks, Stream) end,
+  dbs:foreach(fun(Atom) -> hash_and_write_one(Atom, Cols, TaskNum, TotTasks, Stream) end,
                  Atoms).
 
 %% for each rule, check its body to see whether there will be a join,
@@ -59,8 +59,8 @@ part_by_rule(DB, Rule, TaskNum, TotTasks, Stream) ->
   case Rule of
     #dl_rule{body = [A1 = #dl_atom{}, A2 = #dl_atom{}]} ->
       {C1, C2} = eval:get_overlap_cols(A1#dl_atom.args, A2#dl_atom.args),
-      {Atoms1, DBRest1} = db_ops:get_rel_by_pred_and_rest(A1#dl_atom.pred_sym, DB),
-      {Atoms2, DBRest2} = db_ops:get_rel_by_pred_and_rest(A2#dl_atom.pred_sym, DBRest1),
+      {Atoms1, DBRest1} = dbs:get_rel_by_pred_and_rest(A1#dl_atom.pred_sym, DB),
+      {Atoms2, DBRest2} = dbs:get_rel_by_pred_and_rest(A2#dl_atom.pred_sym, DBRest1),
       hash_and_write(Atoms1, C1, TaskNum, TotTasks, Stream),
       hash_and_write(Atoms2, C2, TaskNum, TotTasks, Stream),
       DBRest2;
@@ -85,12 +85,12 @@ part_by_rule(DB, Rule, TaskNum, TotTasks, Stream) ->
                     file:io_device()) ->
                      ok.
 part_by_rules(DB, [], _CurNum, _TotTasks, _Stream) ->
-  case db_ops:is_empty(DB) of
+  case dbs:is_empty(DB) of
     true ->
       ok;
     false ->
       % TODO change this to LOG_NOTICE and add more handler
-      io:format("non empty db after examining all rules, ~s~n", [db_ops:to_string(DB)])
+      io:format("non empty db after examining all rules, ~s~n", [dbs:to_string(DB)])
   end,
   ok;
 part_by_rules(DB, [RH | RT], CurNum, TotTasks, Stream) ->

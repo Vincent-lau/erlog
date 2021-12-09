@@ -6,7 +6,7 @@
 
 -include_lib("kernel/include/logger.hrl").
 
--import(db_ops, [db_to_string/1]).
+-import(dbs, [db_to_string/1]).
 -import(dl_repr, [get_rule_headname/1]).
 
 -export([start_link/1, get_prog/1, get_static_db/1, get_num_tasks/1, assign_task/1,
@@ -73,11 +73,11 @@ init([ProgName]) ->
   ?LOG_DEBUG(#{input_prog => utils:to_string(Program)}),
   ?LOG_DEBUG(#{input_data => Facts}),
   % create EDB from input relations
-  EDB = db_ops:from_list(Facts),
+  EDB = dbs:from_list(Facts),
 
   % the coordinator would do a first round of evaluation to find all static relations
   NewDB = eval:imm_conseq(Program, EDB),
-  FullDB = db_ops:union(NewDB, EDB),
+  FullDB = dbs:union(NewDB, EDB),
   StaticDB = FullDB,
   % this is the program that will be sent to workers
   NonStaticProg =
