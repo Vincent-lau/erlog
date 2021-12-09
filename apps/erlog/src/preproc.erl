@@ -4,13 +4,13 @@
 
 -include("../include/data_repr.hrl").
 
--spec lex_and_parse(string() | atom() | pid()) -> {[dl_rule()], [dl_atom()]}.
+-spec lex_and_parse(file:filename() | file:io_device()) -> {[dl_atom()], [dl_rule()]}.
 lex_and_parse(Str) when is_list(Str) ->
   {ok, Tokens, _} = dl_lexer:string(Str),
   {ok, Prog} = dl_parser:parse(Tokens),
   Rules = lists:filter(fun dl_repr:is_dl_rule/1, Prog),
   Facts = lists:filter(fun dl_repr:is_dl_atom/1, Prog),
-  {Rules, Facts};
+  {Facts, Rules};
 lex_and_parse(Stream) when is_pid(Stream) or is_atom(Stream) ->
   Tokens = read_and_lex(Stream),
   {ok, Prog} = dl_parser:parse(Tokens),

@@ -36,7 +36,7 @@ start() ->
   ets:new(dl_atom_names, [named_table]),
   % open file and read program
   {ok, Stream} = file:open("apps/erlog/test/eval_SUITE_data/tc-large.dl", [read]),
-  {Rules, Facts} = preproc:lex_and_parse(Stream),
+  {Facts, Rules} = preproc:lex_and_parse(Stream),
   file:close(Stream),
   % preprocess rules
   Prog2 = preproc:process_rules(Rules),
@@ -67,7 +67,7 @@ start3() ->
   ets:new(dl_atom_names, [named_table]),
   % open file and read program
   {ok, Stream} = file:open("apps/erlog/test/eval_SUITE_data/tc-large.dl", [read]),
-  {Rules, Facts} = preproc:lex_and_parse(Stream),
+  {Facts, Rules} = preproc:lex_and_parse(Stream),
   file:close(Stream),
   io:format("Prog is ~n~s~n Facts are ~n~s~n", [utils:to_string(Rules), utils:to_string(Facts)]),
   ets:delete(dl_atom_names).
@@ -78,3 +78,11 @@ start4() ->
   {ok, Facts} = dl_parser:parse(Tokens),
   file:close(Stream),
   io:format("facts are ~n~s~n", [utils:to_string(Facts)]).
+
+
+start5() ->
+  coordinator:start_link('tc.dl').
+
+restart5(Pid) ->
+  coordinator:stop_coordinator(Pid),
+  start5().

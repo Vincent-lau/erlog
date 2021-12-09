@@ -27,23 +27,24 @@ work(Pid, Prog, StaticDB, NumTasks)->
       FileName = io_lib:format("~stask-~w-~w", [?inter_dir, StageNum, TaskNum]),
       ?LOG_DEBUG(#{read_from_file => FileName}),
       {ok, Stream}  = file:open(FileName, [read]),
-      {_R, F} = preproc:lex_and_parse(Stream),
+      {F, _R} = preproc:lex_and_parse(Stream),
       file:close(Stream),
       Facts = db_ops:from_list(F),
       ?LOG_DEBUG(#{facts => db_to_string(Facts), rules => Prog}),
-      NewDB = eval:imm_conseq(Prog, db_ops:add_db_unique(StaticDB, Facts)),
+      NewDB = eval:imm_conseq(Prog, Facts),
       ?LOG_DEBUG(#{new_db => db_to_string(NewDB)}),
+      DeltaDB = db_ops:diff(NewDB, Facts),
       % hash the new DB locally and write to disk
-      frag:hash_frag(NewDB, Prog, NumTasks, StageNum + 1, ?inter_dir),
+      % with only tuples that have not been generated before
+      frag:hash_frag(DeltaDB, Prog, NumTasks, StageNum + 1, ?inter_dir),
       % call finish task on coordinator
       rpc:cast(?coor_node, coordinator, finish_task, [Pid, T]),
       % request new tasks 
       io:format("stage-~w task-~w finished, requesting new task~n", [StageNum, TaskNum]),
       work(Pid, Prog, StaticDB, NumTasks);
     #task{type = wait} ->
-      io:format("sleeping for 3 sec~n"),
-      timer:sleep(3000),
-      io:format("this is wait task~n");
+      io:format("this is a wait task, sleeping for 3 sec~n"),
+      timer:sleep(3000);
     {badrpc, Reason} -> % TODO do I need to distinguish different errors
       io:format("getting task from coordinator failed due to ~p~n", [Reason])
   end.
