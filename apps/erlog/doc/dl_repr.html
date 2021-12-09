@@ -1,0 +1,144 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Module dl_repr</title>
+<link rel="stylesheet" type="text/css" href="stylesheet.css" title="EDoc">
+</head>
+<body bgcolor="white">
+<div class="navbar"><a name="#navbar_top"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
+<hr>
+
+<h1>Module dl_repr</h1>
+<ul class="index"><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>
+
+
+<h2><a name="index">Function Index</a></h2>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#cons_args_from_list-1">cons_args_from_list/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#cons_atom-2">cons_atom/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#cons_const-1">cons_const/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#cons_rule-2">cons_rule/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#cons_term-1">cons_term/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#dl_const_to_string-1">dl_const_to_string/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#dl_var_to_string-1">dl_var_to_string/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_atom_args-1">get_atom_args/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_atom_args_by_index-2">get_atom_args_by_index/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_atom_name-1">get_atom_name/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_rule_body-1">get_rule_body/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_rule_head-1">get_rule_head/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_rule_headname-1">get_rule_headname/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#is_dl_atom-1">is_dl_atom/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#is_dl_const-1">is_dl_const/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#is_dl_rule-1">is_dl_rule/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#is_dl_var-1">is_dl_var/1</a></td><td></td></tr>
+</table>
+
+<h2><a name="functions">Function Details</a></h2>
+
+<h3 class="function"><a name="cons_args_from_list-1">cons_args_from_list/1</a></h3>
+<div class="spec">
+<p><tt>cons_args_from_list(L::[string()]) -&gt; [<a href="#type-dl_term">dl_term()</a>]</tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="cons_atom-2">cons_atom/2</a></h3>
+<div class="spec">
+<p><tt>cons_atom(PredSym::string(), TermsStr::[<a href="#type-dl_term">dl_term()</a> | string()]) -&gt; <a href="#type-dl_atom">dl_atom()</a></tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="cons_const-1">cons_const/1</a></h3>
+<div class="spec">
+<p><tt>cons_const(S::string()) -&gt; <a href="#type-dl_const">dl_const()</a></tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="cons_rule-2">cons_rule/2</a></h3>
+<div class="spec">
+<p><tt>cons_rule(Head::<a href="#type-dl_atom">dl_atom()</a>, Body::[<a href="#type-dl_atom">dl_atom()</a>]) -&gt; <a href="#type-dl_rule">dl_rule()</a></tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="cons_term-1">cons_term/1</a></h3>
+<div class="spec">
+<p><tt>cons_term(T::string()) -&gt; <a href="#type-dl_term">dl_term()</a></tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="dl_const_to_string-1">dl_const_to_string/1</a></h3>
+<div class="spec">
+<p><tt>dl_const_to_string(C) -&gt; any()</tt></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="dl_var_to_string-1">dl_var_to_string/1</a></h3>
+<div class="spec">
+<p><tt>dl_var_to_string(Var) -&gt; any()</tt></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="get_atom_args-1">get_atom_args/1</a></h3>
+<div class="spec">
+<p><tt>get_atom_args(Dl_atom::<a href="#type-dl_atom">dl_atom()</a>) -&gt; [string()]</tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="get_atom_args_by_index-2">get_atom_args_by_index/2</a></h3>
+<div class="spec">
+<p><tt>get_atom_args_by_index(Cols::[integer()], Dl_atom::<a href="#type-dl_atom">dl_atom()</a>) -&gt; [<a href="#type-dl_const">dl_const()</a>]</tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="get_atom_name-1">get_atom_name/1</a></h3>
+<div class="spec">
+<p><tt>get_atom_name(Dl_atom::<a href="#type-dl_atom">dl_atom()</a>) -&gt; string()</tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="get_rule_body-1">get_rule_body/1</a></h3>
+<div class="spec">
+<p><tt>get_rule_body(Dl_rule) -&gt; any()</tt></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="get_rule_head-1">get_rule_head/1</a></h3>
+<div class="spec">
+<p><tt>get_rule_head(Dl_rule) -&gt; any()</tt></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="get_rule_headname-1">get_rule_headname/1</a></h3>
+<div class="spec">
+<p><tt>get_rule_headname(Dl_rule::<a href="#type-dl_rule">dl_rule()</a>) -&gt; string()</tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="is_dl_atom-1">is_dl_atom/1</a></h3>
+<div class="spec">
+<p><tt>is_dl_atom(A::any()) -&gt; boolean()</tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="is_dl_const-1">is_dl_const/1</a></h3>
+<div class="spec">
+<p><tt>is_dl_const(T::<a href="#type-dl_term">dl_term()</a>) -&gt; boolean()</tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="is_dl_rule-1">is_dl_rule/1</a></h3>
+<div class="spec">
+<p><tt>is_dl_rule(R::any()) -&gt; boolean()</tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="is_dl_var-1">is_dl_var/1</a></h3>
+<div class="spec">
+<p><tt>is_dl_var(T::<a href="#type-dl_term">dl_term()</a>) -&gt; boolean()</tt><br></p>
+<p> </p>
+</div>
+<hr>
+
+<div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
+<p><i>Generated by EDoc</i></p>
+</body>
+</html>

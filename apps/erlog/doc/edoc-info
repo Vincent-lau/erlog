@@ -1,0 +1,4 @@
+%% encoding: UTF-8
+{application,erlog}.
+{modules,[coordinator,dbs,dl_lexer,dl_repr,erlog_app,erlog_srv,erlog_sup,eval,
+          foo_test,frag,listsi,preproc,tasks,utils,worker]}.
