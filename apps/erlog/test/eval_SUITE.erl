@@ -62,7 +62,7 @@ eval_tests(Config, ProgName, QryName) ->
   EDB = dbs:from_list(Facts),
   Res = eval:eval_all(Prog2, EDB),
   ct:pal("Total result db is~n~s~n", [dbs:db_to_string(Res)]),
-  ResQ = dbs:get_rel_by_pred(cons_const(QryName), Res),
+  ResQ = dbs:get_rel_by_pred(QryName, Res),
   {ok, Stream3} = file:open(?config(data_dir, Config) ++ QryName ++ ".csv", [read]),
   Output = read_data(Stream3),
   Ans = cons_db_from_data(Output, QryName),

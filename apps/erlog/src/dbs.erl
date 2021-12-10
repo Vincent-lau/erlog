@@ -82,15 +82,15 @@ join_one(DlAtoms, #dl_atom{args = Args1}, C1, C2, ResName) ->
 %% operations on atoms in the db
 %%----------------------------------------------------------------------
 
--spec get_rel_by_pred(dl_const(), dl_db_instance()) -> dl_db_instance().
+-spec get_rel_by_pred(string(), dl_db_instance()) -> dl_db_instance().
 get_rel_by_pred(Name, DBInstance) ->
-  filter(fun(#dl_atom{pred_sym = N}) -> Name =:= N end, DBInstance).
+  filter(fun(Atom) -> Name =:= dl_repr:get_atom_name(Atom) end, DBInstance).
 
--spec get_rel_by_pred_and_rest(dl_const(), dl_db_instance()) ->
+-spec get_rel_by_pred_and_rest(string(), dl_db_instance()) ->
                                 {dl_db_instance(), dl_db_instance()}.
 get_rel_by_pred_and_rest(Name, DBInstance) ->
-  Rel = filter(fun(#dl_atom{pred_sym = N}) -> Name =:= N end, DBInstance),
-  NonRel = filter(fun(#dl_atom{pred_sym = N}) -> Name =/= N end, DBInstance),
+  Rel = get_rel_by_pred(Name, DBInstance),
+  NonRel = filter(fun(Atom) -> Name =/= dl_repr:get_atom_name(Atom) end, DBInstance),
   {Rel, NonRel}.
 
 -spec rename_pred(dl_const(), dl_db_instance()) -> dl_db_instance().

@@ -5,6 +5,8 @@
 -include("../include/data_repr.hrl").
 -include_lib("kernel/include/logger.hrl").
 
+-import(dl_repr, [get_atom_name/1]).
+
 -spec hash_and_write_one(dl_atom(),
                          [integer()],
                          integer(),
@@ -59,8 +61,8 @@ part_by_rule(DB, Rule, TaskNum, TotTasks, Stream) ->
   case Rule of
     #dl_rule{body = [A1 = #dl_atom{}, A2 = #dl_atom{}]} ->
       {C1, C2} = eval:get_overlap_cols(A1#dl_atom.args, A2#dl_atom.args),
-      {Atoms1, DBRest1} = dbs:get_rel_by_pred_and_rest(A1#dl_atom.pred_sym, DB),
-      {Atoms2, DBRest2} = dbs:get_rel_by_pred_and_rest(A2#dl_atom.pred_sym, DBRest1),
+      {Atoms1, DBRest1} = dbs:get_rel_by_pred_and_rest(get_atom_name(A1), DB),
+      {Atoms2, DBRest2} = dbs:get_rel_by_pred_and_rest(get_atom_name(A2), DBRest1),
       hash_and_write(Atoms1, C1, TaskNum, TotTasks, Stream),
       hash_and_write(Atoms2, C2, TaskNum, TotTasks, Stream),
       DBRest2;
