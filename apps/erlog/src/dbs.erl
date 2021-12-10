@@ -48,15 +48,14 @@ project_args(_, []) ->
 project_args(Args, [C | Cs]) ->
   [lists:nth(C, Args) | project_args(Args, Cs)].
 
-
 %%----------------------------------------------------------------------
 %% @doc
-%% given two database instances, join them together to get a new db
-%% 
+%% Given two database instances, and the columns on which we wise to join,
+%% join them together to get a new db.
 %% @end
 %%----------------------------------------------------------------------
 
--spec join(dl_db_instance(), dl_db_instance(), [integer()], [integer()], atom()) ->
+-spec join(dl_db_instance(), dl_db_instance(), [integer()], [integer()], dl_const()) ->
             dl_db_instance().
 join(DB1, DB2, C1, C2, ResName) ->
   flatmap(fun(Atom) -> join_one(DB2, Atom, C1, C2, ResName) end, DB1).
@@ -172,7 +171,14 @@ from_list(L) ->
 flatten(L) ->
   sets:union(L).
 
+%% @doc
+%% @deprecated use {@link to_string} instead.
+%% @end
 -spec db_to_string(dl_db_instance()) -> string().
 db_to_string(DB) ->
+  to_string(DB).
+
+-spec to_string(dl_db_instance()) -> string().
+to_string(DB) ->
   L = sets:to_list(DB),
   lists:join("\n", lists:map(fun(Atom) -> utils:to_string(Atom) end, L)).

@@ -4,7 +4,7 @@
 
 -include("../include/data_repr.hrl").
 
--import(dl_repr, [cons_atom/2]).
+-import(dl_repr, [cons_atom/2, cons_const/1]).
 -import(dbs, [from_list/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -38,19 +38,19 @@ start() ->
 project_multiple(_) ->
   DB =
     dbs:from_list([#dl_atom{pred_sym = t1, args = [a, b, c, d]},
-                      #dl_atom{pred_sym = t2, args = [a, d, e, f]}]),
+                   #dl_atom{pred_sym = t2, args = [a, d, e, f]}]),
   R = dbs:project(DB, [2, 4]),
   [?_assertEqual(dbs:from_list([#dl_atom{pred_sym = t1, args = [b, d]},
-                                   #dl_atom{pred_sym = t2, args = [d, f]}]),
+                                #dl_atom{pred_sym = t2, args = [d, f]}]),
                  R)].
 
 project_2tuples(_) ->
   DB =
     dbs:from_list([#dl_atom{pred_sym = t1, args = [b, c]},
-                      #dl_atom{pred_sym = t2, args = [a, d]}]),
+                   #dl_atom{pred_sym = t2, args = [a, d]}]),
   R = dbs:project(DB, [2]),
   [?_assertEqual(dbs:from_list([#dl_atom{pred_sym = t1, args = [c]},
-                                   #dl_atom{pred_sym = t2, args = [d]}]),
+                                #dl_atom{pred_sym = t2, args = [d]}]),
                  R)].
 
 ordered_projection(_) ->
@@ -59,41 +59,45 @@ ordered_projection(_) ->
   ?_assertEqual(from_list([cons_atom("t1", ["c", "a", "b"])]), R).
 
 join_singleton_list(_) ->
-  Link1 = #dl_atom{pred_sym = link, args = [b, c]},
-  Link2 = #dl_atom{pred_sym = link, args = [b, d]},
-  Reachable = #dl_atom{pred_sym = reachable, args = [a, b]},
-  Kb = dbs:from_list([Link1, Link2, Reachable]),
-  Delta = dbs:join(Kb, reachable, link, [2], [1], reachable),
-  [?_assertEqual(dbs:from_list([#dl_atom{pred_sym = reachable, args = [a, b, c]},
-                                   #dl_atom{pred_sym = reachable, args = [a, b, d]}]),
+  Link1 = cons_atom("link", ["b", "c"]),
+  Link2 = cons_atom("link", ["b", "d"]),
+  Reachable = cons_atom("reachable", ["a", "b"]),
+  DB1 = dbs:from_list([Link1, Link2]),
+  DB2 = dbs:from_list([Reachable]),
+  Delta = dbs:join(DB2, DB1, [2], [1], cons_const("reachable")),
+  [?_assertEqual(dbs:from_list([cons_atom("reachable", ["a", "b", "c"]),
+                                cons_atom("reachable", ["a", "b", "d"])]),
                  Delta)].
 
 join_two_lists(_) ->
-  Link1 = #dl_atom{pred_sym = link, args = [b, c]},
-  Link2 = #dl_atom{pred_sym = link, args = [c, d]},
-  Reachable1 = #dl_atom{pred_sym = reachable, args = [a, b]},
-  Reachable2 = #dl_atom{pred_sym = reachable, args = [a, c]},
-  Kb = dbs:from_list([Link1, Link2, Reachable1, Reachable2]),
-  Delta = dbs:join(Kb, reachable, link, [2], [1], reachable),
-  [?_assertEqual(dbs:from_list([#dl_atom{pred_sym = reachable, args = [a, b, c]},
-                                   #dl_atom{pred_sym = reachable, args = [a, c, d]}]),
+  Link1 = cons_atom("link", ["b", "c"]),
+  Link2 = cons_atom("link", ["b", "d"]),
+  Reachable1 = cons_atom("reachable", ["a", "b"]),
+  Reachable2 = cons_atom("reachable", ["a", "c"]),
+  DB1 = dbs:from_list([Link1, Link2]),
+  DB2 = dbs:from_list([Reachable1, Reachable2]),
+  Delta = dbs:join(DB2, DB1, [2], [1], cons_const("reachable")),
+  [?_assertEqual(dbs:from_list([cons_atom("reachable", ["a", "b", "c"]),
+                                cons_atom("reachable", ["a", "b", "d"])]),
                  Delta)].
 
 join_3_tuples(_) ->
-  Link1 = #dl_atom{pred_sym = link, args = [b, c, d]},
-  Link2 = #dl_atom{pred_sym = link, args = [b, d, e]},
-  Reachable = #dl_atom{pred_sym = reachable, args = [a, f, b]},
-  Kb = dbs:from_list([Link1, Link2, Reachable]),
-  Delta = dbs:join(Kb, reachable, link, [3], [1], reachable),
-  [?_assertEqual(dbs:from_list([#dl_atom{pred_sym = reachable, args = [a, f, b, c, d]},
-                                   #dl_atom{pred_sym = reachable, args = [a, f, b, d, e]}]),
+  Link1 = cons_atom("link", ["b", "c", "d"]),
+  Link2 = cons_atom("link", ["b", "d", "e"]),
+  Reachable = cons_atom("reachable", ["a", "f", "b"]),
+  DB1 = dbs:from_list([Link1, Link2]),
+  DB2 = dbs:from_list([Reachable]),
+  Delta = dbs:join(DB2, DB1, [3], [1], cons_const("reachable")),
+  [?_assertEqual(dbs:from_list([cons_atom("reachable", ["a", "f", "b", "c", "d"]),
+                                cons_atom("reachable", ["a", "f", "b", "d", "e"])]),
                  Delta)].
 
 join_on_inner_cols(_) ->
-  Link1 = #dl_atom{pred_sym = link, args = [b, c, d]},
-  Link2 = #dl_atom{pred_sym = link, args = [b, d, e]},
-  Reachable = #dl_atom{pred_sym = reachable, args = [a, d, f]},
-  Kb = dbs:from_list([Link1, Link2, Reachable]),
-  Delta = dbs:join(Kb, reachable, link, [2], [3], reachable),
-  [?_assertEqual(dbs:from_list([#dl_atom{pred_sym = reachable, args = [a, d, f, b, c]}]),
+  Link1 = cons_atom("link", ["b", "c", "d"]),
+  Link2 = cons_atom("link", ["b", "d", "e"]),
+  Reachable = cons_atom("reachable", ["a", "d", "f"]),
+  DB1 = dbs:from_list([Link1, Link2]),
+  DB2 = dbs:from_list([Reachable]),
+  Delta = dbs:join(DB2, DB1, [2], [3], cons_const("reachable")),
+  [?_assertEqual(dbs:from_list([cons_atom("reachable", ["a", "d", "f", "b", "c"])]),
                  Delta)].
