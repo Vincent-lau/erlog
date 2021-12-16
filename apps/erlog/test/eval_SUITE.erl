@@ -3,13 +3,14 @@
 -include_lib("common_test/include/ct.hrl").
 
 -export([all/0, init_per_testcase/2, end_per_testcase/2]).
--export([tc_tests/1, tc_large_tests/1, rsg_tests/1, marrying_a_widower_tests/1,
-         nonlinear_ancestor_tests/1, scc_tests/1]).
+-export([tc_tests/1, tc2_tests/1, tc_large_tests/1, rsg_tests/1,
+         marrying_a_widower_tests/1, nonlinear_ancestor_tests/1, scc_tests/1]).
 
 -import(dl_repr, [cons_atom/2, cons_const/1]).
 
 all() ->
   [tc_tests,
+   tc2_tests,
    tc_large_tests,
    rsg_tests,
    marrying_a_widower_tests,
@@ -17,6 +18,9 @@ all() ->
    nonlinear_ancestor_tests].
 
 init_per_testcase(tc_tests, Config) ->
+  TabId = ets:new(dl_atom_names, [named_table]),
+  [{table, TabId} | Config];
+init_per_testcase(tc2_tests, Config) ->
   TabId = ets:new(dl_atom_names, [named_table]),
   [{table, TabId} | Config];
 init_per_testcase(tc_large_tests, Config) ->
@@ -36,6 +40,8 @@ init_per_testcase(marrying_a_widower_tests, Config) ->
   [{table, TabId} | Config].
 
 end_per_testcase(tc_tests, Config) ->
+  ets:delete(?config(table, Config));
+end_per_testcase(tc2_tests, Config) ->
   ets:delete(?config(table, Config));
 end_per_testcase(tc_large_tests, Config) ->
   ets:delete(?config(table, Config));
@@ -72,6 +78,9 @@ eval_tests(Config, ProgName, QryName) ->
 
 tc_tests(Config) ->
   eval_tests(Config, "tc", "reachable").
+
+tc2_tests(Config) ->
+  eval_tests(Config, "tc2", "reachable").
 
 tc_large_tests(Config) ->
   eval_tests(Config, "tc-large", "tc_large").
