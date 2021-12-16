@@ -33,7 +33,7 @@
 %%% Client API
 -spec start_link(string()) -> {ok, pid()}.
 start_link(ProgName) ->
-  net_kernel:start([?COOR_NAME, shortnames]),
+  net_kernel:start([?coor_node, shortnames]),
   {ok, Pid} = gen_server:start_link(?MODULE, [ProgName], []),
   global:register_name(coor, Pid),
   {ok, Pid}.
@@ -64,6 +64,13 @@ stop_coordinator(Pid) ->
 % read in rules and
 -spec init([string()]) -> {ok, state()}.
 init([ProgName]) ->
+  Dir = "apps/erlog/test/tmp",
+  case filelib:is_dir(Dir) of
+    true ->
+      file:del_dir_r(Dir);
+    false ->
+      ok
+  end,
   ok = file:make_dir("apps/erlog/test/tmp"),
   {ok, Stream} = file:open("apps/erlog/test/eval_SUITE_data/" ++ ProgName, [read]),
   {Facts, Rules} = preproc:lex_and_parse(Stream),
@@ -84,12 +91,12 @@ init([ProgName]) ->
     lists:filter(fun(R) -> not eval:static_relation(get_rule_headname(R), Program) end,
                  Program),
 
-  frag:hash_frag(FullDB, NonStaticProg, ?NUM_TASKS, 1, ?inter_dir),
-  Tasks = [tasks:new_task(X, 1) || X <- lists:seq(1, ?NUM_TASKS)],
+  frag:hash_frag(FullDB, NonStaticProg, ?num_tasks, 1, ?inter_dir),
+  Tasks = [tasks:new_task(X, 1) || X <- lists:seq(1, ?num_tasks)],
   ?LOG_DEBUG(#{tasks_after_coor_initialisation => Tasks}),
   {ok,
    #coor_state{tasks = Tasks,
-               num_tasks = ?NUM_TASKS,
+               num_tasks = ?num_tasks,
                static_db = StaticDB,
                non_static_prog = NonStaticProg}}.
 

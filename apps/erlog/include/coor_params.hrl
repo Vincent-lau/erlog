@@ -1,3 +1,3 @@
--define(COOR_NAME, coor).
--define(NUM_TASKS, 4).
+-define(coor_node, coor).
+-define(num_tasks, 4).
 -define(inter_dir, "apps/erlog/test/tmp/").
