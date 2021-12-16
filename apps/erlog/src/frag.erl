@@ -3,7 +3,6 @@
 -compile(export_all).
 
 -include("../include/data_repr.hrl").
--include_lib("kernel/include/logger.hrl").
 
 -import(dl_repr, [get_atom_name/1]).
 
@@ -51,7 +50,7 @@ hash_and_write_one(Atom, Cols, TaskNum, TotTasks, Stream) ->
                       ok.
 hash_and_write(Atoms, Cols, TaskNum, TotTasks, Stream) ->
   dbs:foreach(fun(Atom) -> hash_and_write_one(Atom, Cols, TaskNum, TotTasks, Stream) end,
-                 Atoms).
+              Atoms).
 
 %% for each rule, check its body to see whether there will be a join,
 %% if so partition atoms with the same name as the rule's body in the db.
@@ -79,6 +78,7 @@ part_by_rule(DB, Rule, TaskNum, TotTasks, Stream) ->
 %% the db instance according to each of them.
 %%
 %% @see part_by_rule/4
+%%----------------------------------------------------------------------
 
 -spec part_by_rules(dl_db_instance(),
                     [dl_rule()],
@@ -121,9 +121,14 @@ hash_frag_rec(DB, Rules, CurNum, TotNum, StageNum, DirPath) ->
 %% Function: hash_frag
 %% Purpose: partition the db into Num parts and write them onto disk
 %% Args:
-%% Returns: actual number of tasks being generated
+%% @returns ok
 %% @end
 %%----------------------------------------------------------------------
--spec hash_frag(dl_db_instance(), [dl_rule()], integer(), pos_integer(), file:filename()) -> ok.
+-spec hash_frag(dl_db_instance(),
+                [dl_rule()],
+                integer(),
+                pos_integer(),
+                file:filename()) ->
+                 ok.
 hash_frag(DB, Rules, TotTaskNum, StageNum, DirPath) ->
   hash_frag_rec(DB, Rules, 1, TotTaskNum, StageNum, DirPath).

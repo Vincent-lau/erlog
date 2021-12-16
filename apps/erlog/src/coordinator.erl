@@ -33,7 +33,7 @@
 %%% Client API
 -spec start_link(string()) -> {ok, pid()}.
 start_link(ProgName) ->
-  net_kernel:start([?coor_node, shortnames]),
+  net_kernel:start([?coor_name, shortnames]),
   {ok, Pid} = gen_server:start_link(?MODULE, [ProgName], []),
   global:register_name(coor, Pid),
   {ok, Pid}.
