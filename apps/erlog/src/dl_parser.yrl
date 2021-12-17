@@ -1,6 +1,6 @@
 Header "%% Copyright (C)"
 "%% @private"
-"%% @Author Vincent".
+"%% @author Vincent".
 
 
 Nonterminals dl_prog dl_atoms dl_atom dl_rule dl_fact dl_rule_head dl_rule_body 
