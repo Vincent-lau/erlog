@@ -1,7 +1,7 @@
 -module(eval).
 
 -export([eval_seminaive/2, eval_all/2, get_overlap_cols/2, eval_one_rule/3,
-         get_proj_cols/2]).
+         get_proj_cols/2, get_edb_program/1]).
 
 -include("../include/data_repr.hrl").
 -include("../include/log_utils.hrl").
@@ -292,9 +292,33 @@ eval_seminaive(Program, FullDB, DeltaDB) ->
       eval_seminaive(Program, NewFullDB, NewDB)
   end.
 
+
+%%----------------------------------------------------------------------
+%% @doc
+%% Using seminaive evaluation to evaluate a program
+%% <ol>
+%% <li> We first P' such that it only contains rules with no idb predicate in
+%% its body </li>
+%% <li> then we compute the deltas based on the edb program </li>
+%% </ol>
+%%
+%% Notice that we need to treat all input as ebd, for example, if we are given
+%% the following input for the reachability program
+%% ```
+%% link(a, b).
+%% link(b, c).
+%% reachable(c, d).
+%% '''
+%% Then the final `reachable(c, d)' is also an edb predicate, as we can potentially
+%% treat it like `reachable_edb(c, d)' and have a new rule saying that
+%% `reachable(X, Y) :- reachable_edb(c, d).'
+%%
+%% And so the conclusion here is that we treat everything in the source database
+%% as an edb predicate, and add them to the delta.
+%% @end
+%%----------------------------------------------------------------------
+-spec eval_seminaive(dl_program(), dl_db_instance()) -> dl_db_instance().
 eval_seminaive(Program, EDB) ->
   EDBProg = get_edb_program(Program),
   DeltaDB = imm_conseq(EDBProg, EDB, dbs:new()),
-  IDBPred = dbs:filter(fun(Atom) -> is_idb_pred(Atom, Program) end, EDB),
-  eval_seminaive(Program, EDB, dbs:union(DeltaDB, IDBPred)).
-
+  eval_seminaive(Program, EDB, dbs:union(DeltaDB, EDB)).
