@@ -67,13 +67,13 @@ eval_tests(Config, ProgName, QryName) ->
   % create EDB from input relations
   EDB = dbs:from_list(Facts),
   Res = eval:eval_all(Prog2, EDB),
-  ct:pal("Total result db is~n~s~n", [dbs:db_to_string(Res)]),
+  ct:pal("Total result db is~n~s~n", [dbs:to_string(Res)]),
   ResQ = dbs:get_rel_by_pred(QryName, Res),
   {ok, Stream3} = file:open(?config(data_dir, Config) ++ QryName ++ ".csv", [read]),
   Output = read_data(Stream3),
   Ans = cons_db_from_data(Output, QryName),
   ct:pal("The result database is:~n~s~n and the ans db is ~n~s~n",
-         [dbs:db_to_string(ResQ), dbs:db_to_string(Ans)]),
+         [dbs:to_string(ResQ), dbs:to_string(Ans)]),
   true = dbs:equal(Ans, ResQ).
 
 tc_tests(Config) ->

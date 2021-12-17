@@ -5,7 +5,7 @@
 -include("../include/data_repr.hrl").
 
 -import(dl_repr, [cons_atom/2, cons_rule/2, cons_args_from_list/1, get_rule_headname/1]).
--import(dbs, [from_list/1, db_to_string/1]).
+-import(dbs, [from_list/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% TESTS DESCRIPTIONS %%%

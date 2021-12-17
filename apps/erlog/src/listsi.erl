@@ -1,6 +1,6 @@
 -module(listsi).
 
--compile(export_all).
+-export([index_of/2, filteri/2, mapi/2, foldli/3, foldri/3, filtermapi/2]).
 
 %%----------------------------------------------------------------------
 %% Function: index_of
@@ -31,24 +31,10 @@ filteri(Predi, L) ->
          [],
          L).
 
-filteri_rec(Predi, [{E, Idx} | T]) ->
-  case Predi(E, Idx) of
-    true ->
-      [E | filteri_rec(Predi, T)];
-    false ->
-      filteri_rec(Predi, T)
-  end;
-filteri_rec(_, []) ->
-  [].
-
 -spec mapi(fun((any(), integer()) -> any()), [{any(), integer}]) -> [any()].
 mapi(Fi, L) ->
   foldri(fun(Ele, Idx, Acc) -> [Fi(Ele, Idx) | Acc] end, [], L).
 
-mapi_rec(Fi, [{E, Idx} | T]) ->
-  [Fi(E, Idx) | mapi_rec(Fi, T)];
-mapi_rec(_, []) ->
-  [].
 
 -spec foldli(fun((any(), integer(), any()) -> any()), any(), [any()]) -> any().
 foldli(Fi, Acc, L) ->

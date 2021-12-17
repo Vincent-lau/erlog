@@ -1,9 +1,18 @@
 -module(preproc).
 
--compile(export_all).
+-export([lex_and_parse/1, process_rules/1, combine_args/1, combine_atoms/1, rule_part/1]).
 
 -include("../include/data_repr.hrl").
 
+%%----------------------------------------------------------------------
+%% @doc
+%% Given a file name as a string or a stream, lex and parse the program
+%% from the file.
+%%
+%% @returns a program consisting of a list of rules and facts with a list
+%% of atoms
+%% @end
+%%----------------------------------------------------------------------
 -spec lex_and_parse(file:filename() | file:io_device()) -> {[dl_atom()], [dl_rule()]}.
 lex_and_parse(Str) when is_list(Str) ->
   {ok, Tokens, _} = dl_lexer:string(Str),
@@ -27,6 +36,12 @@ read_and_lex(S) ->
       Tokens ++ read_and_lex(S)
   end.
 
+%%----------------------------------------------------------------------
+%% @doc
+%% process rules so that all of them consist of two body atoms at most
+%% @returns a list of processed rules.
+%% @end
+%%----------------------------------------------------------------------
 -spec process_rules(dl_program()) -> dl_program().
 process_rules(Prog) ->
   lists:flatmap(fun rule_part/1, Prog).
@@ -49,11 +64,13 @@ rule_part(R = #dl_rule{body = Body}) ->
   end.
 
 %%----------------------------------------------------------------------
+%% @doc
 %% Function:
 %% Purpose: Takes a list of atoms, generate a head atom that has all the args
 %% and the head atom has a random name
 %% Args: A list of atoms
-%% Returns: A rule
+%% @returns: A rule
+%% @end
 %%----------------------------------------------------------------------
 -spec combine_atoms([dl_atom()]) -> dl_rule().
 combine_atoms(Atoms) ->
@@ -66,13 +83,15 @@ combine_atoms(HeadName, Atoms) ->
   dl_repr:cons_rule(Head, Atoms).
 
 %%----------------------------------------------------------------------
+%% @doc
 %% Function:
 %% Purpose: Takes a list of list of args, flatten the list and unique all
 %% args according to the order they appear
 %% Args: A list of lists of args
-%% Returns: A flattened list with unique args
+%% @returns: A flattened list with unique args
 %%
 %% Example: [[c, b, a], [a, b, d]] -> [c, b, a, d]
+%% @end
 %%----------------------------------------------------------------------
 -spec combine_args([[dl_term()]]) -> [dl_term()].
 combine_args(ArgsL) ->

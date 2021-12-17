@@ -1,8 +1,13 @@
 -module(dbs).
 
--compile(export_all).
+-export([project/2, join/5, get_rel_by_pred/2, get_rel_by_pred_and_rest/2,
+  rename_pred/2]).
+-export([new/0, is_empty/1, diff/2, filteri/2, foreach/2, split_args/2, equal/2,
+  union/2, from_list/1, flatten/1]).
+-export([to_string/1]).
 
 -import(dl_repr, [cons_const/1]).
+
 
 -include("../include/data_repr.hrl").
 
@@ -11,25 +16,27 @@
 %%----------------------------------------------------------------------
 
 %%----------------------------------------------------------------------
+%% @doc
 %% Function: project
 %% Purpose: given a db instance, and columns to project, output the db
 %% with all atoms projected. This needs to be order preserving.
-%% Args:
-%% Returns:
 %%
 %% Example: ordering preserving P(a, b, c) [2,1] -> P(b, a)
+%% @end
 %%----------------------------------------------------------------------
 -spec project(dl_db_instance(), [integer()]) -> dl_db_instance().
 project(DBInstance, Cols) ->
   map(fun(Atom) -> project_atom(Atom, Cols) end, DBInstance).
 
 %%----------------------------------------------------------------------
+%% @doc
 %% Function: project_atom
 %% Purpose: given an atom and columns to be projected, project the atom
 %% preserving the order
 %% Args:
 %% Returns:
 %%
+%% @end
 %%----------------------------------------------------------------------
 -spec project_atom(dl_atom(), [integer()]) -> dl_atom().
 project_atom(A = #dl_atom{args = Args}, Cols) ->
@@ -171,12 +178,6 @@ from_list(L) ->
 flatten(L) ->
   sets:union(L).
 
-%% @doc
-%% @deprecated use {@link to_string} instead.
-%% @end
--spec db_to_string(dl_db_instance()) -> string().
-db_to_string(DB) ->
-  to_string(DB).
 
 -spec to_string(dl_db_instance()) -> string().
 to_string(DB) ->

@@ -1,8 +1,14 @@
 -module(frag).
 
+-include("../include/data_repr.hrl").
+
+-ifdef(TEST).
+
 -compile(export_all).
 
--include("../include/data_repr.hrl").
+-endif.
+
+-export([hash_and_write/5, hash_frag/5, part_by_rules/5]).
 
 -import(dl_repr, [get_atom_name/1]).
 
@@ -66,8 +72,7 @@ part_by_rule(DB, Rule, TaskNum, TotTasks, Stream) ->
       hash_and_write(Atoms2, C2, TaskNum, TotTasks, Stream),
       DBRest2;
     #dl_rule{body = [#dl_atom{}]} ->
-      % TODO just put everything else into every file
-      % is this necessary?
+      % TODO just put everything else into every file, is this necessary?
       DB
   end.
 
@@ -78,6 +83,7 @@ part_by_rule(DB, Rule, TaskNum, TotTasks, Stream) ->
 %% the db instance according to each of them.
 %%
 %% @see part_by_rule/4
+%% @end
 %%----------------------------------------------------------------------
 
 -spec part_by_rules(dl_db_instance(),
