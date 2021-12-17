@@ -1,6 +1,7 @@
 -module(frag).
 
 -include("../include/data_repr.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 -ifdef(TEST).
 
@@ -98,7 +99,7 @@ part_by_rules(DB, [], _CurNum, _TotTasks, _Stream) ->
       ok;
     false ->
       % TODO change this to LOG_NOTICE and add more handler
-      io:format("non empty db after examining all rules, ~s~n", [dbs:to_string(DB)])
+      ?LOG_NOTICE("non empty db after examining all rules, ~s~n", [dbs:to_string(DB)])
   end,
   ok;
 part_by_rules(DB, [RH | RT], CurNum, TotTasks, Stream) ->
