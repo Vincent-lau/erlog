@@ -33,7 +33,7 @@ dl_fact -> dl_rule_head '.' :
   '$1'.
 
 dl_rule -> dl_rule_head ':-' dl_rule_body '.' : 
-  cons_dl_rule('$1', '$3').
+  dl_repr:cons_rule('$1', '$3').
 
 dl_rule_head -> dl_atom : 
   '$1'.
@@ -58,15 +58,7 @@ dl_term -> dl_var :
 
 Erlang code.
 
-% XXX use dl_repr to do this
--include("data_repr.hrl").
-
-cons_dl_rule(Head, Body) ->
-  % Body2 = lists:map(fun ({_, _, B}) -> B end, Body),
-  #dl_rule{head = Head, body = Body}.
-
-
 cons_dl_atom({_, _, Sym}, Args) ->
   Args2 = lists:map(fun ({_, _, Arg}) -> Arg end, Args),
-  #dl_atom{pred_sym = Sym, args = Args2}.
+  dl_repr:cons_atom(Sym, Args2).
 

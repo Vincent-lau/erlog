@@ -20,9 +20,11 @@ is_dl_rule(R) when is_tuple(R) ->
 is_dl_rule(_) ->
   false.
 
--spec cons_const(string()) -> dl_const().
-cons_const(S) ->
-  list_to_atom(S).
+-spec cons_const(string() | atom()) -> dl_const().
+cons_const(S) when is_list(S)->
+  list_to_atom(S);
+cons_const(A) when is_atom(A) ->
+  A.
 
 -spec cons_atom(string(), [dl_term() | string()]) -> dl_atom().
 cons_atom(PredSym, TermsStr) when is_list(hd(TermsStr)) ->
@@ -43,7 +45,7 @@ cons_term(T) when is_list(T) ->
       cons_const(T)
   end.
 
--spec cons_args_from_list([string()]) -> [dl_term()].
+-spec cons_args_from_list([string() | atom()]) -> [dl_term()].
 cons_args_from_list(L) ->
   lists:map(fun cons_term/1, L).
 
