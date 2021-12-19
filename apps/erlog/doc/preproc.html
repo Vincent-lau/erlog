@@ -10,8 +10,78 @@
 <hr>
 
 <h1>Module preproc</h1>
+<ul class="index"><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>
 
 
+<h2><a name="index">Function Index</a></h2>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#combine_args-1">combine_args/1</a></td><td>
+  Function:
+  Purpose: Takes a list of list of args, flatten the list and unique all
+  args according to the order they appear
+  Args: A list of lists of args.</td></tr>
+<tr><td valign="top"><a href="#combine_atoms-1">combine_atoms/1</a></td><td>
+  Function:
+  Purpose: Takes a list of atoms, generate a head atom that has all the args
+  and the head atom has a random name
+  Args: A list of atoms.</td></tr>
+<tr><td valign="top"><a href="#lex_and_parse-1">lex_and_parse/1</a></td><td>
+  Given a file name as a string or a stream, lex and parse the program
+  from the file.</td></tr>
+<tr><td valign="top"><a href="#process_rules-1">process_rules/1</a></td><td>
+  process rules so that all of them consist of two body atoms at most.</td></tr>
+<tr><td valign="top"><a href="#rule_part-1">rule_part/1</a></td><td></td></tr>
+</table>
+
+<h2><a name="functions">Function Details</a></h2>
+
+<h3 class="function"><a name="combine_args-1">combine_args/1</a></h3>
+<div class="spec">
+<p><tt>combine_args(ArgsL::[[<a href="#type-dl_term">dl_term()</a>]]) -&gt; [<a href="#type-dl_term">dl_term()</a>]</tt><br></p>
+<p> </p>
+<p>returns: <p> A flattened list with unique args</p>
+ 
+  Example: [[c, b, a], [a, b, d]] -&gt; [c, b, a, d]</p>
+</div><p>
+  Function:
+  Purpose: Takes a list of list of args, flatten the list and unique all
+  args according to the order they appear
+  Args: A list of lists of args</p>
+
+<h3 class="function"><a name="combine_atoms-1">combine_atoms/1</a></h3>
+<div class="spec">
+<p><tt>combine_atoms(Atoms::[<a href="#type-dl_atom">dl_atom()</a>]) -&gt; <a href="#type-dl_rule">dl_rule()</a></tt><br></p>
+<p> </p>
+<p>returns:  A rule</p>
+</div><p>
+  Function:
+  Purpose: Takes a list of atoms, generate a head atom that has all the args
+  and the head atom has a random name
+  Args: A list of atoms</p>
+
+<h3 class="function"><a name="lex_and_parse-1">lex_and_parse/1</a></h3>
+<div class="spec">
+<p><tt>lex_and_parse(Str::<a href="/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/kernel/doc/file.html#type-filename">file:filename()</a> | <a href="/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/kernel/doc/file.html#type-io_device">file:io_device()</a>) -&gt; {[<a href="#type-dl_atom">dl_atom()</a>], [<a href="#type-dl_rule">dl_rule()</a>]}</tt><br></p>
+<p> </p>
+<p>returns: a program consisting of a list of rules and facts with a list
+  of atoms</p>
+</div><p>
+  Given a file name as a string or a stream, lex and parse the program
+  from the file.
+ </p>
+
+<h3 class="function"><a name="process_rules-1">process_rules/1</a></h3>
+<div class="spec">
+<p><tt>process_rules(Prog::<a href="#type-dl_program">dl_program()</a>) -&gt; <a href="#type-dl_program">dl_program()</a></tt><br></p>
+<p> </p>
+<p>returns: a list of processed rules.</p>
+</div><p>
+  process rules so that all of them consist of two body atoms at most</p>
+
+<h3 class="function"><a name="rule_part-1">rule_part/1</a></h3>
+<div class="spec">
+<p><tt>rule_part(R::<a href="#type-dl_rule">dl_rule()</a>) -&gt; [<a href="#type-dl_rule">dl_rule()</a>]</tt><br></p>
+<p> </p>
+</div>
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>

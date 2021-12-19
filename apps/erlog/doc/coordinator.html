@@ -17,7 +17,7 @@
 <h2><a name="types">Data Types</a></h2>
 
 <h3 class="typedecl"><a name="type-state">state()</a></h3>
-<p><tt>state() = #coor_state{tasks = [<a href="#type-mr_task">mr_task()</a>], num_tasks = non_neg_integer(), static_db = <a href="#type-dl_db_instance">dl_db_instance()</a>, non_static_prog = <a href="#type-dl_program">dl_program()</a>}</tt></p>
+<p><tt>state() = #coor_state{tasks = [<a href="#type-mr_task">mr_task()</a>], num_tasks = non_neg_integer(), prog = <a href="#type-dl_program">dl_program()</a>, stage_num = integer()}</tt></p>
 
 
 <h2><a name="index">Function Index</a></h2>
@@ -26,7 +26,6 @@
 <tr><td valign="top"><a href="#finish_task-2">finish_task/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#get_num_tasks-1">get_num_tasks/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#get_prog-1">get_prog/1</a></td><td></td></tr>
-<tr><td valign="top"><a href="#get_static_db-1">get_static_db/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#handle_call-3">handle_call/3</a></td><td></td></tr>
 <tr><td valign="top"><a href="#handle_cast-2">handle_cast/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#handle_info-2">handle_info/2</a></td><td></td></tr>
@@ -65,12 +64,6 @@
 <h3 class="function"><a name="get_prog-1">get_prog/1</a></h3>
 <div class="spec">
 <p><tt>get_prog(Pid) -&gt; any()</tt></p>
-<p> </p>
-</div>
-
-<h3 class="function"><a name="get_static_db-1">get_static_db/1</a></h3>
-<div class="spec">
-<p><tt>get_static_db(Pid) -&gt; any()</tt></p>
 <p> </p>
 </div>
 

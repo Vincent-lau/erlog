@@ -10,8 +10,76 @@
 <hr>
 
 <h1>Module tasks</h1>
+<ul class="index"><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>
 
 
+<h2><a name="index">Function Index</a></h2>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#is_finished-1">is_finished/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#is_idle-1">is_idle/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#new_task-0">new_task/0</a></td><td>generate a dummy task.</td></tr>
+<tr><td valign="top"><a href="#new_task-2">new_task/2</a></td><td>generate a new eval idle task.</td></tr>
+<tr><td valign="top"><a href="#new_task-4">new_task/4</a></td><td></td></tr>
+<tr><td valign="top"><a href="#new_wait_task-0">new_wait_task/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#set_finished-1">set_finished/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#set_idle-1">set_idle/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#set_in_prog-1">set_in_prog/1</a></td><td></td></tr>
+</table>
+
+<h2><a name="functions">Function Details</a></h2>
+
+<h3 class="function"><a name="is_finished-1">is_finished/1</a></h3>
+<div class="spec">
+<p><tt>is_finished(Task::<a href="#type-mr_task">mr_task()</a>) -&gt; boolean()</tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="is_idle-1">is_idle/1</a></h3>
+<div class="spec">
+<p><tt>is_idle(Task::<a href="#type-mr_task">mr_task()</a>) -&gt; boolean()</tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="new_task-0">new_task/0</a></h3>
+<div class="spec">
+<p><tt>new_task() -&gt; <a href="#type-mr_task">mr_task()</a></tt><br></p>
+<p> </p>
+</div><p>generate a dummy task</p>
+
+<h3 class="function"><a name="new_task-2">new_task/2</a></h3>
+<div class="spec">
+<p><tt>new_task(TaskNum::integer(), StageNum::integer()) -&gt; <a href="#type-mr_task">mr_task()</a></tt><br></p>
+<p> </p>
+</div><p>generate a new eval idle task</p>
+
+<h3 class="function"><a name="new_task-4">new_task/4</a></h3>
+<div class="spec">
+<p><tt>new_task(TaskNum::integer(), StageNum::integer(), TaskState::<a href="#type-task_state">task_state()</a>, TaskType::<a href="#type-task_category">task_category()</a>) -&gt; <a href="#type-mr_task">mr_task()</a></tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="new_wait_task-0">new_wait_task/0</a></h3>
+<div class="spec">
+<p><tt>new_wait_task() -&gt; <a href="#type-mr_task">mr_task()</a></tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="set_finished-1">set_finished/1</a></h3>
+<div class="spec">
+<p><tt>set_finished(T::<a href="#type-mr_task">mr_task()</a>) -&gt; <a href="#type-mr_task">mr_task()</a></tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="set_idle-1">set_idle/1</a></h3>
+<div class="spec">
+<p><tt>set_idle(T::<a href="#type-mr_task">mr_task()</a>) -&gt; <a href="#type-mr_task">mr_task()</a></tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="set_in_prog-1">set_in_prog/1</a></h3>
+<div class="spec">
+<p><tt>set_in_prog(T::<a href="#type-mr_task">mr_task()</a>) -&gt; <a href="#type-mr_task">mr_task()</a></tt><br></p>
+<p> </p>
+</div>
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
