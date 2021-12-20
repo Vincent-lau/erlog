@@ -23,15 +23,6 @@ to_string(#dl_rule{head = Head, body = Body}) ->
 args_to_string(Args) ->
   lists:join(", ", lists:map(fun(A) -> "\"" ++ A ++ "\"" end, Args)).
 
-% TODO fix this so to use dl_repr calls
-% to_string(L = [H | _])
-%   when dl_repr:is_dl_var(H) -> % when the arg is a var/string
-%   lists:join(",", lists:map(fun (S) -> ("\"" ++ S ++ "\"") end, L));
-% to_string(L = [H | _])
-%   when is_atom(H) -> % when the args is a const
-%   L2 = lists:map(fun atom_to_list/1, L),
-%   lists:join(", ", lists:map(fun (S) -> ("\"" ++ S ++ "\"") end, L2)).
-
 % TODO remove this function
 -spec ppt(dl_atom() | dl_rule() | dl_program()) -> ok.
 ppt(X = #dl_atom{}) ->
