@@ -38,7 +38,7 @@ start() ->
       ok
   end,
   ok = file:make_dir(Dir),
-  FileName = io_lib:format("~stask-~s", [?inter_dir, "foo"]),
+  FileName = io_lib:format("~s-~s", [?inter_dir ++ "task", "foo"]),
   {ok, Stream} = file:open(FileName, [write, read]),
   Stream.
 
