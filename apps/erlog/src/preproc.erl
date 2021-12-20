@@ -1,6 +1,7 @@
 -module(preproc).
 
--export([lex_and_parse/1, process_rules/1, combine_args/1, combine_atoms/1, rule_part/1]).
+-export([lex_and_parse/1, process_rules/1, combine_args/1, combine_atoms/1, rule_part/1,
+         read_db/1]).
 
 -include("../include/data_repr.hrl").
 
@@ -22,10 +23,16 @@ lex_and_parse(Str) when is_list(Str) ->
   {Facts, Rules};
 lex_and_parse(Stream) when is_pid(Stream) or is_atom(Stream) ->
   Tokens = read_and_lex(Stream),
-  {ok, Prog} = dl_parser:parse(Tokens),
-  Facts = lists:filter(fun dl_repr:is_dl_atom/1, Prog),
-  Rules = lists:filter(fun dl_repr:is_dl_rule/1, Prog),
-  {Facts, Rules}.
+  % work around: allow empty file although yecc does not support this
+  case Tokens of
+    [] ->
+      {[], []};
+    _T ->
+      {ok, Prog} = dl_parser:parse(Tokens),
+      Facts = lists:filter(fun dl_repr:is_dl_atom/1, Prog),
+      Rules = lists:filter(fun dl_repr:is_dl_rule/1, Prog),
+      {Facts, Rules}
+  end.
 
 read_and_lex(S) ->
   case io:get_line(S, '') of
@@ -35,6 +42,13 @@ read_and_lex(S) ->
       {ok, Tokens, _} = dl_lexer:string(Line),
       Tokens ++ read_and_lex(S)
   end.
+
+-spec read_db(string()) -> dl_db_instance().
+read_db(FileName) ->
+  {ok, Stream} = file:open(FileName, [read]),
+  {F, _R} = preproc:lex_and_parse(Stream),
+  file:close(Stream),
+  dbs:from_list(F).
 
 %%----------------------------------------------------------------------
 %% @doc
