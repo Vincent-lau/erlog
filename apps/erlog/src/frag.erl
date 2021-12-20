@@ -93,18 +93,17 @@ part_by_rule(DB, Rule, TaskNum, TotTasks, Stream) ->
                     integer(),
                     file:io_device()) ->
                      ok.
-part_by_rules(DB, [], _CurNum, _TotTasks, _Stream) ->
+part_by_rules(DB, [], _CurTaskNum, _TotTasks, _Stream) ->
   case dbs:is_empty(DB) of
     true ->
       ok;
     false ->
-      % TODO change this to LOG_NOTICE and add more handler
       ?LOG_NOTICE("non empty db after examining all rules, ~s~n", [dbs:to_string(DB)])
   end,
   ok;
-part_by_rules(DB, [RH | RT], CurNum, TotTasks, Stream) ->
-  DBRest = part_by_rule(DB, RH, CurNum, TotTasks, Stream),
-  part_by_rules(DBRest, RT, CurNum, TotTasks, Stream).
+part_by_rules(DB, [RH | RT], CurTaskNum, TotTasks, Stream) ->
+  DBRest = part_by_rule(DB, RH, CurTaskNum, TotTasks, Stream),
+  part_by_rules(DBRest, RT, CurTaskNum, TotTasks, Stream).
 
 -spec hash_frag_rec(dl_db_instance(),
                     [dl_rule()],
@@ -113,15 +112,15 @@ part_by_rules(DB, [RH | RT], CurNum, TotTasks, Stream) ->
                     pos_integer(),
                     file:filename()) ->
                      ok.
-hash_frag_rec(_DB, _Rules, CurNum, TotNum, _StageNum, _DirPath) when CurNum > TotNum ->
+hash_frag_rec(_DB, _Rules, CurTaskNum, TotNum, _StageNum, _DirPath) when CurTaskNum > TotNum ->
   ok;
-hash_frag_rec(DB, Rules, CurNum, TotNum, StageNum, DirPath) ->
-  % filename convention task-stage#-task#
-  FileName = io_lib:format("~stask-~w-~w", [DirPath, StageNum, CurNum]),
+hash_frag_rec(DB, Rules, CurTaskNum, TotNum, StageNum, DirPath) ->
+  % filename convention task-task#-stage#
+  FileName = io_lib:format("~s-~w-~w", [DirPath, CurTaskNum, StageNum]),
   {ok, Stream} = file:open(FileName, [append]),
-  part_by_rules(DB, Rules, CurNum, TotNum, Stream),
+  part_by_rules(DB, Rules, CurTaskNum, TotNum, Stream),
   file:close(Stream),
-  hash_frag_rec(DB, Rules, CurNum + 1, TotNum, StageNum, DirPath).
+  hash_frag_rec(DB, Rules, CurTaskNum + 1, TotNum, StageNum, DirPath).
 
 %%----------------------------------------------------------------------
 %% @doc
