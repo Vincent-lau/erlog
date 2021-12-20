@@ -1,5 +1,5 @@
 -type task_state() :: idle | in_progress | finished.
--type task_category() :: evaluate | wait.
+-type task_category() :: evaluate | wait | terminate.
 
 -record(task,
         {task_num :: integer(),
