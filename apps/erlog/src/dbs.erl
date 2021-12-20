@@ -182,4 +182,4 @@ flatten(L) ->
 -spec to_string(dl_db_instance()) -> string().
 to_string(DB) ->
   L = sets:to_list(DB),
-  lists:join("\n", lists:map(fun(Atom) -> utils:to_string(Atom) end, L)).
+  lists:join(".\n", lists:map(fun(Atom) -> utils:to_string(Atom) end, L)) ++ ".".
