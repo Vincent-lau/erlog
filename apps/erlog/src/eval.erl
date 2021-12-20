@@ -1,7 +1,7 @@
 -module(eval).
 
 -export([eval_seminaive/2, eval_all/2, get_overlap_cols/2, eval_one_rule/3,
-         get_proj_cols/2, get_edb_program/1]).
+         get_proj_cols/2, get_edb_program/1, imm_conseq/3]).
 
 -include("../include/data_repr.hrl").
 -include("../include/log_utils.hrl").
@@ -277,19 +277,20 @@ get_edb_program(Program) ->
 eval_seminaive(Program, FullDB, DeltaDB) ->
   ?LOG_DEBUG(#{current_full_db => dbs:to_string(FullDB)}),
   ?LOG_DEBUG(#{current_delta => dbs:to_string(DeltaDB)}),
-
+  % S^i = S^{i-1} union delta_s^i
   NewFullDB = dbs:union(FullDB, DeltaDB),
-
+  % delta_s^{i+1} = T_p() - S^i
   GeneratedDB = imm_conseq(Program, NewFullDB, DeltaDB),
-  NewDB = dbs:diff(GeneratedDB, NewFullDB),
-  ?LOG_DEBUG(#{new_facts_learned => dbs:to_string(NewDB)}),
+  NewDeltaDB = dbs:diff(GeneratedDB, NewFullDB),
+
+  ?LOG_DEBUG(#{new_facts_learned => dbs:to_string(NewDeltaDB)}),
   ?LOG_DEBUG(#{added_delta_tuples_to_db => dbs:to_string(NewFullDB)}),
 
-  case is_fixpoint(NewDB) of
+  case is_fixpoint(NewDeltaDB) of
     true ->
       NewFullDB;
     false ->
-      eval_seminaive(Program, NewFullDB, NewDB)
+      eval_seminaive(Program, NewFullDB, NewDeltaDB)
   end.
 
 
