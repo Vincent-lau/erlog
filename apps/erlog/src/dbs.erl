@@ -5,11 +5,41 @@
 -export([new/0, is_empty/1, diff/2, filteri/2, foreach/2, split_args/2, equal/2,
   union/2, from_list/1, flatten/1]).
 -export([to_string/1]).
+-export([read_db/1, write_db/2]).
 
 -import(dl_repr, [cons_const/1]).
 
 
 -include("../include/data_repr.hrl").
+
+
+
+%%----------------------------------------------------------------------
+%% IO operations of db
+%%----------------------------------------------------------------------
+-spec read_db(string()) -> dl_db_instance().
+read_db(FileName) ->
+  {ok, Stream} = file:open(FileName, [read]),
+  {F, _R} = preproc:lex_and_parse(Stream),
+  file:close(Stream),
+  dbs:from_list(F).
+
+
+%%----------------------------------------------------------------------
+%% @doc
+%% @equiv write_db(FileName, DB, [write])
+%% @end
+%%----------------------------------------------------------------------
+-spec write_db(string(), dl_db_instance()) -> ok.
+write_db(FileName, DB) ->
+  write_db(FileName, DB, [write]).
+
+-spec write_db(string(), dl_db_instance(), file:mode()) -> ok.
+write_db(FileName, DB, Modes) ->
+  {ok, Stream} = file:open(FileName, Modes),
+  io:format(Stream, "~s~n", [to_string(DB)]),
+  file:close(Stream).
+
 
 %%----------------------------------------------------------------------
 %% RA operations

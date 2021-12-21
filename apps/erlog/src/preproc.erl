@@ -1,7 +1,6 @@
 -module(preproc).
 
--export([lex_and_parse/1, process_rules/1, combine_args/1, combine_atoms/1, rule_part/1,
-         read_db/1]).
+-export([lex_and_parse/1, process_rules/1, combine_args/1, combine_atoms/1, rule_part/1]).
 
 -include("../include/data_repr.hrl").
 
@@ -43,12 +42,6 @@ read_and_lex(S) ->
       Tokens ++ read_and_lex(S)
   end.
 
--spec read_db(string()) -> dl_db_instance().
-read_db(FileName) ->
-  {ok, Stream} = file:open(FileName, [read]),
-  {F, _R} = preproc:lex_and_parse(Stream),
-  file:close(Stream),
-  dbs:from_list(F).
 
 %%----------------------------------------------------------------------
 %% @doc
@@ -130,6 +123,6 @@ random_name() ->
         [{_, X}] ->
           X
       end,
-  Name = "_name" ++ integer_to_list(N),
+  Name = "tmpname_" ++ integer_to_list(N),
   ets:insert(dl_atom_names, {counter, N + 1}),
   Name.
