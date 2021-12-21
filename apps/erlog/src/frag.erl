@@ -1,7 +1,6 @@
 -module(frag).
 
 -include("../include/data_repr.hrl").
--include_lib("kernel/include/logger.hrl").
 
 -ifdef(TEST).
 
@@ -72,8 +71,7 @@ part_by_rule(DB, Rule, TaskNum, TotTasks, Stream) ->
       hash_and_write(Atoms1, C1, TaskNum, TotTasks, Stream),
       hash_and_write(Atoms2, C2, TaskNum, TotTasks, Stream),
       DBRest2;
-    #dl_rule{body = [#dl_atom{}]} ->
-      % TODO just put everything else into every file, is this necessary?
+    _Other -> % this is not a join rule, so partition in the end
       DB
   end.
 
@@ -93,14 +91,10 @@ part_by_rule(DB, Rule, TaskNum, TotTasks, Stream) ->
                     integer(),
                     file:io_device()) ->
                      ok.
-part_by_rules(DB, [], _CurTaskNum, _TotTasks, _Stream) ->
-  case dbs:is_empty(DB) of
-    true ->
-      ok;
-    false ->
-      ?LOG_NOTICE("non empty db after examining all rules, ~s~n", [dbs:to_string(DB)])
-  end,
-  ok;
+part_by_rules(DB, [], CurTaskNum, TotTasks, Stream) ->
+  % after examining all join rules, we can partition the rest of the db however
+  % we like
+  hash_and_write(DB, [1], CurTaskNum, TotTasks, Stream);
 part_by_rules(DB, [RH | RT], CurTaskNum, TotTasks, Stream) ->
   DBRest = part_by_rule(DB, RH, CurTaskNum, TotTasks, Stream),
   part_by_rules(DBRest, RT, CurTaskNum, TotTasks, Stream).
@@ -112,21 +106,20 @@ part_by_rules(DB, [RH | RT], CurTaskNum, TotTasks, Stream) ->
                     pos_integer(),
                     file:filename()) ->
                      ok.
-hash_frag_rec(_DB, _Rules, CurTaskNum, TotNum, _StageNum, _DirPath) when CurTaskNum > TotNum ->
+hash_frag_rec(_DB, _Rules, _StageNum, CurTaskNum, TotNum, _DirPath) when CurTaskNum > TotNum ->
   ok;
-hash_frag_rec(DB, Rules, CurTaskNum, TotNum, StageNum, DirPath) ->
-  % filename convention task-task#-stage#
-  FileName = io_lib:format("~s-~w-~w", [DirPath, CurTaskNum, StageNum]),
+hash_frag_rec(DB, Rules, StageNum, CurTaskNum, TotNum, DirPath) ->
+  % filename convention task-stage#-task#
+  FileName = io_lib:format("~s-~w-~w", [DirPath, StageNum, CurTaskNum]),
   {ok, Stream} = file:open(FileName, [append]),
   part_by_rules(DB, Rules, CurTaskNum, TotNum, Stream),
   file:close(Stream),
-  hash_frag_rec(DB, Rules, CurTaskNum + 1, TotNum, StageNum, DirPath).
+  hash_frag_rec(DB, Rules, StageNum, CurTaskNum + 1, TotNum, DirPath).
 
 %%----------------------------------------------------------------------
 %% @doc
 %% Function: hash_frag
 %% Purpose: partition the db into Num parts and write them onto disk
-%% Args:
 %% @returns ok
 %% @end
 %%----------------------------------------------------------------------
@@ -136,5 +129,5 @@ hash_frag_rec(DB, Rules, CurTaskNum, TotNum, StageNum, DirPath) ->
                 pos_integer(),
                 file:filename()) ->
                  ok.
-hash_frag(DB, Rules, TotTaskNum, StageNum, DirPath) ->
-  hash_frag_rec(DB, Rules, 1, TotTaskNum, StageNum, DirPath).
+hash_frag(DB, Rules, StageNum, TotTaskNum, DirPath) ->
+  hash_frag_rec(DB, Rules, StageNum, 1, TotTaskNum, DirPath).
