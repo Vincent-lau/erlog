@@ -1,6 +1,6 @@
 -module(eval).
 
--export([eval_seminaive/2, eval_all/2, get_overlap_cols/2, eval_one_rule/3,
+-export([eval_seminaive/2, eval_seminaive_one/3, eval_all/2, get_overlap_cols/2, eval_one_rule/3,
          get_proj_cols/2, get_edb_program/1, imm_conseq/3]).
 
 -include("../include/data_repr.hrl").
@@ -235,7 +235,6 @@ is_edb_pred(Atom, Rules) ->
   Name = get_atom_name(Atom),
   lists:all(fun(R) -> get_rule_headname(R) =/= Name end, Rules).
 
-
 %% calls eval one until a fixpoint is reached
 %% returns the final db instance
 -spec eval_all(dl_program(), dl_db_instance()) -> dl_db_instance().
@@ -272,17 +271,31 @@ get_edb_program(Program) ->
                end,
                Program).
 
--spec eval_seminaive(dl_program(), dl_db_instance(), dl_db_instance()) ->
-                      dl_db_instance().
-eval_seminaive(Program, FullDB, DeltaDB) ->
-  ?LOG_DEBUG(#{current_full_db => dbs:to_string(FullDB)}),
-  ?LOG_DEBUG(#{current_delta => dbs:to_string(DeltaDB)}),
+%%----------------------------------------------------------------------
+%% @doc
+%% Do one iteration of semi-naive evaluation, following the pseudocode
+%%
+%% FullDB = FullDB union DeltaDB
+%% DeltaDB = T_p(FullDB, DeltaDB) - FullDB
+%%
+%% @end
+%%----------------------------------------------------------------------
+-spec eval_seminaive_one(dl_program(), dl_db_instance(), dl_db_instance()) ->
+                          {dl_db_instance(), dl_db_instance()}.
+eval_seminaive_one(Program, FullDB, DeltaDB) ->
   % S^i = S^{i-1} union delta_s^i
   NewFullDB = dbs:union(FullDB, DeltaDB),
   % delta_s^{i+1} = T_p() - S^i
   GeneratedDB = imm_conseq(Program, NewFullDB, DeltaDB),
   NewDeltaDB = dbs:diff(GeneratedDB, NewFullDB),
+  {NewFullDB, NewDeltaDB}.
 
+-spec eval_seminaive(dl_program(), dl_db_instance(), dl_db_instance()) ->
+                      dl_db_instance().
+eval_seminaive(Program, FullDB, DeltaDB) ->
+  ?LOG_DEBUG(#{current_full_db => dbs:to_string(FullDB)}),
+  ?LOG_DEBUG(#{current_delta => dbs:to_string(DeltaDB)}),
+  {NewFullDB, NewDeltaDB} = eval_seminaive_one(Program, FullDB, DeltaDB),
   ?LOG_DEBUG(#{new_facts_learned => dbs:to_string(NewDeltaDB)}),
   ?LOG_DEBUG(#{added_delta_tuples_to_db => dbs:to_string(NewFullDB)}),
 
@@ -292,7 +305,6 @@ eval_seminaive(Program, FullDB, DeltaDB) ->
     false ->
       eval_seminaive(Program, NewFullDB, NewDeltaDB)
   end.
-
 
 %%----------------------------------------------------------------------
 %% @doc
