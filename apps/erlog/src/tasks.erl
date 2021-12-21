@@ -1,8 +1,8 @@
 -module(tasks).
 
 -export([set_finished/1, set_idle/1, set_in_prog/1]).
--export([is_idle/1]).
--export([new_task/0, new_task/2, new_task/4, new_wait_task/0]).
+-export([is_idle/1, is_finished/1]).
+-export([new_task/0, new_task/2, new_task/4, new_wait_task/0, new_terminate_task/0]).
 
 -include("../include/task_repr.hrl").
 
@@ -10,6 +10,12 @@
 is_idle(#task{state = S}) when S =:= idle ->
   true;
 is_idle(#task{}) ->
+  false.
+
+-spec is_finished(mr_task()) -> boolean().
+is_finished(#task{state = finished}) ->
+  true;
+is_finished(#task{}) ->
   false.
 
 -spec set_finished(mr_task()) -> mr_task().
@@ -37,8 +43,13 @@ new_wait_task() ->
   T = new_task(),
   T#task{type = wait}.
 
+-spec new_terminate_task() -> mr_task().
+new_terminate_task() ->
+  T = new_task(),
+  T#task{type = terminate}.
+
 -spec new_task(integer(), integer(), task_state(), task_category()) -> mr_task().
-new_task(TaskNum, StageNum, TaskState, TaskType) ->
+new_task(StageNum, TaskNum, TaskState, TaskType) ->
   #task{task_num = TaskNum,
         stage_num = StageNum,
         state = TaskState,
@@ -46,7 +57,7 @@ new_task(TaskNum, StageNum, TaskState, TaskType) ->
 
 %% @doc generate a new eval idle task
 -spec new_task(integer(), integer()) -> mr_task().
-new_task(TaskNum, StageNum) ->
+new_task(StageNum, TaskNum) ->
   #task{task_num = TaskNum,
         stage_num = StageNum,
         state = idle,
