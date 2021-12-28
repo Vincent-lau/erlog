@@ -1,24 +1,25 @@
 -module(coordinator).
 
+-behaviour(gen_server).
+
 -include("../include/task_repr.hrl").
 -include("../include/data_repr.hrl").
 -include("../include/coor_params.hrl").
 
 -include_lib("kernel/include/logger.hrl").
 
--import(dbs, [db_to_string/1]).
 -import(dl_repr, [get_rule_headname/1]).
 
--export([start_link/1, get_prog/1, get_static_db/1, get_num_tasks/1, assign_task/1,
-         finish_task/2, stop_coordinator/1]).
+-export([start_link/1, get_prog/1, get_num_tasks/1, assign_task/1, finish_task/2,
+         stop_coordinator/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 
 -record(coor_state,
         {tasks :: [mr_task()],
          num_tasks :: non_neg_integer(),
-         static_db :: dl_db_instance(),
-         non_static_prog :: dl_program()}).
+         prog :: dl_program(),
+         stage_num :: integer()}).
 
 -type state() :: #coor_state{}.
 
@@ -28,14 +29,11 @@
 
 -endif.
 
--behaviour(gen_server).
-
 %%% Client API
 -spec start_link(string()) -> {ok, pid()}.
 start_link(ProgName) ->
-  net_kernel:start([?coor_name, shortnames]),
   {ok, Pid} = gen_server:start_link(?MODULE, [ProgName], []),
-  global:register_name(coor, Pid),
+  yes = global:register_name(coor, Pid),
   {ok, Pid}.
 
 %% Synchronous call
@@ -45,9 +43,6 @@ get_num_tasks(Pid) ->
 
 get_prog(Pid) ->
   gen_server:call(Pid, prog).
-
-get_static_db(Pid) ->
-  gen_server:call(Pid, static_db).
 
 assign_task(Pid) ->
   gen_server:call(Pid, assign).
@@ -60,19 +55,16 @@ stop_coordinator(Pid) ->
 
 %%% Server functions
 
-% there is a couple of things we need to do here
-% read in rules and
 -spec init([string()]) -> {ok, state()}.
 init([ProgName]) ->
-  Dir = "apps/erlog/test/tmp",
-  case filelib:is_dir(Dir) of
+  case filelib:is_dir(?inter_dir) of
     true ->
-      file:del_dir_r(Dir);
+      file:del_dir_r(?inter_dir);
     false ->
       ok
   end,
-  ok = file:make_dir("apps/erlog/test/tmp"),
-  {ok, Stream} = file:open("apps/erlog/test/eval_SUITE_data/" ++ ProgName, [read]),
+  ok = file:make_dir(?inter_dir),
+  {ok, Stream} = file:open(ProgName, [read]),
   {Facts, Rules} = preproc:lex_and_parse(Stream),
   file:close(Stream),
   % preprocess rules
@@ -82,50 +74,47 @@ init([ProgName]) ->
   % create EDB from input relations
   EDB = dbs:from_list(Facts),
 
-  % the coordinator would do a first round of evaluation to find all static relations
-  NewDB = eval:imm_conseq(Program, EDB),
-  FullDB = dbs:union(NewDB, EDB),
-  StaticDB = FullDB,
-  % this is the program that will be sent to workers
-  NonStaticProg =
-    lists:filter(fun(R) -> not eval:static_relation(get_rule_headname(R), Program) end,
-                 Program),
-
-  frag:hash_frag(FullDB, NonStaticProg, ?num_tasks, 1, ?inter_dir),
-  Tasks = [tasks:new_task(X, 1) || X <- lists:seq(1, ?num_tasks)],
+  % the coordinator would do a first round of evaluation to find all deltas for
+  % first stage of seminaive eval
+  EDBProg = eval:get_edb_program(Program),
+  DeltaDB = eval:imm_conseq(EDBProg, EDB, dbs:new()),
+  FullDB = dbs:union(DeltaDB, EDB),
+  frag:hash_frag(FullDB, Program, 1, ?num_tasks, ?inter_dir ++ "fulldb"),
+  frag:hash_frag(DeltaDB, Program, 1, ?num_tasks, ?inter_dir ++ "task"),
+  Tasks = generate_one_stage_tasks(1),
   ?LOG_DEBUG(#{tasks_after_coor_initialisation => Tasks}),
   {ok,
    #coor_state{tasks = Tasks,
                num_tasks = ?num_tasks,
-               static_db = StaticDB,
-               non_static_prog = NonStaticProg}}.
+               prog = Program,
+               stage_num = 1}}.
 
-handle_call(prog, _From, State = #coor_state{non_static_prog = NonStaticProg}) ->
-  ?LOG_DEBUG(#{assigned_prog_to_worker => utils:to_string(NonStaticProg)}),
-  {reply, NonStaticProg, State};
-handle_call(static_db, _From, State = #coor_state{static_db = StaticDB}) ->
-  ?LOG_DEBUG(#{static_db_given_to_worker => db_to_string(StaticDB)}),
-  {reply, StaticDB, State};
+handle_call(prog, _From, State = #coor_state{prog = Prog}) ->
+  ?LOG_DEBUG(#{assigned_prog_to_worker => utils:to_string(Prog)}),
+  {reply, Prog, State};
 handle_call(num_tasks, _From, State = #coor_state{num_tasks = NumTasks}) ->
   {reply, NumTasks, State};
 handle_call(assign, _From, State = #coor_state{tasks = Tasks}) ->
   {Task, NewTasks} = find_next_task(Tasks),
+  ?LOG_DEBUG(#{assigned_task_from_server => Task}),
   ?LOG_DEBUG(#{old_tasks => Tasks, new_tasks => NewTasks}),
   {reply, Task, State#coor_state{tasks = NewTasks}};
 handle_call(terminate, _From, State) ->
   {stop, normal, ok, State}.
 
-handle_cast({finish, Task}, State = #coor_state{tasks = Tasks}) ->
-  NewTasks = update_finished_task(Task, Tasks),
-  {noreply, State#coor_state{tasks = NewTasks}}.
+handle_cast({finish, Task}, State = #coor_state{}) ->
+  {NewTasks, SN} = update_finished_task(Task, State),
+  % TODO can check NewTasks and see if we need to terminate the VM
+  {noreply, State#coor_state{tasks = NewTasks, stage_num = SN}}.
 
 handle_info(Msg, State) ->
-  io:format("Unexpected message: ~p~n", [Msg]),
+  ?LOG_NOTICE("Unexpected message: ~p~n", [Msg]),
   {noreply, State}.
 
 terminate(normal, _State) ->
   ok = file:del_dir_r("apps/erlog/test/tmp"),
-  io:format("coordinator terminated~n"),
+  ?LOG_NOTICE("coordinator terminated~n"),
+  init:stop(),
   ok.
 
 code_change(_OldVsn, State, _Extra) ->
@@ -140,10 +129,10 @@ code_change(_OldVsn, State, _Extra) ->
 %%  if a task can be assigned that means
 %%  <ol>
 %%    <li>it is idle </li>
-%%    <li>@todo the worker has timedout </li>
+%%    <li>@todo the worker has timed out </li>
+%%    <li></li>
 %%  </ol>
 %% if there is none available, then give a wait task
-%% Args:
 %% @returns the task that can be assigned, and the updated list of tasks.
 %% @end
 %%----------------------------------------------------------------------
@@ -153,13 +142,121 @@ find_next_task(Tasks) ->
     {NonIdles, [IdleH | IdleT]} ->
       NewTask = tasks:set_in_prog(IdleH),
       {NewTask, NonIdles ++ [NewTask | IdleT]};
-    {_NonIdles, []} -> % there is no idle task in this case, return wait task
+    {[T = #task{type = terminate}], []} -> % only terminate task exists, assign it
+      {T, Tasks};
+    {_NonIdles, []} ->
+      % there is no idle/terminate task, hence all in progress return wait task
       {tasks:new_wait_task(), Tasks}
   end.
 
--spec update_finished_task(mr_task(), [mr_task()]) -> [mr_task()].
-update_finished_task(Task, Tasks) ->
+%%----------------------------------------------------------------------
+%% @doc
+%% Given a task and the server state, set the given task to be finished.
+%% If all tasks are finished, then generate a new list of tasks and also
+%% the stage number for the next stage.
+%%
+%% @returns a list of new tasks, and an integer representing the stage number.
+%%
+%% @end
+%%----------------------------------------------------------------------
+-spec update_finished_task(mr_task(), state()) -> {[mr_task()], integer()}.
+update_finished_task(Task, #coor_state{tasks = Tasks, stage_num = SN}) ->
   ?LOG_DEBUG(#{task_finished => Task}),
   {L1, [L2H | L2T]} = lists:splitwith(fun(T) -> T =/= Task end, Tasks),
   L2H2 = tasks:set_finished(L2H),
-  L1 ++ [L2H2 | L2T].
+  NewTasks = L1 ++ [L2H2 | L2T],
+  case check_all_finished(NewTasks) of
+    true ->
+      ?LOG_DEBUG(#{finished_stage => SN}),
+      case Ts = generate_one_stage_tasks(SN + 1) of
+        [] ->
+          ?LOG_DEBUG(#{evaluation_finished_at_stage => SN}),
+          io:format("eval finished at stage ~p~n", [SN]),
+          FinalDB = collect_results(1),
+          io:format("final result db is ~n~s~n", [dbs:to_string(FinalDB)]),
+          dbs:write_db(?inter_dir ++ "final_db", FinalDB),
+          {[tasks:new_terminate_task()], SN + 1};
+        _Ts ->
+          ?LOG_DEBUG(#{new_tasks_for_round => SN + 1, tasks => Ts}),
+          {Ts, SN + 1}
+      end;
+    false ->
+      {NewTasks, SN}
+  end.
+
+%%----------------------------------------------------------------------
+%% @doc
+%% Collect all results that have been generated in the full db.
+%%
+%% @returns the aggregated results
+%%
+%% @end
+%%----------------------------------------------------------------------
+-spec collect_results(integer()) -> dl_db_instance().
+collect_results(TaskNum) when TaskNum > ?num_tasks ->
+  dbs:new();
+collect_results(TaskNum) ->
+  FileName = io_lib:format("~s-1-~w", [?inter_dir ++ "fulldb", TaskNum]),
+  DB = dbs:read_db(FileName),
+  dbs:union(DB, collect_results(TaskNum + 1)).
+
+%%----------------------------------------------------------------------
+%% @doc
+%% This function is used to check whether all tasks are finished, this
+%% is probably not the most efficient way of checking because we need
+%% to do this everytime a worker has finished a task.
+%%
+%% @TODO
+%% <p>Alternatively, we could keep track of the number of finished tasks,
+%% but we need to make sure that multiple `finish_task' calls do not
+%% increment the counter. </p>
+%% @end
+%%----------------------------------------------------------------------
+-spec check_all_finished([mr_task()]) -> boolean().
+check_all_finished(Tasks) ->
+  lists:all(fun tasks:is_finished/1, Tasks).
+
+%%----------------------------------------------------------------------
+%% @doc
+%% We need to somehow a task at stage N has reached its fixpoint, if so,
+%% then there is no need to continue, i.e. do not generate this task for
+%% the next stage of evaluation.
+%%
+%% This function is <em>only</em> called when we are ready to go to
+%% the next stage, i.e. when all tasks at this stage are finished
+%% or `check_all_finished' has returned true. And so what we can do
+%% is at this time, check files that are just written, and see if
+%% any of them is empty/has reached fixpoint, if so, do not generate
+%% the next stage task for it.
+%%
+%% @returns a list of tasks that are yet to be completed, and an empty
+%% list if there is no task to be done.
+%%
+%% @end
+%%----------------------------------------------------------------------
+-spec generate_one_stage_tasks(integer()) -> [mr_task()].
+generate_one_stage_tasks(StageNum) when StageNum > 1 ->
+  lists:filtermap(fun(TaskNum) ->
+                     case check_fixpoint(StageNum, TaskNum) of
+                       true -> false; % if empty then do not generate anything
+                       false -> {true, tasks:new_task(StageNum, TaskNum)}
+                     end
+                  end,
+                  lists:seq(1, ?num_tasks));
+generate_one_stage_tasks(StageNum) when StageNum == 1 ->
+  [tasks:new_task(StageNum, TaskNum) || TaskNum <- lists:seq(1, ?num_tasks)].
+
+%%----------------------------------------------------------------------
+%%----------------------------------------------------------------------
+-spec check_fixpoint(integer(), integer()) -> boolean().
+check_fixpoint(StageNum, TaskNum) ->
+  FName1 = io_lib:format("~s-~w-~w", [?inter_dir ++ "task", StageNum - 1, TaskNum]),
+  FName2 = io_lib:format("~s-~w-~w", [?inter_dir ++ "task", StageNum, TaskNum]),
+  DB1 = dbs:read_db(FName1),
+  DB2 = dbs:read_db(FName2),
+  ?LOG_DEBUG(#{stage => StageNum,
+               task_num => TaskNum,
+               db1 => dbs:to_string(DB1),
+               db2 => dbs:to_string(DB2),
+               db_equal => dbs:equal(DB1, DB2)}),
+  dbs:equal(DB1, DB2).
