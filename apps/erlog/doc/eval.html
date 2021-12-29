@@ -36,6 +36,8 @@
  
   And so the conclusion here is that we treat everything in the source database
   as an edb predicate, and add them to the delta.</td></tr>
+<tr><td valign="top"><a href="#eval_seminaive_one-3">eval_seminaive_one/3</a></td><td>  
+Do one iteration of semi-naive evaluation, following the pseudocode.</td></tr>
 <tr><td valign="top"><a href="#get_edb_program-1">get_edb_program/1</a></td><td>
   Given a datalog program, find all rules that does not have a idb predicate
   as its body, quoting the textbook
@@ -93,6 +95,17 @@ e.g.</td></tr>
  
   And so the conclusion here is that we treat everything in the source database
   as an edb predicate, and add them to the delta.</p>
+
+<h3 class="function"><a name="eval_seminaive_one-3">eval_seminaive_one/3</a></h3>
+<div class="spec">
+<p><tt>eval_seminaive_one(Program::<a href="#type-dl_program">dl_program()</a>, FullDB::<a href="#type-dl_db_instance">dl_db_instance()</a>, DeltaDB::<a href="#type-dl_db_instance">dl_db_instance()</a>) -&gt; {<a href="#type-dl_db_instance">dl_db_instance()</a>, <a href="#type-dl_db_instance">dl_db_instance()</a>}</tt><br></p>
+<p> </p>
+</div><p><p>  
+Do one iteration of semi-naive evaluation, following the pseudocode</p>
+ 
+  FullDB = FullDB union DeltaDB
+  DeltaDB = T_p(FullDB, DeltaDB) - FullDB
+ </p>
 
 <h3 class="function"><a name="get_edb_program-1">get_edb_program/1</a></h3>
 <div class="spec">

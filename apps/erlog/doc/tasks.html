@@ -19,6 +19,7 @@
 <tr><td valign="top"><a href="#new_task-0">new_task/0</a></td><td>generate a dummy task.</td></tr>
 <tr><td valign="top"><a href="#new_task-2">new_task/2</a></td><td>generate a new eval idle task.</td></tr>
 <tr><td valign="top"><a href="#new_task-4">new_task/4</a></td><td></td></tr>
+<tr><td valign="top"><a href="#new_terminate_task-0">new_terminate_task/0</a></td><td></td></tr>
 <tr><td valign="top"><a href="#new_wait_task-0">new_wait_task/0</a></td><td></td></tr>
 <tr><td valign="top"><a href="#set_finished-1">set_finished/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#set_idle-1">set_idle/1</a></td><td></td></tr>
@@ -47,13 +48,19 @@
 
 <h3 class="function"><a name="new_task-2">new_task/2</a></h3>
 <div class="spec">
-<p><tt>new_task(TaskNum::integer(), StageNum::integer()) -&gt; <a href="#type-mr_task">mr_task()</a></tt><br></p>
+<p><tt>new_task(StageNum::integer(), TaskNum::integer()) -&gt; <a href="#type-mr_task">mr_task()</a></tt><br></p>
 <p> </p>
 </div><p>generate a new eval idle task</p>
 
 <h3 class="function"><a name="new_task-4">new_task/4</a></h3>
 <div class="spec">
-<p><tt>new_task(TaskNum::integer(), StageNum::integer(), TaskState::<a href="#type-task_state">task_state()</a>, TaskType::<a href="#type-task_category">task_category()</a>) -&gt; <a href="#type-mr_task">mr_task()</a></tt><br></p>
+<p><tt>new_task(StageNum::integer(), TaskNum::integer(), TaskState::<a href="#type-task_state">task_state()</a>, TaskType::<a href="#type-task_category">task_category()</a>) -&gt; <a href="#type-mr_task">mr_task()</a></tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="new_terminate_task-0">new_terminate_task/0</a></h3>
+<div class="spec">
+<p><tt>new_terminate_task() -&gt; <a href="#type-mr_task">mr_task()</a></tt><br></p>
 <p> </p>
 </div>
 

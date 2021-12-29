@@ -24,8 +24,7 @@
   E.g.</td></tr>
 <tr><td valign="top"><a href="#hash_frag-5">hash_frag/5</a></td><td>
   Function: hash_frag
-  Purpose: partition the db into Num parts and write them onto disk
-  Args:.</td></tr>
+  Purpose: partition the db into Num parts and write them onto disk.</td></tr>
 <tr><td valign="top"><a href="#part_by_rules-5">part_by_rules/5</a></td><td>
   Function: part_by_rules
   Purpose: Given all rules, look at each of them in turn, and partition
@@ -58,17 +57,16 @@
 
 <h3 class="function"><a name="hash_frag-5">hash_frag/5</a></h3>
 <div class="spec">
-<p><tt>hash_frag(DB::<a href="#type-dl_db_instance">dl_db_instance()</a>, Rules::[<a href="#type-dl_rule">dl_rule()</a>], TotTaskNum::integer(), StageNum::pos_integer(), DirPath::<a href="/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/kernel/doc/file.html#type-filename">file:filename()</a>) -&gt; ok</tt><br></p>
+<p><tt>hash_frag(DB::<a href="#type-dl_db_instance">dl_db_instance()</a>, Rules::[<a href="#type-dl_rule">dl_rule()</a>], StageNum::integer(), TotTaskNum::pos_integer(), DirPath::<a href="/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/kernel/doc/file.html#type-filename">file:filename()</a>) -&gt; ok</tt><br></p>
 <p> </p>
 <p>returns: ok</p>
 </div><p>
   Function: hash_frag
-  Purpose: partition the db into Num parts and write them onto disk
-  Args:</p>
+  Purpose: partition the db into Num parts and write them onto disk</p>
 
 <h3 class="function"><a name="part_by_rules-5">part_by_rules/5</a></h3>
 <div class="spec">
-<p><tt>part_by_rules(DB::<a href="#type-dl_db_instance">dl_db_instance()</a>, RT::[<a href="#type-dl_rule">dl_rule()</a>], CurNum::integer(), TotTasks::integer(), Stream::<a href="/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/kernel/doc/file.html#type-io_device">file:io_device()</a>) -&gt; ok</tt><br></p>
+<p><tt>part_by_rules(DB::<a href="#type-dl_db_instance">dl_db_instance()</a>, RT::[<a href="#type-dl_rule">dl_rule()</a>], CurTaskNum::integer(), TotTasks::integer(), Stream::<a href="/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/kernel/doc/file.html#type-io_device">file:io_device()</a>) -&gt; ok</tt><br></p>
 <p> </p>
 </div><p>
   Function: part_by_rules

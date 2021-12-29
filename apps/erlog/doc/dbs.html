@@ -31,10 +31,17 @@
 Function: project  
 Purpose: given a db instance, and columns to project, output the db  
 with all atoms projected.</td></tr>
+<tr><td valign="top"><a href="#read_db-1">read_db/1</a></td><td>
+  Read from a file of atoms with predicate symbols.</td></tr>
+<tr><td valign="top"><a href="#read_db-2">read_db/2</a></td><td>
+  Read from a file of atoms without predicate symbols, and construct the
+  database based on the name QryName.</td></tr>
 <tr><td valign="top"><a href="#rename_pred-2">rename_pred/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#split_args-2">split_args/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#to_string-1">to_string/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#union-2">union/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#write_db-2">write_db/2</a></td><td>Equivalent to <a href="#write_db-3"><tt>write_db(FileName, DB, [write])</tt></a>.
+</td></tr>
 </table>
 
 <h2><a name="functions">Function Details</a></h2>
@@ -118,6 +125,25 @@ with all atoms projected. This needs to be order preserving.</p>
  
   Example: ordering preserving P(a, b, c) [2,1] -&gt; P(b, a)</p>
 
+<h3 class="function"><a name="read_db-1">read_db/1</a></h3>
+<div class="spec">
+<p><tt>read_db(FileName::string()) -&gt; <a href="#type-dl_db_instance">dl_db_instance()</a></tt><br></p>
+<p> </p>
+<p>returns: the database instance</p>
+</div><p>
+  Read from a file of atoms with predicate symbols</p>
+
+<h3 class="function"><a name="read_db-2">read_db/2</a></h3>
+<div class="spec">
+<p><tt>read_db(FileName::string(), QryName::string()) -&gt; <a href="#type-dl_db_instance">dl_db_instance()</a></tt><br></p>
+<p><tt>QryName</tt>: is the name of <em>all</em> atoms in the db<br>
+</p>
+<p>returns: the database instance
+ </p>
+</div><p>
+  Read from a file of atoms without predicate symbols, and construct the
+  database based on the name QryName</p>
+
 <h3 class="function"><a name="rename_pred-2">rename_pred/2</a></h3>
 <div class="spec">
 <p><tt>rename_pred(NewPred::<a href="#type-dl_const">dl_const()</a>, DB::<a href="#type-dl_db_instance">dl_db_instance()</a>) -&gt; <a href="#type-dl_db_instance">dl_db_instance()</a></tt><br></p>
@@ -141,6 +167,13 @@ with all atoms projected. This needs to be order preserving.</p>
 <p><tt>union(CurDB::<a href="#type-dl_db_instance">dl_db_instance()</a>, NewDB::<a href="#type-dl_db_instance">dl_db_instance()</a>) -&gt; <a href="#type-dl_db_instance">dl_db_instance()</a></tt><br></p>
 <p> </p>
 </div>
+
+<h3 class="function"><a name="write_db-2">write_db/2</a></h3>
+<div class="spec">
+<p><tt>write_db(FileName::string(), DB::<a href="#type-dl_db_instance">dl_db_instance()</a>) -&gt; ok</tt><br></p>
+<p> </p>
+</div><p>Equivalent to <a href="#write_db-3"><tt>write_db(FileName, DB, [write])</tt></a>.</p>
+
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
