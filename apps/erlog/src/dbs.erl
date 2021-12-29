@@ -5,9 +5,9 @@
 -export([new/0, is_empty/1, diff/2, filteri/2, foreach/2, split_args/2, equal/2,
   union/2, from_list/1, flatten/1]).
 -export([to_string/1]).
--export([read_db/1, write_db/2]).
+-export([read_db/1, read_db/2, write_db/2]).
 
--import(dl_repr, [cons_const/1]).
+-import(dl_repr, [cons_const/1, cons_atom/2]).
 
 
 -include("../include/data_repr.hrl").
@@ -17,13 +17,48 @@
 %%----------------------------------------------------------------------
 %% IO operations of db
 %%----------------------------------------------------------------------
+
+%%----------------------------------------------------------------------
+%% @doc
+%% Read from a file of atoms with predicate symbols
+%% @returns the database instance
+%% @end
+%%----------------------------------------------------------------------
 -spec read_db(string()) -> dl_db_instance().
 read_db(FileName) ->
   {ok, Stream} = file:open(FileName, [read]),
-  {F, _R} = preproc:lex_and_parse(Stream),
+  {F, _R} = preproc:lex_and_parse(stream, Stream),
   file:close(Stream),
   dbs:from_list(F).
 
+
+%%----------------------------------------------------------------------
+%% @doc
+%% Read from a file of atoms without predicate symbols, and construct the
+%% database based on the name QryName
+%% @param QryName is the name of <em>all</em> atoms in the db
+%% @returns the database instance
+%%
+%% @end
+%%----------------------------------------------------------------------
+-spec read_db(string(), string()) -> dl_db_instance().
+read_db(FileName, QryName) ->
+  {ok, Stream} = file:open(FileName, [read]),
+  cons_db_from_data(read_data(Stream), QryName).
+
+
+read_data(S) ->
+  case io:get_line(S, '') of
+    eof ->
+      [];
+    Line when is_list(Line) ->
+      {ok, Tokens, _} = erl_scan:string(Line),
+      [lists:map(fun({_, _, Args}) -> Args end, Tokens) | read_data(S)]
+  end.
+
+cons_db_from_data(Data, AtomName) ->
+  dbs:from_list(
+    lists:map(fun(Args) -> cons_atom(AtomName, Args) end, Data)).
 
 %%----------------------------------------------------------------------
 %% @doc
