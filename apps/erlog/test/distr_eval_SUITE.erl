@@ -10,17 +10,14 @@
 all() ->
   [tc_three_workers].
 
-
-
 init_per_testcase(tc_three_workers, Config) ->
+  clean_tmp(Config),
   net_kernel:start([coor, shortnames]),
-  ct:pal("config ~p~n", [Config]),
   NodePids =
     lists:map(fun(Num) ->
                  Cmd =
                    io_lib:format("erl -noshell -noinput -sname worker~w -pa ~s",
                                  [Num, "../../lib/erlog/ebin/"]),
-                 ct:pal("current dir ~p, and cmd ~s~n", [file:get_cwd(), Cmd]),
                  ct:pal("starting worker #~w~n", [Num]),
                  erlang:open_port({spawn, Cmd}, [{packet, 2}])
               end,
@@ -38,36 +35,34 @@ end_per_testcase(tc_three_workers, Config) ->
   net_kernel:stop().
 
 tc_three_workers(Config) ->
-  ProgName = ?config(data_dir, Config) ++ "../eval_SUITE_data/tc.dl",
-  ct:pal(ProgName),
-  coordinator:start_link(ProgName),
+  dist_eval_tests(Config, "tc.dl", "reachable").
+
+clean_tmp(Config) ->
+  TmpPath = ?config(priv_dir, Config) ++ "tmp/",
+  case filelib:is_dir(TmpPath) of
+    true ->
+      ok;
+    false ->
+      file:del_dir_r(TmpPath)
+  end,
+  ok = file:make_dir(TmpPath).
+
+dist_eval_tests(Config, ProgName, QryName) ->
+  % open file and read program
+  {ok, _Pid} =
+    coordinator:start_link(?config(data_dir, Config) ++ ProgName,
+                           ?config(priv_dir, Config) ++ "tmp/"),
+
   timer:sleep(500),
   R = rpc:call(worker1@vincembp, worker, start, []),
   ct:pal("rpc call result ~p~n", [R]),
   rpc:call(worker2@vincembp, worker, start, []),
   rpc:call(worker3@vincembp, worker, start, []),
 
-  FName = ?config(data_dir, Config) ++ "../tmp/final_db",
-  Res = dbs:read_db(FName),
+  Res = dbs:read_db(?config(data_dir, Config) ++ "../tmp/final_db"),
   ct:pal("Total result db is~n~s~n", [dbs:to_string(Res)]),
   ResQ = dbs:get_rel_by_pred("reachable", Res),
-  FName2 = ?config(data_dir, Config) ++ "../eval_SUITE_data/reachable.csv",
-  {ok, Stream} = file:open(FName2, [read]),
-  Output = read_data(Stream),
-  Ans = cons_db_from_data(Output, "reachable"),
+  Ans = dbs:read_db(?config(data_dir, Config) ++ QryName ++ ".csv", QryName),
   ct:pal("The result database is:~n~s~n and the ans db is ~n~s~n",
          [dbs:to_string(ResQ), dbs:to_string(Ans)]),
   true = dbs:equal(Ans, ResQ).
-
-read_data(S) ->
-  case io:get_line(S, '') of
-    eof ->
-      [];
-    Line when is_list(Line) ->
-      {ok, Tokens, _} = erl_scan:string(Line),
-      [lists:map(fun({_, _, Args}) -> Args end, Tokens) | read_data(S)]
-  end.
-
-cons_db_from_data(Data, AtomName) ->
-  dbs:from_list(
-    lists:map(fun(Args) -> cons_atom(AtomName, Args) end, Data)).
