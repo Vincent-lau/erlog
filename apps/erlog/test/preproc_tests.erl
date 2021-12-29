@@ -68,7 +68,7 @@ combine_two_args_out_of_order(_) ->
 part_res() ->
   A1 = dl_repr:cons_atom("a", ["X", "Y", "Z"]),
   A2 = dl_repr:cons_atom("b", ["W", "X"]),
-  A3 = dl_repr:cons_atom("_name0", ["X", "Y", "Z"]),
+  A3 = dl_repr:cons_atom("tmpname_0", ["X", "Y", "Z"]),
   A4 = dl_repr:cons_atom("c", ["X", "Y"]),
   A5 = dl_repr:cons_atom("d", ["Y", "Z"]),
   R1 = dl_repr:cons_rule(A1, [A2, A3]),
