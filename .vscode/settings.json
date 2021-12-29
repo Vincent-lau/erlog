@@ -5,6 +5,7 @@
     "ebin",
     "fulldb",
     "noinput",
+    "priv",
     "sfulldb",
     "sname",
     "stask",
