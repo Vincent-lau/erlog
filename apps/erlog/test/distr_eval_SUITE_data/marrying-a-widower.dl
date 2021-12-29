@@ -1,0 +1,24 @@
+.decl married(a: symbol, b:symbol)
+.decl father(a: symbol, b:symbol)
+.decl mother(a: symbol, b:symbol)
+.decl parent(a: symbol, b:symbol)
+.decl grandfather(a: symbol, b:symbol)
+.decl grandmother(a: symbol, b:symbol)
+
+.output grandfather
+
+married("you", "widower").
+married("widower_daughter", "your_father").
+married(Partner1, Partner2) :- married(Partner2, Partner1).
+
+father("your_father", "you").
+father(Father, Child) :- mother(Mother, Child), married(Mother, Father).
+
+mother("widower", "widower_daughter").
+mother(Mother, Child) :- father(Father, Child), married(Mother, Father).
+
+parent(Parent, Child) :- mother(Parent, Child). 
+parent(Parent, Child) :- father(Parent, Child).
+
+grandfather(GFather, GChild) :- father(GFather, Parent), parent(Parent, GChild).
+grandmother(GMother, GChild) :- mother(GMother, Parent), parent(Parent, GChild).
