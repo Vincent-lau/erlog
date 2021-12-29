@@ -1,16 +1,36 @@
 -module(preproc).
 
--export([lex_and_parse/1, process_rules/1, combine_args/1, combine_atoms/1, rule_part/1]).
+-export([lex_and_parse/2, process_rules/1, combine_args/1, combine_atoms/1, rule_part/1]).
 
 -include("../include/data_repr.hrl").
 
 %%----------------------------------------------------------------------
 %% @doc
-%% Given a file name as a string or a stream, lex and parse the program
-%% from the file.
+%% Given a file name as a string or a stream or a string of the program
+%% to be parsed, lex and parse the program from the file.
 %%
 %% @returns a program consisting of a list of rules and facts with a list
 %% of atoms
+%% @end
+%%----------------------------------------------------------------------
+-spec lex_and_parse(InputType, Input) -> {[dl_atom()], [dl_rule()]}
+  when InputType :: file | stream | str,
+       Input :: file:io_device() | file:filename() | string().
+lex_and_parse(file, FName) ->
+  {ok, Stream} = file:open(FName, [read]),
+  Res = lex_and_parse(Stream),
+  file:close(Stream),
+  Res;
+lex_and_parse(stream, S) ->
+  lex_and_parse(S);
+lex_and_parse(str, Str) ->
+  lex_and_parse(Str).
+
+%%----------------------------------------------------------------------
+%% @doc
+%% This function is the wrapped by `lex_and_parse/2' defined above, it
+%% implements two cases where the input is a literal string to be parsed
+%% and a `file:io_device()'.
 %% @end
 %%----------------------------------------------------------------------
 -spec lex_and_parse(file:filename() | file:io_device()) -> {[dl_atom()], [dl_rule()]}.
@@ -41,7 +61,6 @@ read_and_lex(S) ->
       {ok, Tokens, _} = dl_lexer:string(Line),
       Tokens ++ read_and_lex(S)
   end.
-
 
 %%----------------------------------------------------------------------
 %% @doc

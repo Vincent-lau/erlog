@@ -68,6 +68,7 @@ eval_to_end({Program, EDB}) ->
 trans_closure_rule({Prog = [_, Rule2], EDB}) ->
   DeltaAtoms = eval:eval_one_rule(Rule2, Prog, EDB),
   {F, _R} = preproc:lex_and_parse(
+    str,
     "
       reachable(a, c).
       reachable(b, d). 

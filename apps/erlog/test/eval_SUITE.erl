@@ -33,9 +33,7 @@ end_per_suite(Config) ->
 
 eval_tests(Config, ProgName, QryName) ->
   % open file and read program
-  {ok, Stream} = file:open(?config(data_dir, Config) ++ ProgName ++ ".dl", [read]),
-  {Facts, Rules} = preproc:lex_and_parse(Stream),
-  file:close(Stream),
+  {Facts, Rules} = preproc:lex_and_parse(file, ?config(data_dir, Config) ++ ProgName ++ ".dl"),
   % preprocess rules
   Prog2 = preproc:process_rules(Rules),
   ct:pal("Input program is:~n~s~n", [utils:to_string(Prog2)]),
@@ -46,9 +44,7 @@ eval_tests(Config, ProgName, QryName) ->
   Res = eval:eval_all(Prog2, EDB),
   ct:pal("Total result db is~n~s~n", [dbs:to_string(Res)]),
   ResQ = dbs:get_rel_by_pred(QryName, Res),
-  {ok, Stream3} = file:open(?config(data_dir, Config) ++ QryName ++ ".csv", [read]),
-  Output = read_data(Stream3),
-  Ans = cons_db_from_data(Output, QryName),
+  Ans = dbs:read_db(?config(data_dir, Config) ++ QryName ++ ".csv", QryName),
   ct:pal("The result database is:~n~s~n and the ans db is ~n~s~n",
          [dbs:to_string(ResQ), dbs:to_string(Ans)]),
   true = dbs:equal(Ans, ResQ).
@@ -74,15 +70,3 @@ scc_tests(Config) ->
 marrying_a_widower_tests(Config) ->
   eval_tests(Config, "marrying-a-widower", "grandfather").
 
-read_data(S) ->
-  case io:get_line(S, '') of
-    eof ->
-      [];
-    Line when is_list(Line) ->
-      {ok, Tokens, _} = erl_scan:string(Line),
-      [lists:map(fun({_, _, Args}) -> Args end, Tokens) | read_data(S)]
-  end.
-
-cons_db_from_data(Data, AtomName) ->
-  dbs:from_list(
-    lists:map(fun(Args) -> cons_atom(AtomName, Args) end, Data)).
