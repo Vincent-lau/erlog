@@ -10,8 +10,8 @@
 
 -import(dl_repr, [get_rule_headname/1]).
 
--export([start_link/1, get_prog/1, get_num_tasks/1, assign_task/1, finish_task/2,
-         stop_coordinator/1]).
+-export([start_link/1, start_link/2, get_tmp_path/1, get_prog/1, get_num_tasks/1,
+         assign_task/1, finish_task/2, finished/1, stop_coordinator/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 
@@ -19,7 +19,8 @@
         {tasks :: [mr_task()],
          num_tasks :: non_neg_integer(),
          prog :: dl_program(),
-         stage_num :: integer()}).
+         stage_num :: integer(),
+         tmp_path :: file:filename()}).
 
 -type state() :: #coor_state{}.
 
@@ -30,13 +31,21 @@
 -endif.
 
 %%% Client API
--spec start_link(string()) -> {ok, pid()}.
+-spec start_link(file:filename()) -> {ok, pid()}.
 start_link(ProgName) ->
-  {ok, Pid} = gen_server:start_link(?MODULE, [ProgName], []),
+  {ok, TmpPath} = application:get_env(erlog, inter_dir),
+  start_link(ProgName, TmpPath).
+
+-spec start_link(file:filename(), file:filename()) -> {ok, pid()}.
+start_link(ProgName, TmpPath) ->
+  {ok, Pid} = gen_server:start_link(?MODULE, [ProgName, TmpPath], []),
   yes = global:register_name(coor, Pid),
   {ok, Pid}.
 
 %% Synchronous call
+
+get_tmp_path(Pid) ->
+  gen_server:call(Pid, tmp_path).
 
 get_num_tasks(Pid) ->
   gen_server:call(Pid, num_tasks).
@@ -53,20 +62,22 @@ finish_task(Pid, Task) ->
 stop_coordinator(Pid) ->
   gen_server:call(Pid, terminate).
 
+finished(Pid) ->
+  gen_server:call(Pid, finished).
+
 %%% Server functions
 
 -spec init([string()]) -> {ok, state()}.
-init([ProgName]) ->
-  case filelib:is_dir(?inter_dir) of
+init([ProgName, TmpPath]) ->
+  % TODO is this a good place to check freshness of tmp dir
+  case filelib:is_dir(TmpPath) of
     true ->
-      file:del_dir_r(?inter_dir);
+      file:del_dir_r(TmpPath);
     false ->
       ok
   end,
-  ok = file:make_dir(?inter_dir),
-  {ok, Stream} = file:open(ProgName, [read]),
-  {Facts, Rules} = preproc:lex_and_parse(Stream),
-  file:close(Stream),
+  ok = file:make_dir(TmpPath),
+  {Facts, Rules} = preproc:lex_and_parse(file, ProgName),
   % preprocess rules
   Program = preproc:process_rules(Rules),
   ?LOG_DEBUG(#{input_prog => utils:to_string(Program)}),
@@ -79,16 +90,19 @@ init([ProgName]) ->
   EDBProg = eval:get_edb_program(Program),
   DeltaDB = eval:imm_conseq(EDBProg, EDB, dbs:new()),
   FullDB = dbs:union(DeltaDB, EDB),
-  frag:hash_frag(FullDB, Program, 1, ?num_tasks, ?inter_dir ++ "fulldb"),
-  frag:hash_frag(DeltaDB, Program, 1, ?num_tasks, ?inter_dir ++ "task"),
-  Tasks = generate_one_stage_tasks(1),
+  frag:hash_frag(FullDB, Program, 1, ?num_tasks, TmpPath ++ "fulldb"),
+  frag:hash_frag(DeltaDB, Program, 1, ?num_tasks, TmpPath ++ "task"),
+  Tasks = generate_one_stage_tasks(1, TmpPath),
   ?LOG_DEBUG(#{tasks_after_coor_initialisation => Tasks}),
   {ok,
    #coor_state{tasks = Tasks,
                num_tasks = ?num_tasks,
                prog = Program,
-               stage_num = 1}}.
+               stage_num = 1,
+               tmp_path = TmpPath}}.
 
+handle_call(tmp_path, _From, State = #coor_state{tmp_path = TmpPath}) ->
+  {reply, TmpPath, State};
 handle_call(prog, _From, State = #coor_state{prog = Prog}) ->
   ?LOG_DEBUG(#{assigned_prog_to_worker => utils:to_string(Prog)}),
   {reply, Prog, State};
@@ -99,6 +113,13 @@ handle_call(assign, _From, State = #coor_state{tasks = Tasks}) ->
   ?LOG_DEBUG(#{assigned_task_from_server => Task}),
   ?LOG_DEBUG(#{old_tasks => Tasks, new_tasks => NewTasks}),
   {reply, Task, State#coor_state{tasks = NewTasks}};
+handle_call(finished, _From, State = #coor_state{tasks = Tasks}) ->
+  case Tasks of
+    [#task{type = terminate}] ->
+      {reply, true, State};
+    _Ts ->
+      {reply, false, State}
+  end;
 handle_call(terminate, _From, State) ->
   {stop, normal, ok, State}.
 
@@ -112,7 +133,6 @@ handle_info(Msg, State) ->
   {noreply, State}.
 
 terminate(normal, _State) ->
-  ok = file:del_dir_r("apps/erlog/test/tmp"),
   ?LOG_NOTICE("coordinator terminated~n"),
   init:stop(),
   ok.
@@ -130,7 +150,6 @@ code_change(_OldVsn, State, _Extra) ->
 %%  <ol>
 %%    <li>it is idle </li>
 %%    <li>@todo the worker has timed out </li>
-%%    <li></li>
 %%  </ol>
 %% if there is none available, then give a wait task
 %% @returns the task that can be assigned, and the updated list of tasks.
@@ -160,7 +179,10 @@ find_next_task(Tasks) ->
 %% @end
 %%----------------------------------------------------------------------
 -spec update_finished_task(mr_task(), state()) -> {[mr_task()], integer()}.
-update_finished_task(Task, #coor_state{tasks = Tasks, stage_num = SN}) ->
+update_finished_task(Task,
+                     #coor_state{tasks = Tasks,
+                                 stage_num = SN,
+                                 tmp_path = TmpPath}) ->
   ?LOG_DEBUG(#{task_finished => Task}),
   {L1, [L2H | L2T]} = lists:splitwith(fun(T) -> T =/= Task end, Tasks),
   L2H2 = tasks:set_finished(L2H),
@@ -168,13 +190,13 @@ update_finished_task(Task, #coor_state{tasks = Tasks, stage_num = SN}) ->
   case check_all_finished(NewTasks) of
     true ->
       ?LOG_DEBUG(#{finished_stage => SN}),
-      case Ts = generate_one_stage_tasks(SN + 1) of
+      case Ts = generate_one_stage_tasks(SN + 1, TmpPath) of
         [] ->
           ?LOG_DEBUG(#{evaluation_finished_at_stage => SN}),
           io:format("eval finished at stage ~p~n", [SN]),
-          FinalDB = collect_results(1),
+          FinalDB = collect_results(1, TmpPath),
           io:format("final result db is ~n~s~n", [dbs:to_string(FinalDB)]),
-          dbs:write_db(?inter_dir ++ "final_db", FinalDB),
+          dbs:write_db(TmpPath ++ "final_db", FinalDB),
           {[tasks:new_terminate_task()], SN + 1};
         _Ts ->
           ?LOG_DEBUG(#{new_tasks_for_round => SN + 1, tasks => Ts}),
@@ -192,13 +214,13 @@ update_finished_task(Task, #coor_state{tasks = Tasks, stage_num = SN}) ->
 %%
 %% @end
 %%----------------------------------------------------------------------
--spec collect_results(integer()) -> dl_db_instance().
-collect_results(TaskNum) when TaskNum > ?num_tasks ->
+-spec collect_results(integer(), file:filename()) -> dl_db_instance().
+collect_results(TaskNum, _TmpPath) when TaskNum > ?num_tasks ->
   dbs:new();
-collect_results(TaskNum) ->
-  FileName = io_lib:format("~s-1-~w", [?inter_dir ++ "fulldb", TaskNum]),
+collect_results(TaskNum, TmpPath) ->
+  FileName = io_lib:format("~s-1-~w", [TmpPath ++ "fulldb", TaskNum]),
   DB = dbs:read_db(FileName),
-  dbs:union(DB, collect_results(TaskNum + 1)).
+  dbs:union(DB, collect_results(TaskNum + 1, TmpPath)).
 
 %%----------------------------------------------------------------------
 %% @doc
@@ -234,24 +256,24 @@ check_all_finished(Tasks) ->
 %%
 %% @end
 %%----------------------------------------------------------------------
--spec generate_one_stage_tasks(integer()) -> [mr_task()].
-generate_one_stage_tasks(StageNum) when StageNum > 1 ->
+-spec generate_one_stage_tasks(integer(), file:filename()) -> [mr_task()].
+generate_one_stage_tasks(StageNum, TmpPath) when StageNum > 1 ->
   lists:filtermap(fun(TaskNum) ->
-                     case check_fixpoint(StageNum, TaskNum) of
+                     case check_fixpoint(StageNum, TaskNum, TmpPath) of
                        true -> false; % if empty then do not generate anything
                        false -> {true, tasks:new_task(StageNum, TaskNum)}
                      end
                   end,
                   lists:seq(1, ?num_tasks));
-generate_one_stage_tasks(StageNum) when StageNum == 1 ->
+generate_one_stage_tasks(StageNum, _TmpPath) when StageNum == 1 ->
   [tasks:new_task(StageNum, TaskNum) || TaskNum <- lists:seq(1, ?num_tasks)].
 
 %%----------------------------------------------------------------------
 %%----------------------------------------------------------------------
--spec check_fixpoint(integer(), integer()) -> boolean().
-check_fixpoint(StageNum, TaskNum) ->
-  FName1 = io_lib:format("~s-~w-~w", [?inter_dir ++ "task", StageNum - 1, TaskNum]),
-  FName2 = io_lib:format("~s-~w-~w", [?inter_dir ++ "task", StageNum, TaskNum]),
+-spec check_fixpoint(integer(), integer(), file:filename()) -> boolean().
+check_fixpoint(StageNum, TaskNum, TmpPath) ->
+  FName1 = io_lib:format("~s-~w-~w", [TmpPath ++ "task", StageNum - 1, TaskNum]),
+  FName2 = io_lib:format("~s-~w-~w", [TmpPath ++ "task", StageNum, TaskNum]),
   DB1 = dbs:read_db(FName1),
   DB2 = dbs:read_db(FName2),
   ?LOG_DEBUG(#{stage => StageNum,
