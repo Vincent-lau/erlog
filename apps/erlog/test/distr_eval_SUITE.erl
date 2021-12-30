@@ -119,6 +119,6 @@ wait_for_finish(Pid) ->
   receive
     done ->
       ok 
-  after 10000 ->
+  after 100000 ->
     timeout
   end.
