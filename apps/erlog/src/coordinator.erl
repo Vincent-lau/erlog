@@ -11,7 +11,7 @@
 -import(dl_repr, [get_rule_headname/1]).
 
 -export([start_link/1, start_link/2, get_tmp_path/1, get_prog/1, get_num_tasks/1,
-         assign_task/1, finish_task/2, finished/1, stop_coordinator/1]).
+         assign_task/1, finish_task/2, done/1, stop_coordinator/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 
@@ -62,8 +62,9 @@ finish_task(Pid, Task) ->
 stop_coordinator(Pid) ->
   gen_server:call(Pid, terminate).
 
-finished(Pid) ->
+done(Pid) ->
   gen_server:call(Pid, finished).
+
 
 %%% Server functions
 
@@ -133,8 +134,7 @@ handle_info(Msg, State) ->
   {noreply, State}.
 
 terminate(normal, _State) ->
-  ?LOG_NOTICE("coordinator terminated~n"),
-  init:stop(),
+  ?LOG_NOTICE("coordinator terminated~n", []),
   ok.
 
 code_change(_OldVsn, State, _Extra) ->
