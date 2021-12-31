@@ -10,8 +10,8 @@
 
 -import(dl_repr, [get_rule_headname/1]).
 
--export([start_link/1, start_link/2, get_tmp_path/1, get_prog/1, get_num_tasks/1,
-         assign_task/1, finish_task/2, done/1, stop_coordinator/1]).
+-export([start_link/2, start_link/1, get_tmp_path/0, get_prog/0, get_num_tasks/0,
+         assign_task/0, finish_task/1, done/0, stop_coordinator/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 
@@ -30,6 +30,9 @@
 
 -endif.
 
+name() ->
+  coor.
+
 %%% Client API
 -spec start_link(file:filename()) -> {ok, pid()}.
 start_link(ProgName) ->
@@ -38,33 +41,30 @@ start_link(ProgName) ->
 
 -spec start_link(file:filename(), file:filename()) -> {ok, pid()}.
 start_link(ProgName, TmpPath) ->
-  {ok, Pid} = gen_server:start_link(?MODULE, [ProgName, TmpPath], []),
-  yes = global:register_name(coor, Pid),
-  {ok, Pid}.
+  gen_server:start_link({global, name()}, ?MODULE, [ProgName, TmpPath], []).
 
 %% Synchronous call
 
-get_tmp_path(Pid) ->
-  gen_server:call(Pid, tmp_path).
+get_tmp_path() ->
+  gen_server:call({global, name()}, tmp_path).
 
-get_num_tasks(Pid) ->
-  gen_server:call(Pid, num_tasks).
+get_num_tasks() ->
+  gen_server:call({global, name()}, num_tasks).
 
-get_prog(Pid) ->
-  gen_server:call(Pid, prog).
+get_prog() ->
+  gen_server:call({global, name()}, prog).
 
-assign_task(Pid) ->
-  gen_server:call(Pid, assign).
+assign_task() ->
+  gen_server:call({global, name()}, assign).
 
-finish_task(Pid, Task) ->
-  gen_server:cast(Pid, {finish, Task}).
+finish_task(Task) ->
+  gen_server:cast({global, name()}, {finish, Task}).
 
-stop_coordinator(Pid) ->
-  gen_server:call(Pid, terminate).
+stop_coordinator() ->
+  gen_server:call({global, name()}, terminate).
 
-done(Pid) ->
-  gen_server:call(Pid, finished).
-
+done() ->
+  gen_server:call({global, name()}, finished).
 
 %%% Server functions
 
@@ -91,13 +91,14 @@ init([ProgName, TmpPath]) ->
   EDBProg = eval:get_edb_program(Program),
   DeltaDB = eval:imm_conseq(EDBProg, EDB, dbs:new()),
   FullDB = dbs:union(DeltaDB, EDB),
-  frag:hash_frag(FullDB, Program, 1, ?num_tasks, TmpPath ++ "fulldb"),
-  frag:hash_frag(DeltaDB, Program, 1, ?num_tasks, TmpPath ++ "task"),
+  {ok, NumTasks} = application:get_env(erlog, num_tasks),
+  frag:hash_frag(FullDB, Program, 1, NumTasks, TmpPath ++ "fulldb"),
+  frag:hash_frag(DeltaDB, Program, 1, NumTasks, TmpPath ++ "task"),
   Tasks = generate_one_stage_tasks(1, TmpPath),
   ?LOG_DEBUG(#{tasks_after_coor_initialisation => Tasks}),
   {ok,
    #coor_state{tasks = Tasks,
-               num_tasks = ?num_tasks,
+               num_tasks = NumTasks,
                prog = Program,
                stage_num = 1,
                tmp_path = TmpPath}}.
