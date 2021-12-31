@@ -1,6 +1,7 @@
 -module(worker).
 
--compile(export_all).
+-export([start_link/0, start/0, start_working/0, stop/0]).
+-export([init/1, handle_cast/2, handle_call/3, terminate/2]).
 
 -include("../include/task_repr.hrl").
 -include("../include/coor_params.hrl").
@@ -10,21 +11,66 @@
 
 -define(coor_node, coor@vincembp).
 
+-behaviour(gen_server).
+
+-record(worker_state, {coor_pid :: pid(), prog :: dl_program(), num_tasks :: integer()}).
+
+
+name() -> worker.
+
+%%% Client callbacks
+
+
 start() ->
+  gen_server:start({local, name()}, ?MODULE, [], []).
+
+start_link() ->
+  gen_server:start_link({local, name()}, ?MODULE, [], []).
+
+start_working() ->
+  gen_server:cast(name(), work).
+
+stop() ->
+  gen_server:call(name(), terminate).
+
+%%% Server functions
+
+init([]) ->
   true = net_kernel:connect_node(?coor_node),
   global:sync(), % make sure that worker sees the registered name
-  Pid = global:whereis_name(coor),
-  Prog = rpc:call(?coor_node, coordinator, get_prog, [Pid]),
-  NumTasks = rpc:call(?coor_node, coordinator, get_num_tasks, [Pid]),
-  work(Pid, Prog, NumTasks).
+  CoorPid = global:whereis_name(coor),
+  Prog = rpc:call(?coor_node, coordinator, get_prog, []),
+  NumTasks = rpc:call(?coor_node, coordinator, get_num_tasks, []),
+  {ok,
+   #worker_state{coor_pid = CoorPid,
+                 prog = Prog,
+                 num_tasks = NumTasks}}.
+
+handle_call(terminate, _From, State) ->
+  {stop, normal, ok, State}.
+
+handle_cast(work,
+            State =
+              #worker_state{coor_pid = CoorPid,
+                            prog = Prog,
+                            num_tasks = NumTasks}) ->
+  spawn(fun () -> work(CoorPid, Prog, NumTasks) end),
+  io:format("hello work~n"),
+  {noreply, State}.
+
+terminate(normal, _State) ->
+  net_kernel:stop(),
+  init:stop().
+
+%%% Private functions
 
 work(Pid, Prog, NumTasks) ->
-  case rpc:call(?coor_node, coordinator, assign_task, [Pid]) of
+  case rpc:call(?coor_node, coordinator, assign_task, []) of
     T = #task{type = evaluate,
               task_num = TaskNum,
               stage_num = StageNum} ->
       ?LOG_DEBUG(#{task_num => TaskNum, stage_num => StageNum}),
-      TmpPath = rpc:call(?coor_node, coordinator, get_tmp_path, [Pid]),
+      TmpPath = rpc:call(?coor_node, coordinator, get_tmp_path, []),
       % HACK no need to distinguish different stages for the FullDB, just keep adding
       FName1 = io_lib:format("~sfulldb-~w-~w", [TmpPath, 1, TaskNum]),
       % TODO so here we are combining all full_dbs together, so when we generate
@@ -58,7 +104,7 @@ work(Pid, Prog, NumTasks) ->
       frag:hash_frag(
         dbs:diff(NewFullDB, FullDB), Prog, 1, NumTasks, TmpPath ++ "fulldb"),
       % call finish task on coordinator
-      rpc:cast(?coor_node, coordinator, finish_task, [Pid, T]),
+      rpc:cast(?coor_node, coordinator, finish_task, [T]),
       % request new tasks
       io:format("stage-~w task-~w finished, requesting new task~n", [StageNum, TaskNum]),
       work(Pid, Prog, NumTasks);
@@ -71,8 +117,3 @@ work(Pid, Prog, NumTasks) ->
     {badrpc, Reason} -> % TODO do I need to distinguish different errors
       io:format("getting task from coordinator failed due to ~p~n", [Reason])
   end.
-
-stop() ->
-  net_kernel:stop(),
-  init:stop().
-
