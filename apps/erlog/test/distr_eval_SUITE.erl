@@ -2,54 +2,87 @@
 
 -include_lib("common_test/include/ct.hrl").
 
--export([all/0, groups/0, init_per_group/2, end_per_group/2]).
--export([tc3workers/1, tc4workers/1, tc6workers/1]).
+-export([all/0, groups/0, init_per_group/2, end_per_group/2, init_per_testcase/2,
+         end_per_testcase/2, init_per_suite/1, end_per_suite/1]).
+-export([tc3workers/1, tc4workers/1, tc6workers/1, tclarge4workers/1]).
 
 -import(dl_repr, [cons_atom/2]).
 
 all() ->
-  [{group, tc_many_workers}].
+  [{group, tc_many_workers}, tclarge4workers].
 
 groups() ->
   [{tc_many_workers, [], [tc4workers, tc3workers, tc6workers]}].
 
-
-init_per_group(tc_many_workers, Config) ->
+init_per_suite(Config) ->
+  application:start(erlog),
   net_kernel:start([coor, shortnames]),
   Config.
 
+end_per_suite(_Config) ->
+  net_kernel:stop(),
+  application:stop(erlog).
+
+init_per_testcase(tclarge4workers, Config) ->
+  multi_worker_init(16, 4, "tc-large.dl", Config);
+init_per_testcase(tc3workers, Config) ->
+  multi_worker_init(1, 3, "tc.dl", Config);
+init_per_testcase(tc4workers, Config) ->
+  multi_worker_init(4, 4, "tc.dl", Config);
+init_per_testcase(tc6workers, Config) ->
+  multi_worker_init(9, 6, "tc.dl", Config).
+
+end_per_testcase(tclarge4workers, Config) ->
+  multi_worker_stop(Config);
+end_per_testcase(tc3workers, Config) ->
+  multi_worker_stop(Config);
+end_per_testcase(tc4workers, Config) ->
+  multi_worker_stop(Config);
+end_per_testcase(tc6workers, Config) ->
+  multi_worker_stop(Config).
+
+init_per_group(tc_many_workers, Config) ->
+  [{query_name, "reachable"} | Config].
+
 end_per_group(tc_many_workers, _Config) ->
-  net_kernel:stop().
+  ok.
+
+tclarge4workers(Config) ->
+  dist_eval_tests(Config, "tc-large.dl", "tc_large").
 
 tc3workers(Config) ->
-  C = start_workers(1, 3, Config),
-  C2 = config_tmp_dir("tc.dl", 3, C),
-  clean_tmp(C2),
-  ct:pal("config for 3 workers~p~n", [Config]),
-  dist_eval_tests(C2, "tc.dl", "reachable").
+  dist_eval_tests(Config, "tc.dl", "reachable").
 
 tc4workers(Config) ->
-  C = start_workers(4, 4, Config),
-  C2 = config_tmp_dir("tc.dl", 4, C),
-  clean_tmp(C2),
-  ct:pal("config for 4 workers~p~n", [Config]),
-  dist_eval_tests(C2, "tc.dl", "reachable").
+  dist_eval_tests(Config, "tc.dl", "reachable").
 
 tc6workers(Config) ->
-  C = start_workers(8, 6, Config),
-  C2 = config_tmp_dir("tc.dl", 6, C),
-  clean_tmp(C2),
-  dist_eval_tests(C2, "tc.dl", "reachable").
+  dist_eval_tests(Config, "tc.dl", "reachable").
 
-config_tmp_dir(ProgName, NumWorkers, Config) ->
+multi_worker_init(InitialNum, NumWorkers, ProgName, Config) ->
+  {NodePids, NodeNames} = start_workers(InitialNum, NumWorkers),
+  TmpDir = get_tmp_dir("tc.dl", 3, Config),
+  clean_tmp(TmpDir),
+  {ok, Pid} = coordinator:start_link(?config(data_dir, Config) ++ ProgName, TmpDir),
+  [{prog_name, ProgName},
+   {worker_pids, NodePids},
+   {worker_names, NodeNames},
+   {num_workers, 3},
+   {tmp_dir, TmpDir},
+   {coor_pid, Pid}
+   | Config].
+
+multi_worker_stop(Config) ->
+  coordinator:stop_coordinator(),
+  stop_workers(Config).
+
+get_tmp_dir(ProgName, NumWorkers, Config) ->
   BaseName = filename:basename(ProgName, ".dl"),
   PrivDir = ?config(priv_dir, Config),
   % tmp-progname-#workers e.g. ...log_private/tmp-tc-3/
-  TmpDir = PrivDir ++ "tmp-" ++ BaseName ++ "-" ++ integer_to_list(NumWorkers) ++ "/",
-  [{tmp_dir, TmpDir} | Config].
+  PrivDir ++ "tmp-" ++ BaseName ++ "-" ++ integer_to_list(NumWorkers) ++ "/".
 
-clean_tmp(Config) ->
-  TmpPath = ?config(tmp_dir, Config),
+clean_tmp(TmpPath) ->
   case filelib:is_dir(TmpPath) of
     true ->
       file:del_dir_r(TmpPath);
@@ -58,7 +91,7 @@ clean_tmp(Config) ->
   end,
   ok = file:make_dir(TmpPath).
 
-start_workers(InitialNum, NumWorkers, Config) ->
+start_workers(InitialNum, NumWorkers) ->
   NodePids =
     lists:map(fun(Num) ->
                  Cmd =
@@ -71,43 +104,39 @@ start_workers(InitialNum, NumWorkers, Config) ->
   NodeNames =
     [list_to_atom("worker" ++ integer_to_list(N) ++ "@vincembp")
      || N <- lists:seq(InitialNum, InitialNum + NumWorkers - 1)],
-  [{worker_pids, NodePids}, {worker_names, NodeNames}, {num_workers, NumWorkers} | Config].
+  {NodePids, NodeNames}.
 
 stop_workers(Config) ->
   NodePids = ?config(worker_pids, Config),
   NodeNames = ?config(worker_names, Config),
-  TmpL = lists:map(fun(Name) -> rpc:call(Name, worker, stop, []) end, NodeNames),
+  TmpL = rpc:multicall(NodeNames, worker, stop, []),
   ct:pal("results of calling worker stop ~p~n", [TmpL]),
   TmpM = lists:map(fun(Pid) -> erlang:port_close(Pid) end, NodePids),
   ct:pal("results of calling port close ~p~n", [TmpM]).
 
 dist_eval_tests(Config, ProgName, QryName) ->
   % open file and read program
-  {ok, Pid} =
-    coordinator:start_link(?config(data_dir, Config) ++ ProgName, ?config(tmp_dir, Config)),
-
   timer:sleep(500),
   NodeNames = ?config(worker_names, Config),
-  R = lists:map(fun(Name) -> rpc:call(Name, worker, start, []) end, NodeNames),
-  ct:pal("rpc call result ~p~n", [R]),
+  {ResL, BadNodes} = rpc:multicall(NodeNames, worker, start, []),
+  rpc:multicall(NodeNames, worker, start_working, []),
+  ct:pal("rpc call  to start workers result ~p ~p~n", [ResL, BadNodes]),
 
-  ok = wait_for_finish(Pid),
+  ok = wait_for_finish(),
   Res = dbs:read_db(?config(tmp_dir, Config) ++ "final_db"),
   ct:pal("Total result db is~n~s~n", [dbs:to_string(Res)]),
-  ResQ = dbs:get_rel_by_pred("reachable", Res),
+  ResQ = dbs:get_rel_by_pred(QryName, Res),
   Ans = dbs:read_db(?config(data_dir, Config) ++ QryName ++ ".csv", QryName),
   ct:pal("The result database is:~n~s~n and the ans db is ~n~s~n",
          [dbs:to_string(ResQ), dbs:to_string(Ans)]),
-  true = dbs:equal(Ans, ResQ),
-  % we want to stop workers and coordinators as part of the test to avoid conflicts
-  % between different tests
-  stop_workers(Config),
-  coordinator:stop_coordinator(Pid).
+  ct:pal("result - ans is ~n~s~n, ans - result is ~n~s~n",
+         [dbs:to_string(dbs:diff(ResQ, Ans)), dbs:to_string(dbs:diff(Ans, ResQ))]),
+  true = dbs:equal(Ans, ResQ).
 
-wait_for_finish(Pid) ->
+wait_for_finish() ->
   register(tester, self()),
   spawn(fun Waiter() ->
-              case coordinator:done(Pid) of
+              case coordinator:done() of
                 true ->
                   ct:pal("The coordinator has finished its job.~n"),
                   tester ! done;
@@ -118,7 +147,7 @@ wait_for_finish(Pid) ->
         end),
   receive
     done ->
-      ok 
-  after 100000 ->
+      ok
+  after 5000 ->
     timeout
   end.
