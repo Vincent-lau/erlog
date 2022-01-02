@@ -55,7 +55,6 @@ handle_cast(work,
                             prog = Prog,
                             num_tasks = NumTasks}) ->
   spawn(fun () -> work(CoorPid, Prog, NumTasks) end),
-  io:format("hello work~n"),
   {noreply, State}.
 
 terminate(normal, _State) ->
@@ -82,7 +81,7 @@ work(Pid, Prog, NumTasks) ->
       FullDBs =
         [dbs:read_db(
            io_lib:format("~s-~w-~w", [TmpPath ++ "fulldb", 1, X]))
-         || X <- lists:seq(1, 4)],
+         || X <- lists:seq(1, 4)], % TODO this 1 and 4 should not be hardcoded
       FullDB = lists:foldl(fun(DB, Acc) -> dbs:union(DB, Acc) end, dbs:new(), FullDBs),
       ?LOG_DEBUG(#{reading_fulldb_from_file_named => FName1,
                    full_db_read => dbs:to_string(FullDB)}),
@@ -106,14 +105,14 @@ work(Pid, Prog, NumTasks) ->
       % call finish task on coordinator
       rpc:cast(?coor_node, coordinator, finish_task, [T]),
       % request new tasks
-      io:format("stage-~w task-~w finished, requesting new task~n", [StageNum, TaskNum]),
+      io:format("~p stage-~w task-~w finished, requesting new task~n", [node(), StageNum, TaskNum]),
       work(Pid, Prog, NumTasks);
     #task{type = wait} ->
-      io:format("this is a wait task, sleeping for 3 sec~n"),
-      timer:sleep(3000),
+      io:format("~p this is a wait task, sleeping for 2 sec~n", [node()]),
+      timer:sleep(2000),
       work(Pid, Prog, NumTasks);
     #task{type = terminate} ->
-      io:format("all done, time to relax~n");
+      io:format("~p all done, time to relax~n", [node()]);
     {badrpc, Reason} -> % TODO do I need to distinguish different errors
-      io:format("getting task from coordinator failed due to ~p~n", [Reason])
+      io:format("~p getting task from coordinator failed due to ~p~n", [node(), Reason])
   end.
