@@ -3,6 +3,7 @@
     "badrpc",
     "distr",
     "ebin",
+    "erpc",
     "fulldb",
     "noinput",
     "priv",
