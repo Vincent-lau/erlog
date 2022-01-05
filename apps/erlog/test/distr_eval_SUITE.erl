@@ -4,12 +4,13 @@
 
 -export([all/0, groups/0, init_per_group/2, end_per_group/2, init_per_testcase/2,
          end_per_testcase/2, init_per_suite/1, end_per_suite/1]).
--export([tc3workers/1, tc4workers/1, tc6workers/1, tclarge4workers/1]).
+-export([tc3workers/1, tc4workers/1, tc6workers/1, tclarge4workers/1, scc4workers/1,
+         rsg4workers/1, marrying4workers/1, nonlinear4workers/1]).
 
 -import(dl_repr, [cons_atom/2]).
 
 all() ->
-  [tc6workers].
+  [tc4workers].
 
 groups() ->
   [{tc_many_workers, [], [tc4workers, tc3workers, tc6workers]}].
@@ -17,12 +18,21 @@ groups() ->
 init_per_suite(Config) ->
   application:start(erlog),
   net_kernel:start([coor, shortnames]),
-  Config.
+  ProgramDir = ?config(data_dir, Config) ++ "../example_program/",
+  [{program_dir, ProgramDir} | Config].
 
 end_per_suite(_Config) ->
   net_kernel:stop(),
   application:stop(erlog).
 
+init_per_testcase(nonlinear4workers, Config) ->
+  multi_worker_init(30, 4, "non-linear-ancestor.dl", Config);
+init_per_testcase(marrying4workers, Config) ->
+  multi_worker_init(26, 4, "marrying-a-widower.dl", Config);
+init_per_testcase(rsg4workers, Config) ->
+  multi_worker_init(22, 4, "rsg.dl", Config);
+init_per_testcase(scc4workers, Config) ->
+  multi_worker_init(18, 4, "scc.dl", Config);
 init_per_testcase(tclarge4workers, Config) ->
   multi_worker_init(14, 4, "tc-large.dl", Config);
 init_per_testcase(tc3workers, Config) ->
@@ -32,6 +42,14 @@ init_per_testcase(tc4workers, Config) ->
 init_per_testcase(tc6workers, Config) ->
   multi_worker_init(8, 6, "tc.dl", Config).
 
+end_per_testcase(nonlinear4workers, Config) ->
+  multi_worker_stop(Config);
+end_per_testcase(marrying4workers, Config) ->
+  multi_worker_stop(Config);
+end_per_testcase(rsg4workers, Config) ->
+  multi_worker_stop(Config);
+end_per_testcase(scc4workers, Config) ->
+  multi_worker_stop(Config);
 end_per_testcase(tclarge4workers, Config) ->
   multi_worker_stop(Config);
 end_per_testcase(tc3workers, Config) ->
@@ -47,6 +65,15 @@ init_per_group(tc_many_workers, Config) ->
 end_per_group(tc_many_workers, _Config) ->
   ok.
 
+nonlinear4workers(Config) ->
+  dist_eval_tests(Config, "non-linear-ancestor.dl", "ancestor").
+
+marrying4workers(Config) ->
+  dist_eval_tests(Config, "marryin-a-widower.dl", "grandfather").
+
+rsg4workers(Config) ->
+  dist_eval_tests(Config, "rsg.dl", "rsg").
+
 tclarge4workers(Config) ->
   dist_eval_tests(Config, "tc-large.dl", "tc_large").
 
@@ -59,10 +86,13 @@ tc4workers(Config) ->
 tc6workers(Config) ->
   dist_eval_tests(Config, "tc.dl", "reachable").
 
+scc4workers(Config) ->
+  dist_eval_tests(Config, "scc.dl", "scc").
+
 multi_worker_init(InitialNum, NumWorkers, ProgName, Config) ->
-  TmpDir = get_tmp_dir("tc.dl", NumWorkers, Config),
+  TmpDir = get_tmp_dir(ProgName, NumWorkers, Config),
   clean_tmp(TmpDir),
-  {ok, Pid} = coordinator:start_link(?config(data_dir, Config) ++ ProgName, TmpDir),
+  {ok, Pid} = coordinator:start_link(?config(program_dir, Config) ++ ProgName, TmpDir),
   {NodePids, NodeNames} = start_workers(InitialNum, NumWorkers),
   [{prog_name, ProgName},
    {worker_pids, NodePids},
@@ -74,7 +104,7 @@ multi_worker_init(InitialNum, NumWorkers, ProgName, Config) ->
 
 multi_worker_stop(Config) ->
   stop_workers(Config),
-  coordinator:stop_coordinator().
+  coordinator:stop().
 
 get_tmp_dir(ProgName, NumWorkers, Config) ->
   BaseName = filename:basename(ProgName, ".dl"),
@@ -104,9 +134,10 @@ start_workers(InitialNum, NumWorkers) ->
   NodeNames =
     [list_to_atom("worker" ++ integer_to_list(N) ++ "@vincembp")
      || N <- lists:seq(InitialNum, InitialNum + NumWorkers - 1)],
-  timer:sleep(1000),
+  ct:pal("node port numbers that are started~p~n", [NodePids]),
+  timer:sleep(2000),
   R1 = erpc:multicall(NodeNames, worker, start, []),
-  ct:pal("rpc call to start workers result ~p~n", [R1]),
+  ct:pal("rpc calls to start workers result ~p~n", [R1]),
   {NodePids, NodeNames}.
 
 stop_workers(Config) ->
@@ -127,7 +158,9 @@ dist_eval_tests(Config, ProgName, QryName) ->
   Res = dbs:read_db(?config(tmp_dir, Config) ++ "final_db"),
   ct:pal("Total result db is~n~s~n", [dbs:to_string(Res)]),
   ResQ = dbs:get_rel_by_pred(QryName, Res),
-  Ans = dbs:read_db(?config(data_dir, Config) ++ QryName ++ ".csv", QryName),
+  ct:pal("getting the query of ~s the result db: ~n~s~n", [QryName, dbs:to_string(Res)]),
+  Ans = dbs:read_db(?config(program_dir, Config) ++ QryName ++ ".csv", QryName),
+  ct:pal("Ans db is ~n~s~n", [dbs:to_string(Ans)]),
   true = dbs:equal(Ans, ResQ).
 
 wait_for_finish() ->
@@ -138,13 +171,15 @@ wait_for_finish() ->
                   ct:pal("The coordinator has finished its job.~n"),
                   tester ! done;
                 false ->
-                  timer:sleep(300),
+                  timer:sleep(500),
+                  ct:pal("still waiting, current the coordinator is in stage ~p of execution~n",
+                         [coordinator:get_current_stage_num()]),
                   Waiter()
               end
         end),
   receive
     done ->
       ok
-  after 5000 ->
+  after 30000 ->
     timeout
   end.
