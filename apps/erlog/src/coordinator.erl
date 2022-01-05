@@ -4,14 +4,13 @@
 
 -include("../include/task_repr.hrl").
 -include("../include/data_repr.hrl").
--include("../include/coor_params.hrl").
 
 -include_lib("kernel/include/logger.hrl").
 
 -import(dl_repr, [get_rule_headname/1]).
 
 -export([start_link/2, start_link/1, get_tmp_path/0, get_prog/0, get_num_tasks/0,
-         assign_task/0, finish_task/1, done/0, stop_coordinator/0]).
+         get_current_stage_num/0, assign_task/0, finish_task/1, done/0, stop/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 
@@ -33,6 +32,10 @@
 name() ->
   coor.
 
+num_tasks() ->
+  {ok, NumTasks} = application:get_env(erlog, num_tasks),
+  NumTasks.
+
 %%% Client API
 -spec start_link(file:filename()) -> {ok, pid()}.
 start_link(ProgName) ->
@@ -44,6 +47,9 @@ start_link(ProgName, TmpPath) ->
   gen_server:start_link({global, name()}, ?MODULE, [ProgName, TmpPath], []).
 
 %% Synchronous call
+
+get_current_stage_num() ->
+  gen_server:call({global, name()}, stage_num).
 
 get_tmp_path() ->
   gen_server:call({global, name()}, tmp_path).
@@ -60,7 +66,7 @@ assign_task() ->
 finish_task(Task) ->
   gen_server:cast({global, name()}, {finish, Task}).
 
-stop_coordinator() ->
+stop() ->
   gen_server:call({global, name()}, terminate).
 
 done() ->
@@ -70,18 +76,13 @@ done() ->
 
 -spec init([string()]) -> {ok, state()}.
 init([ProgName, TmpPath]) ->
-  % TODO is this a good place to check freshness of tmp dir
-  case filelib:is_dir(TmpPath) of
-    true ->
-      file:del_dir_r(TmpPath);
-    false ->
-      ok
-  end,
+  % we check the freshness of tmp just in case
+  clean_tmp(TmpPath),
   ok = file:make_dir(TmpPath),
   {Facts, Rules} = preproc:lex_and_parse(file, ProgName),
   % preprocess rules
   Program = preproc:process_rules(Rules),
-  ?LOG_DEBUG(#{input_prog => utils:to_string(Program)}),
+  ?LOG_DEBUG(#{input_prog => dl_repr:program_to_string(Program)}),
   ?LOG_DEBUG(#{input_data => Facts}),
   % create EDB from input relations
   EDB = dbs:from_list(Facts),
@@ -91,7 +92,7 @@ init([ProgName, TmpPath]) ->
   EDBProg = eval:get_edb_program(Program),
   DeltaDB = eval:imm_conseq(EDBProg, EDB, dbs:new()),
   FullDB = dbs:union(DeltaDB, EDB),
-  {ok, NumTasks} = application:get_env(erlog, num_tasks),
+  NumTasks = num_tasks(),
   frag:hash_frag(FullDB, Program, 1, NumTasks, TmpPath ++ "fulldb"),
   frag:hash_frag(DeltaDB, Program, 1, NumTasks, TmpPath ++ "task"),
   Tasks = generate_one_stage_tasks(1, TmpPath),
@@ -103,10 +104,12 @@ init([ProgName, TmpPath]) ->
                stage_num = 1,
                tmp_path = TmpPath}}.
 
+handle_call(stage_num, _From, State = #coor_state{stage_num = StageNum}) ->
+  {reply, StageNum, State};
 handle_call(tmp_path, _From, State = #coor_state{tmp_path = TmpPath}) ->
   {reply, TmpPath, State};
 handle_call(prog, _From, State = #coor_state{prog = Prog}) ->
-  ?LOG_DEBUG(#{assigned_prog_to_worker => utils:to_string(Prog)}),
+  ?LOG_DEBUG(#{assigned_prog_to_worker => dl_repr:program_to_string(Prog)}),
   {reply, Prog, State};
 handle_call(num_tasks, _From, State = #coor_state{num_tasks = NumTasks}) ->
   {reply, NumTasks, State};
@@ -142,6 +145,15 @@ code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
 %%% Private functions
+
+-spec clean_tmp(file:filename()) -> ok.
+clean_tmp(TmpPath) ->
+  case filelib:is_dir(TmpPath) of
+    true ->
+      file:del_dir_r(TmpPath);
+    false ->
+      ok
+  end.
 
 %%----------------------------------------------------------------------
 %% @doc
@@ -216,12 +228,15 @@ update_finished_task(Task,
 %% @end
 %%----------------------------------------------------------------------
 -spec collect_results(integer(), file:filename()) -> dl_db_instance().
-collect_results(TaskNum, _TmpPath) when TaskNum > ?num_tasks ->
-  dbs:new();
 collect_results(TaskNum, TmpPath) ->
-  FileName = io_lib:format("~s-1-~w", [TmpPath ++ "fulldb", TaskNum]),
-  DB = dbs:read_db(FileName),
-  dbs:union(DB, collect_results(TaskNum + 1, TmpPath)).
+  case TaskNum > num_tasks() of
+    true ->
+      dbs:new();
+    false ->
+      FileName = io_lib:format("~s-1-~w", [TmpPath ++ "fulldb", TaskNum]),
+      DB = dbs:read_db(FileName),
+      dbs:union(DB, collect_results(TaskNum + 1, TmpPath))
+  end.
 
 %%----------------------------------------------------------------------
 %% @doc
@@ -265,11 +280,15 @@ generate_one_stage_tasks(StageNum, TmpPath) when StageNum > 1 ->
                        false -> {true, tasks:new_task(StageNum, TaskNum)}
                      end
                   end,
-                  lists:seq(1, ?num_tasks));
+                  lists:seq(1, num_tasks()));
 generate_one_stage_tasks(StageNum, _TmpPath) when StageNum == 1 ->
-  [tasks:new_task(StageNum, TaskNum) || TaskNum <- lists:seq(1, ?num_tasks)].
+  [tasks:new_task(StageNum, TaskNum) || TaskNum <- lists:seq(1, num_tasks())].
 
 %%----------------------------------------------------------------------
+%% @doc
+%% Checks whether we have reached a fixpoint by comparing the difference
+%% between the result of this stage and the previous stage.
+%% @end
 %%----------------------------------------------------------------------
 -spec check_fixpoint(integer(), integer(), file:filename()) -> boolean().
 check_fixpoint(StageNum, TaskNum, TmpPath) ->

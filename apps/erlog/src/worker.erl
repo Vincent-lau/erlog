@@ -4,7 +4,6 @@
 -export([init/1, handle_cast/2, handle_call/3, terminate/2]).
 
 -include("../include/task_repr.hrl").
--include("../include/coor_params.hrl").
 -include("../include/data_repr.hrl").
 
 -include_lib("kernel/include/logger.hrl").
