@@ -3,7 +3,8 @@
 -export([cons_const/1, cons_atom/2, cons_rule/2, cons_term/1, cons_args_from_list/1]).
 -export([get_atom_args/1, get_atom_name/1, get_rule_head/1, get_rule_headname/1,
          get_rule_body/1, get_atom_args_by_index/2]).
--export([dl_const_to_string/1, dl_var_to_string/1]).
+-export([const_to_string/1, var_to_string/1, atoms_to_string/1, atom_to_string/1,
+        rule_to_string/1, rules_to_string/1, program_to_string/1]).
 -export([is_dl_atom/1, is_dl_rule/1, is_dl_const/1, is_dl_var/1]).
 
 -include("../include/data_repr.hrl").
@@ -49,10 +50,39 @@ cons_term(T) when is_list(T) ->
 cons_args_from_list(L) ->
   lists:map(fun cons_term/1, L).
 
-dl_var_to_string(Var) ->
+-spec atoms_to_string([dl_atom()]) -> string().
+atoms_to_string(Atoms = [#dl_atom{} | _]) ->
+  AtomS = lists:map(fun atom_to_string/1, Atoms),
+  lists:join("\n", AtomS).
+
+-spec atom_to_string(dl_atom()) -> string().
+atom_to_string(A = #dl_atom{pred_sym = Sym}) ->
+  io_lib:format("~w(~s)", [Sym, args_to_string(dl_repr:get_atom_args(A))]).
+
+-spec program_to_string(dl_program()) -> string().
+program_to_string(P) -> rules_to_string(P).
+
+-spec rules_to_string([dl_rule()]) -> string().
+rules_to_string(P = [#dl_rule{} | _]) ->
+  Rules = lists:map(fun rule_to_string/1, P),
+  lists:join("\n", Rules).
+
+
+-spec rule_to_string(dl_rule()) -> string().
+rule_to_string(#dl_rule{head = Head, body = Body}) ->
+  Atoms = lists:map(fun atom_to_string/1, Body),
+  atom_to_string(Head) ++ " :- " ++ lists:join(", ", Atoms) ++ ".".
+
+
+-spec args_to_string([string()]) -> string().
+args_to_string(Args) ->
+  lists:join(", ", lists:map(fun(A) -> "\"" ++ A ++ "\"" end, Args)).
+
+
+var_to_string(Var) ->
   Var.
 
-dl_const_to_string(C) when is_atom(C) ->
+const_to_string(C) when is_atom(C) ->
   atom_to_list(C).
 
 %% from the outside world, should only see strings
@@ -60,8 +90,8 @@ dl_const_to_string(C) when is_atom(C) ->
 get_atom_args(#dl_atom{args = Args}) ->
   lists:map(fun(Arg) ->
                case is_dl_var(Arg) of
-                 true -> dl_var_to_string(Arg);
-                 false -> dl_const_to_string(Arg)
+                 true -> var_to_string(Arg);
+                 false -> const_to_string(Arg)
                end
             end,
             Args).

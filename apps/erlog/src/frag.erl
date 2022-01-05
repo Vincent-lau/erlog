@@ -23,7 +23,7 @@ hash_and_write_one(Atom, Cols, TaskNum, TotTasks, Stream) ->
   Num = erlang:phash2(ToHash, TotTasks) + 1,
   case Num == TaskNum of
     true ->
-      io:format(Stream, "~s.~n", [utils:to_string(Atom)]);
+      io:format(Stream, "~s.~n", [dl_repr:atom_to_string(Atom)]);
     false ->
       ok
   end.

@@ -37,7 +37,7 @@ eval_tests(Config, ProgName, QryName) ->
   {Facts, Rules} = preproc:lex_and_parse(file, ?config(program_dir, Config) ++ ProgName),
   % preprocess rules
   Prog2 = preproc:process_rules(Rules),
-  ct:pal("Input program is:~n~s~n", [utils:to_string(Prog2)]),
+  ct:pal("Input program is:~n~s~n", [dl_repr:program_to_string(Prog2)]),
 
   ct:pal("input data is ~p~n", [Facts]),
   % create EDB from input relations
