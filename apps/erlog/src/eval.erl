@@ -1,7 +1,7 @@
 -module(eval).
 
 -export([eval_seminaive/2, eval_seminaive_one/3, eval_all/2, get_overlap_cols/2, eval_one_rule/3,
-         get_proj_cols/2, get_edb_program/1, imm_conseq/3]).
+         get_proj_cols/2, get_edb_program/1, imm_conseq/3, imm_conseq/2]).
 
 -include("../include/data_repr.hrl").
 -include("../include/log_utils.hrl").
@@ -152,17 +152,20 @@ join_with_delta(Atom1, Atom2, L1, L2, Rule, Rules, FullDB, DeltaDB) ->
 %%----------------------------------------------------------------------
 -spec eval_one_rule(dl_rule(), dl_program(), dl_db_instance(), dl_db_instance()) ->
                      dl_db_instance().
-eval_one_rule(#dl_rule{head = Head, body = [B1 = #dl_atom{}]}, Rules, FullDB, DeltaDB) ->
+eval_one_rule(Rule = #dl_rule{head = Head, body = [B1 = #dl_atom{}]}, Rules, FullDB, DeltaDB) ->
   % PROJECTION
   % first find all relations with the same pred as the rule in IDB
   % then need to find columns that needs to be projected
-  case is_idb_pred(B1, Rules) of
+  Atoms = case is_idb_pred(B1, Rules) of
     true ->
-      Atoms = dbs:get_rel_by_pred(get_atom_name(B1), DeltaDB);
+      dbs:get_rel_by_pred(get_atom_name(B1), DeltaDB);
     false ->
-      Atoms = dbs:get_rel_by_pred(get_atom_name(B1), FullDB)
+      dbs:get_rel_by_pred(get_atom_name(B1), FullDB)
   end,
   Cols = get_proj_cols(dl_repr:get_atom_args(Head), dl_repr:get_atom_args(B1)),
+  ?LOG_DEBUG(#{rule => dl_repr:rule_to_string(Rule),
+               rule_is_projection => true,
+               atoms_to_be_projected => dbs:to_string(Atoms)}),
   project_onto_head(Atoms, Cols, Head#dl_atom.pred_sym);
 eval_one_rule(Rule = #dl_rule{head = Head, body = [A1 = #dl_atom{}, A2 = #dl_atom{}]},
               Rules,
@@ -174,7 +177,7 @@ eval_one_rule(Rule = #dl_rule{head = Head, body = [A1 = #dl_atom{}, A2 = #dl_ato
   % e.g. J(A, B, C, D) :- R(A, B, C), S(B, C, D).
   NewAtoms = join_with_delta(A1, A2, L1, L2, Rule, Rules, FullDB, DeltaDB),
 
-  ?LOG_DEBUG(#{rule => utils:to_string(Rule),
+  ?LOG_DEBUG(#{rule => dl_repr:rule_to_string(Rule),
                full_db => dbs:to_string(FullDB),
                delta => dbs:to_string(DeltaDB),
                c1 => L1,
@@ -215,7 +218,7 @@ is_fixpoint(NewDB) ->
 
 %%----------------------------------------------------------------------
 %% @doc
-%% Given an atom/relation, return whether it is an idb predicate
+%% Given an atom, return whether it is an idb predicate
 %%
 %% <p>
 %% An edb relation is one that <em>only</em> appears in the body of
