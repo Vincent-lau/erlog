@@ -8,7 +8,7 @@
 
 -include_lib("kernel/include/logger.hrl").
 
--define(coor_node, coor@vincembp).
+-define(coor_node, 'coor@127.0.0.1').
 
 -behaviour(gen_server).
 
@@ -40,6 +40,7 @@ init([]) ->
   CoorPid = global:whereis_name(coor),
   Prog = rpc:call(?coor_node, coordinator, get_prog, []),
   NumTasks = rpc:call(?coor_node, coordinator, get_num_tasks, []),
+  spawn(fun check_coor/0),
   {ok,
    #worker_state{coor_pid = CoorPid,
                  prog = Prog,
@@ -58,7 +59,10 @@ handle_cast(work,
 
 terminate(normal, _State) ->
   net_kernel:stop(),
-  init:stop().
+  init:stop();
+terminate(coor_down, State) ->
+  io:format("coordinator is down, terminate as well~n"),
+  terminate(normal, State).
 
 %%% Private functions
 
@@ -75,7 +79,7 @@ work(Pid, Prog, NumTasks) ->
       % new atoms at each worker, we can avoid duplicates being written to the
       % deltas. The need for this is due to the fact that one atom that has been
       % written to the delta and indeed used in previous iterations are not necessarily
-      % from that worker, but there is no chance for the generating worker to know
+      % from that worker, but there is no way for the generating worker to know
       % that atom has already been generated.
       FullDBs =
         [dbs:read_db(
@@ -114,4 +118,16 @@ work(Pid, Prog, NumTasks) ->
       io:format("~p all done, time to relax~n", [node()]);
     {badrpc, Reason} -> % TODO do I need to distinguish different errors
       io:format("~p getting task from coordinator failed due to ~p~n", [node(), Reason])
+  end.
+
+%%% Private functions
+
+% TODO is this worker's responsability or its supervisor's responsibility
+% we need to terminate top down from the supervisor of this worker
+% but for now just do this
+check_coor() ->
+  ok = net_kernel:monitor_nodes(true),
+  receive 
+    {nodedown, ?coor_node} ->
+      stop()
   end.
