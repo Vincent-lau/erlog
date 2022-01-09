@@ -10,14 +10,14 @@
 -import(dl_repr, [cons_atom/2]).
 
 all() ->
-  [tc4workers].
+  [tc4workers, rsg4workers, nonlinear4workers, scc4workers].
 
 groups() ->
   [{tc_many_workers, [], [tc4workers, tc3workers, tc6workers]}].
 
 init_per_suite(Config) ->
   application:start(erlog),
-  net_kernel:start([coor, shortnames]),
+  net_kernel:start(['coor@127.0.0.1', longnames]),
   ProgramDir = ?config(data_dir, Config) ++ "../example_program/",
   [{program_dir, ProgramDir} | Config].
 
@@ -26,21 +26,21 @@ end_per_suite(_Config) ->
   application:stop(erlog).
 
 init_per_testcase(nonlinear4workers, Config) ->
-  multi_worker_init(30, 4, "non-linear-ancestor.dl", Config);
+  multi_worker_init(4, "non-linear-ancestor.dl", Config);
 init_per_testcase(marrying4workers, Config) ->
-  multi_worker_init(26, 4, "marrying-a-widower.dl", Config);
+  multi_worker_init(4, "marrying-a-widower.dl", Config);
 init_per_testcase(rsg4workers, Config) ->
-  multi_worker_init(22, 4, "rsg.dl", Config);
+  multi_worker_init(4, "rsg.dl", Config);
 init_per_testcase(scc4workers, Config) ->
-  multi_worker_init(18, 4, "scc.dl", Config);
+  multi_worker_init(4, "scc.dl", Config);
 init_per_testcase(tclarge4workers, Config) ->
-  multi_worker_init(14, 4, "tc-large.dl", Config);
+  multi_worker_init(4, "tc-large.dl", Config);
 init_per_testcase(tc3workers, Config) ->
-  multi_worker_init(1, 3, "tc.dl", Config);
+  multi_worker_init(3, "tc.dl", Config);
 init_per_testcase(tc4workers, Config) ->
-  multi_worker_init(4, 4, "tc.dl", Config);
+  multi_worker_init(4, "tc.dl", Config);
 init_per_testcase(tc6workers, Config) ->
-  multi_worker_init(8, 6, "tc.dl", Config).
+  multi_worker_init(6, "tc.dl", Config).
 
 end_per_testcase(nonlinear4workers, Config) ->
   multi_worker_stop(Config);
@@ -66,38 +66,36 @@ end_per_group(tc_many_workers, _Config) ->
   ok.
 
 nonlinear4workers(Config) ->
-  dist_eval_tests(Config, "non-linear-ancestor.dl", "ancestor").
+  dist_eval_tests(Config, "ancestor").
 
 marrying4workers(Config) ->
-  dist_eval_tests(Config, "marryin-a-widower.dl", "grandfather").
+  dist_eval_tests(Config, "grandfather").
 
 rsg4workers(Config) ->
-  dist_eval_tests(Config, "rsg.dl", "rsg").
+  dist_eval_tests(Config, "rsg").
 
 tclarge4workers(Config) ->
-  dist_eval_tests(Config, "tc-large.dl", "tc_large").
+  dist_eval_tests(Config,  "tc_large").
 
 tc3workers(Config) ->
-  dist_eval_tests(Config, "tc.dl", "reachable").
+  dist_eval_tests(Config,  "reachable").
 
 tc4workers(Config) ->
-  dist_eval_tests(Config, "tc.dl", "reachable").
+  dist_eval_tests(Config, "reachable").
 
 tc6workers(Config) ->
-  dist_eval_tests(Config, "tc.dl", "reachable").
+  dist_eval_tests(Config, "reachable").
 
 scc4workers(Config) ->
-  dist_eval_tests(Config, "scc.dl", "scc").
+  dist_eval_tests(Config,  "scc").
 
-multi_worker_init(InitialNum, NumWorkers, ProgName, Config) ->
+multi_worker_init(NumWorkers, ProgName, Config) ->
   TmpDir = get_tmp_dir(ProgName, NumWorkers, Config),
   clean_tmp(TmpDir),
   {ok, Pid} = coordinator:start_link(?config(program_dir, Config) ++ ProgName, TmpDir),
-  {NodePids, NodeNames} = start_workers(InitialNum, NumWorkers),
+  Cfg = start_workers(NumWorkers),
   [{prog_name, ProgName},
-   {worker_pids, NodePids},
-   {worker_names, NodeNames},
-   {num_workers, NumWorkers},
+   {worker_cfg, Cfg},
    {tmp_dir, TmpDir},
    {coor_pid, Pid}
    | Config].
@@ -121,38 +119,22 @@ clean_tmp(TmpPath) ->
   end,
   ok = file:make_dir(TmpPath).
 
-start_workers(InitialNum, NumWorkers) ->
-  NodePids =
-    lists:map(fun(Num) ->
-                 Cmd =
-                   io_lib:format("erl -noshell -noinput -sname worker~w -pa ~s",
-                                 [Num, "../../lib/erlog/ebin/"]),
-                 ct:pal("starting worker #~w~n", [Num]),
-                 erlang:open_port({spawn, Cmd}, [])
-              end,
-              lists:seq(InitialNum, InitialNum + NumWorkers - 1)),
-  NodeNames =
-    [list_to_atom("worker" ++ integer_to_list(N) ++ "@vincembp")
-     || N <- lists:seq(InitialNum, InitialNum + NumWorkers - 1)],
-  ct:pal("node port numbers that are started~p~n", [NodePids]),
-  timer:sleep(2000),
-  R1 = erpc:multicall(NodeNames, worker, start, []),
-  ct:pal("rpc calls to start workers result ~p~n", [R1]),
-  {NodePids, NodeNames}.
+start_workers(NumWorkers) ->
+  Cfg = dconfig:start_cluster([worker], NumWorkers, "../../lib/erlog/ebin"),
+  ct:pal("result of starting workers ~p~n", [Cfg]),
+  R = dconfig:all_start(Cfg),
+  ct:pal("results of all_start ~p~n", [R]),
+  Cfg.
+
 
 stop_workers(Config) ->
-  NodePids = ?config(worker_pids, Config),
-  NodeNames = ?config(worker_names, Config),
-  TmpL = erpc:multicall(NodeNames, worker, stop, []),
-  ct:pal("results of calling worker stop ~p~n", [TmpL]),
-  TmpM = lists:map(fun(Pid) -> erlang:port_close(Pid) end, NodePids),
-  ct:pal("results of calling port close ~p~n", [TmpM]).
+  R = dconfig:stop_cluster(?config(worker_cfg, Config)),
+  ct:pal("results of stopping workers ~p~n", [R]).
 
-dist_eval_tests(Config, ProgName, QryName) ->
-  % open file and read program
-  NodeNames = ?config(worker_names, Config),
-  R2 = erpc:multicall(NodeNames, worker, start_working, []),
-  ct:pal("rpc call to start_working ~p", [R2]),
+
+dist_eval_tests(Config, QryName) ->
+  WorkerCfg = ?config(worker_cfg, Config),
+  dconfig:all_work(WorkerCfg),
 
   ok = wait_for_finish(),
   Res = dbs:read_db(?config(tmp_dir, Config) ++ "final_db"),
@@ -172,7 +154,7 @@ wait_for_finish() ->
                   tester ! done;
                 false ->
                   timer:sleep(500),
-                  ct:pal("still waiting, current the coordinator is in stage ~p of execution~n",
+                  ct:pal("still waiting, currently the coordinator is in stage ~p of execution~n",
                          [coordinator:get_current_stage_num()]),
                   Waiter()
               end
@@ -180,6 +162,6 @@ wait_for_finish() ->
   receive
     done ->
       ok
-  after 30000 ->
+  after 5000 ->
     timeout
   end.

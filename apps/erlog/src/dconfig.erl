@@ -72,9 +72,10 @@ stop_node(NodeName, #node_config{nodes = Nodes}) ->
 get_nodes(#node_config{nodes = Nodes}) ->
   maps:keys(Nodes).
 
+all_start(Cfg) ->
+  multicall(worker, start, [], Cfg).
 
 all_work(Cfg) ->
-  multicall(worker, start, [], Cfg),
   multicall(worker, start_working, [], Cfg).
 
 multicall(Module, Function, Args, Cfg) ->
@@ -102,12 +103,14 @@ start_cluster([BaseName, longnames], Num, PA) ->
   {Name, Host} = get_node_name_host(BaseName),
   NodeNames = [list_to_atom(Name ++ integer_to_list(N) ++ "@" ++ Host) || N <- lists:seq(1, Num)],
   NodePids = lists:map(fun(N) -> start_node(N, PA) end, NodeNames),
+  timer:sleep(1000),
   Nodes = lists:zip(NodeNames, NodePids),
   #node_config{nodes = maps:from_list(Nodes)}.
 
 -spec stop_cluster(config()) -> StopRes when StopRes :: list().
 stop_cluster(Cfg = #node_config{nodes = Nodes}) ->
-  lists:map(fun (NodeName) -> stop_node(NodeName, Cfg) end, maps:keys(Nodes)).
+  R = lists:map(fun (NodeName) -> stop_node(NodeName, Cfg) end, maps:keys(Nodes)),
+  timer:sleep(1000).
 
 -spec add_node(atom(), config()) -> config().
 add_node(Name, Cfg) ->
