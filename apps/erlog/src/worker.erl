@@ -14,11 +14,10 @@
 
 -record(worker_state, {coor_pid :: pid(), prog :: dl_program(), num_tasks :: integer()}).
 
-
-name() -> worker.
+name() ->
+  worker.
 
 %%% Client callbacks
-
 
 start() ->
   gen_server:start({local, name()}, ?MODULE, [], []).
@@ -54,7 +53,7 @@ handle_cast(work,
               #worker_state{coor_pid = CoorPid,
                             prog = Prog,
                             num_tasks = NumTasks}) ->
-  spawn(fun () -> work(CoorPid, Prog, NumTasks) end),
+  spawn(fun() -> work(CoorPid, Prog, NumTasks) end),
   {noreply, State}.
 
 terminate(normal, _State) ->
@@ -84,7 +83,7 @@ work(Pid, Prog, NumTasks) ->
       FullDBs =
         [dbs:read_db(
            io_lib:format("~s-~w-~w", [TmpPath ++ "fulldb", 1, X]))
-         || X <- lists:seq(1, 4)], % TODO this 1 and 4 should not be hardcoded
+         || X <- lists:seq(1, NumTasks)],
       FullDB = lists:foldl(fun(DB, Acc) -> dbs:union(DB, Acc) end, dbs:new(), FullDBs),
       ?LOG_DEBUG(#{reading_fulldb_from_file_named => FName1,
                    full_db_read => dbs:to_string(FullDB)}),
@@ -108,7 +107,8 @@ work(Pid, Prog, NumTasks) ->
       % call finish task on coordinator
       rpc:cast(?coor_node, coordinator, finish_task, [T]),
       % request new tasks
-      io:format("~p stage-~w task-~w finished, requesting new task~n", [node(), StageNum, TaskNum]),
+      io:format("~p stage-~w task-~w finished, requesting new task~n",
+                [node(), StageNum, TaskNum]),
       work(Pid, Prog, NumTasks);
     #task{type = wait} ->
       io:format("~p this is a wait task, sleeping for 2 sec~n", [node()]),
@@ -124,10 +124,12 @@ work(Pid, Prog, NumTasks) ->
 
 % TODO is this worker's responsability or its supervisor's responsibility
 % we need to terminate top down from the supervisor of this worker
+% the better way is to ask a higher level supervisor to see that the coordinator
+% has died and hence stop worker_sup
 % but for now just do this
 check_coor() ->
   ok = net_kernel:monitor_nodes(true),
-  receive 
+  receive
     {nodedown, ?coor_node} ->
       stop()
   end.
