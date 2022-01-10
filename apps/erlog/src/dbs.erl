@@ -5,7 +5,7 @@
 -export([new/0, is_empty/1, diff/2, filteri/2, foreach/2, split_args/2, equal/2,
   union/2, from_list/1, flatten/1]).
 -export([to_string/1]).
--export([read_db/1, read_db/2, write_db/2]).
+-export([read_db/1, read_db/2, write_db/2, write_db/3]).
 
 -import(dl_repr, [cons_const/1, cons_atom/2]).
 
@@ -65,11 +65,11 @@ cons_db_from_data(Data, AtomName) ->
 %% @equiv write_db(FileName, DB, [write])
 %% @end
 %%----------------------------------------------------------------------
--spec write_db(string(), dl_db_instance()) -> ok.
+-spec write_db(file:filename(), dl_db_instance()) -> ok.
 write_db(FileName, DB) ->
   write_db(FileName, DB, [write]).
 
--spec write_db(string(), dl_db_instance(), file:mode()) -> ok.
+-spec write_db(file:filename(), dl_db_instance(), [file:mode()]) -> ok | {error, term()}.
 write_db(FileName, DB, Modes) ->
   {ok, Stream} = file:open(FileName, Modes),
   io:format(Stream, "~s~n", [to_string(DB)]),
