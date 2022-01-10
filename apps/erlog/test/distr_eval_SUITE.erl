@@ -92,6 +92,7 @@ scc4workers(Config) ->
 multi_worker_init(NumWorkers, ProgName, Config) ->
   TmpDir = get_tmp_dir(ProgName, NumWorkers, Config),
   clean_tmp(TmpDir),
+  ct:pal("program name ~p~n", [ProgName]),
   {ok, Pid} = coordinator:start_link(?config(program_dir, Config) ++ ProgName, TmpDir),
   Cfg = start_workers(NumWorkers),
   [{prog_name, ProgName},
