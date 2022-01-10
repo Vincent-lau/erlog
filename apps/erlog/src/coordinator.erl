@@ -137,7 +137,8 @@ handle_info(Msg, State) ->
   ?LOG_NOTICE("Unexpected message: ~p~n", [Msg]),
   {noreply, State}.
 
-terminate(normal, _State) ->
+terminate(normal, #coor_state{tmp_path = TmpPath}) ->
+  clean_tmp(TmpPath),
   ?LOG_NOTICE("coordinator terminated~n", []),
   ok.
 
