@@ -163,6 +163,6 @@ wait_for_finish() ->
   receive
     done ->
       ok
-  after 5000 ->
+  after 10000 ->
     timeout
   end.
