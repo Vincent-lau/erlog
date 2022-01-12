@@ -39,7 +39,7 @@ distr_clean(Cfg) ->
 
 distr_run(Cfg, QryName) ->
   dconfig:all_work(Cfg),
-  ok = wait_for_finish(),
+  ok = coordinator:wait_for_finish(5000, 100),
   FinalDB = coordinator:collect_results(1, "apps/erlog/test/tmp/"),
   FinalDBQ = dbs:get_rel_by_pred(QryName, FinalDB),
   io:format("distributed evaluation, result db is ~n~s~n", [dbs:to_string(FinalDBQ)]).
@@ -49,25 +49,4 @@ run_program(distr, ProgName, QryName, NumWorkers) ->
   distr_run(Cfg, QryName),
   distr_clean(Cfg).
 
-spin_checker() ->
-  case coordinator:done() of
-    true ->
-      io:format("The coordinator has finished its job.~n"),
-      exit(done);
-    false ->
-      timer:sleep(100),
-      io:format("still waiting, currently the coordinator is in stage ~p of "
-                "execution~n",
-                [coordinator:get_current_stage_num()]),
-      spin_checker()
-  end.
 
-wait_for_finish() ->
-  {Pid, Ref} = spawn_monitor(fun () -> spin_checker() end),
-  receive
-    {'DOWN', Ref, process, Pid, done} ->
-      ok
-  after 30000 ->
-    exit(Pid, timeout),
-    timeout
-  end.
