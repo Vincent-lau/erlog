@@ -4,7 +4,8 @@
          get_proj_cols/2, get_edb_program/1, imm_conseq/3, imm_conseq/2]).
 
 -include("../include/data_repr.hrl").
--include("../include/log_utils.hrl").
+
+-include_lib("kernel/include/logger.hrl").
 
 -ifdef(TEST).
 
@@ -337,4 +338,6 @@ eval_seminaive(Program, FullDB, DeltaDB) ->
 eval_seminaive(Program, EDB) ->
   EDBProg = get_edb_program(Program),
   DeltaDB = imm_conseq(EDBProg, EDB, dbs:new()),
+  % put all EDB into DeltaDB as well in case predicates in EDB occur in the head
+  % of rules, c.f. marrying-a-widower
   eval_seminaive(Program, EDB, dbs:union(DeltaDB, EDB)).

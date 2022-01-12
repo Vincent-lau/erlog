@@ -13,6 +13,7 @@
          get_current_stage_num/0, assign_task/0, finish_task/1, done/0, stop/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
+-export([collect_results/2, wait_for_finish/2]).
 
 -record(coor_state,
         {tasks :: [mr_task()],
@@ -94,7 +95,9 @@ init([ProgName, TmpPath]) ->
   FullDB = dbs:union(DeltaDB, EDB),
   NumTasks = num_tasks(),
   frag:hash_frag(FullDB, Program, 1, NumTasks, TmpPath ++ "fulldb"),
-  frag:hash_frag(DeltaDB, Program, 1, NumTasks, TmpPath ++ "task"),
+  % similar to what I did in eval_seminaive, we put DeltaDB union EDB as the
+  % DeltaDB in case the input contain "idb" predicates
+  frag:hash_frag(FullDB, Program, 1, NumTasks, TmpPath ++ "task"),
   Tasks = generate_one_stage_tasks(1, TmpPath),
   ?LOG_DEBUG(#{tasks_after_coor_initialisation => Tasks}),
   {ok,
@@ -209,7 +212,6 @@ update_finished_task(Task,
           ?LOG_DEBUG(#{evaluation_finished_at_stage => SN}),
           io:format("eval finished at stage ~p~n", [SN]),
           FinalDB = collect_results(1, TmpPath),
-          io:format("final result db is ~n~s~n", [dbs:to_string(FinalDB)]),
           dbs:write_db(TmpPath ++ "final_db", FinalDB),
           {[tasks:new_terminate_task()], SN + 1};
         _Ts ->
@@ -303,3 +305,29 @@ check_fixpoint(StageNum, TaskNum, TmpPath) ->
                db2 => dbs:to_string(DB2),
                db_equal => dbs:equal(DB1, DB2)}),
   dbs:equal(DB1, DB2).
+
+
+spin_checker(Freq) ->
+  case coordinator:done() of
+    true ->
+      io:format("The coordinator has finished its job.~n"),
+      exit(done);
+    false ->
+      timer:sleep(Freq),
+      io:format("still waiting, currently the coordinator is in stage ~p of "
+                "execution~n",
+                [coordinator:get_current_stage_num()]),
+      spin_checker(Freq)
+  end.
+
+-spec wait_for_finish(timeout(), timeout()) -> ok | timeout.
+wait_for_finish(Timeout, Freq) ->
+  {Pid, Ref} = spawn_monitor(fun () -> spin_checker(Freq) end),
+  receive
+    {'DOWN', Ref, process, Pid, done} ->
+      ok
+  after Timeout ->
+    exit(Pid, timeout),
+    timeout
+  end.
+
