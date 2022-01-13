@@ -9,6 +9,7 @@
 -include_lib("kernel/include/logger.hrl").
 
 -define(coor_node, 'coor@127.0.0.1').
+-define(sleep_time, 300).
 
 -behaviour(gen_server).
 
@@ -111,8 +112,8 @@ work(Pid, Prog, NumTasks) ->
                 [node(), StageNum, TaskNum]),
       work(Pid, Prog, NumTasks);
     #task{type = wait} ->
-      io:format("~p this is a wait task, sleeping for 2 sec~n", [node()]),
-      timer:sleep(2000),
+      io:format("~p this is a wait task, sleeping for ~p sec~n", [node(), ?sleep_time / 1000]),
+      timer:sleep(?sleep_time),
       work(Pid, Prog, NumTasks);
     #task{type = terminate} ->
       io:format("~p all done, time to relax~n", [node()]);
