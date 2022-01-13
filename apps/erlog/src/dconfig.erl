@@ -72,6 +72,10 @@ stop_node(NodeName, #node_config{nodes = Nodes}) ->
 get_nodes(#node_config{nodes = Nodes}) ->
   maps:keys(Nodes).
 
+-spec get_num_nodes(config()) -> non_neg_integer().
+get_num_nodes(#node_config{nodes = Nodes}) ->
+  maps:size(Nodes).
+
 all_start(Cfg) ->
   multicall(worker, start, [], Cfg).
 
@@ -110,7 +114,8 @@ start_cluster([BaseName, longnames], Num, PA) ->
 -spec stop_cluster(config()) -> StopRes when StopRes :: list().
 stop_cluster(Cfg = #node_config{nodes = Nodes}) ->
   R = lists:map(fun (NodeName) -> stop_node(NodeName, Cfg) end, maps:keys(Nodes)),
-  timer:sleep(1000).
+  timer:sleep(1000),
+  R.
 
 -spec add_node(atom(), config()) -> config().
 add_node(Name, Cfg) ->
