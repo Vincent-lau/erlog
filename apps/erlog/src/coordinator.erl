@@ -9,11 +9,11 @@
 
 -import(dl_repr, [get_rule_headname/1]).
 
--export([start_link/2, start_link/1, get_tmp_path/0, get_prog/0, get_num_tasks/0,
-         get_current_stage_num/0, assign_task/0, finish_task/1, done/0, stop/0]).
+-export([start_link/3, start_link/2, start_link/1, get_tmp_path/0, get_prog/0,
+         get_num_tasks/0, get_current_stage_num/0, assign_task/0, finish_task/1, done/0, stop/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
--export([collect_results/2, wait_for_finish/2]).
+-export([collect_results/3, wait_for_finish/2]).
 
 -record(coor_state,
         {tasks :: [mr_task()],
@@ -33,10 +33,6 @@
 name() ->
   coor.
 
-num_tasks() ->
-  {ok, NumTasks} = application:get_env(erlog, num_tasks),
-  NumTasks.
-
 %%% Client API
 -spec start_link(file:filename()) -> {ok, pid()}.
 start_link(ProgName) ->
@@ -45,7 +41,13 @@ start_link(ProgName) ->
 
 -spec start_link(file:filename(), file:filename()) -> {ok, pid()}.
 start_link(ProgName, TmpPath) ->
-  gen_server:start_link({global, name()}, ?MODULE, [ProgName, TmpPath], []).
+  {ok, NumTasks} = application:get_env(erlog, num_tasks),
+  start_link(ProgName, TmpPath, NumTasks).
+
+
+-spec start_link(file:filename(), file:filename(), integer()) -> {ok, pid()}.
+start_link(ProgName, TmpPath, NumTasks) ->
+  gen_server:start_link({global, name()}, ?MODULE, [ProgName, TmpPath, NumTasks], []).
 
 %% Synchronous call
 
@@ -76,7 +78,7 @@ done() ->
 %%% Server functions
 
 -spec init([string()]) -> {ok, state()}.
-init([ProgName, TmpPath]) ->
+init([ProgName, TmpPath, NumTasks]) ->
   % we check the freshness of tmp just in case
   clean_tmp(TmpPath),
   ok = file:make_dir(TmpPath),
@@ -93,12 +95,11 @@ init([ProgName, TmpPath]) ->
   EDBProg = eval:get_edb_program(Program),
   DeltaDB = eval:imm_conseq(EDBProg, EDB, dbs:new()),
   FullDB = dbs:union(DeltaDB, EDB),
-  NumTasks = num_tasks(),
   frag:hash_frag(FullDB, Program, 1, NumTasks, TmpPath ++ "fulldb"),
   % similar to what I did in eval_seminaive, we put DeltaDB union EDB as the
   % DeltaDB in case the input contain "idb" predicates
   frag:hash_frag(FullDB, Program, 1, NumTasks, TmpPath ++ "task"),
-  Tasks = generate_one_stage_tasks(1, TmpPath),
+  Tasks = generate_one_stage_tasks(1, TmpPath, NumTasks),
   ?LOG_DEBUG(#{tasks_after_coor_initialisation => Tasks}),
   {ok,
    #coor_state{tasks = Tasks,
@@ -197,9 +198,11 @@ find_next_task(Tasks) ->
 %%----------------------------------------------------------------------
 -spec update_finished_task(mr_task(), state()) -> {[mr_task()], integer()}.
 update_finished_task(Task,
-                     #coor_state{tasks = Tasks,
-                                 stage_num = SN,
-                                 tmp_path = TmpPath}) ->
+                     State =
+                       #coor_state{tasks = Tasks,
+                                   stage_num = SN,
+                                   tmp_path = TmpPath,
+                                   num_tasks = NumTasks}) ->
   ?LOG_DEBUG(#{task_finished => Task}),
   {L1, [L2H | L2T]} = lists:splitwith(fun(T) -> T =/= Task end, Tasks),
   L2H2 = tasks:set_finished(L2H),
@@ -207,11 +210,11 @@ update_finished_task(Task,
   case check_all_finished(NewTasks) of
     true ->
       ?LOG_DEBUG(#{finished_stage => SN}),
-      case Ts = generate_one_stage_tasks(SN + 1, TmpPath) of
+      case Ts = generate_one_stage_tasks(SN + 1, TmpPath, NumTasks) of
         [] ->
           ?LOG_DEBUG(#{evaluation_finished_at_stage => SN}),
           io:format("eval finished at stage ~p~n", [SN]),
-          FinalDB = collect_results(1, TmpPath),
+          FinalDB = collect_results(1, TmpPath, NumTasks),
           dbs:write_db(TmpPath ++ "final_db", FinalDB),
           {[tasks:new_terminate_task()], SN + 1};
         _Ts ->
@@ -230,15 +233,15 @@ update_finished_task(Task,
 %%
 %% @end
 %%----------------------------------------------------------------------
--spec collect_results(integer(), file:filename()) -> dl_db_instance().
-collect_results(TaskNum, TmpPath) ->
-  case TaskNum > num_tasks() of
+-spec collect_results(integer(), file:filename(), integer()) -> dl_db_instance().
+collect_results(TaskNum, TmpPath, NumTasks) ->
+  case TaskNum > NumTasks of
     true ->
       dbs:new();
     false ->
       FileName = io_lib:format("~s-1-~w", [TmpPath ++ "fulldb", TaskNum]),
       DB = dbs:read_db(FileName),
-      dbs:union(DB, collect_results(TaskNum + 1, TmpPath))
+      dbs:union(DB, collect_results(TaskNum + 1, TmpPath, NumTasks))
   end.
 
 %%----------------------------------------------------------------------
@@ -275,17 +278,17 @@ check_all_finished(Tasks) ->
 %%
 %% @end
 %%----------------------------------------------------------------------
--spec generate_one_stage_tasks(integer(), file:filename()) -> [mr_task()].
-generate_one_stage_tasks(StageNum, TmpPath) when StageNum > 1 ->
+-spec generate_one_stage_tasks(integer(), file:filename(), integer()) -> [mr_task()].
+generate_one_stage_tasks(StageNum, TmpPath, NumTasks) when StageNum > 1 ->
   lists:filtermap(fun(TaskNum) ->
                      case check_fixpoint(StageNum, TaskNum, TmpPath) of
                        true -> false; % if empty then do not generate anything
                        false -> {true, tasks:new_task(StageNum, TaskNum)}
                      end
                   end,
-                  lists:seq(1, num_tasks()));
-generate_one_stage_tasks(StageNum, _TmpPath) when StageNum == 1 ->
-  [tasks:new_task(StageNum, TaskNum) || TaskNum <- lists:seq(1, num_tasks())].
+                  lists:seq(1, NumTasks));
+generate_one_stage_tasks(StageNum, _TmpPath, NumTasks) when StageNum == 1 ->
+  [tasks:new_task(StageNum, TaskNum) || TaskNum <- lists:seq(1, NumTasks)].
 
 %%----------------------------------------------------------------------
 %% @doc
@@ -306,7 +309,6 @@ check_fixpoint(StageNum, TaskNum, TmpPath) ->
                db_equal => dbs:equal(DB1, DB2)}),
   dbs:equal(DB1, DB2).
 
-
 spin_checker(Freq) ->
   case coordinator:done() of
     true ->
@@ -314,15 +316,15 @@ spin_checker(Freq) ->
       exit(done);
     false ->
       timer:sleep(Freq),
-      io:format("still waiting, currently the coordinator is in stage ~p of "
-                "execution~n",
-                [coordinator:get_current_stage_num()]),
+      % io:format("still waiting, currently the coordinator is in stage ~p of "
+      %           "execution~n",
+      %           [coordinator:get_current_stage_num()]),
       spin_checker(Freq)
   end.
 
 -spec wait_for_finish(timeout(), timeout()) -> ok | timeout.
 wait_for_finish(Timeout, Freq) ->
-  {Pid, Ref} = spawn_monitor(fun () -> spin_checker(Freq) end),
+  {Pid, Ref} = spawn_monitor(fun() -> spin_checker(Freq) end),
   receive
     {'DOWN', Ref, process, Pid, done} ->
       ok
@@ -330,4 +332,3 @@ wait_for_finish(Timeout, Freq) ->
     exit(Pid, timeout),
     timeout
   end.
-

@@ -7,7 +7,7 @@
 
 -include_lib("kernel/include/logger.hrl").
 
--export([run_program/3, run_program/4, distr_clean/1, distr_setup/2, distr_run/2]).
+-export([run_program/3, run_program/5, distr_clean/1, distr_setup/4, distr_run/3]).
 
 -spec run_program(Mode, file:filename(), string()) -> ok when Mode :: single | distr.
 run_program(single, ProgName, QryName) ->
@@ -21,13 +21,22 @@ run_program(single, ProgName, QryName) ->
   EDB = dbs:from_list(Facts),
   Res = eval:eval_all(Prog2, EDB),
   ResQ = dbs:get_rel_by_pred(QryName, Res),
-  io:format("single node evaluation, result db is~n~s~n", [dbs:to_string(ResQ)]);
+  ResQ;
+% io:format("single node evaluation, result db is~n~s~n", [dbs:to_string(ResQ)]);
 run_program(distr, ProgName, QryName) ->
-  run_program(distr, ProgName, QryName, 4).
+  run_program(distr, ProgName, QryName, 4, 4).
 
-distr_setup(ProgName, NumWorkers) ->
+run_program(distr, ProgName, QryName, NumWorkers, NumTasks) ->
+  TmpPath = "apps/erlog/test/tmp/",
+  io:format("running program ~p under distributed mode, #workers:~p #tasks:~p~n",
+            [ProgName, NumWorkers, NumTasks]),
+  Cfg = distr_setup(ProgName, NumWorkers, NumTasks, TmpPath),
+  distr_run(Cfg, QryName, TmpPath),
+  distr_clean(Cfg).
+
+distr_setup(ProgName, NumWorkers, NumTasks, TmpPath) ->
   net_kernel:start(['coor@127.0.0.1', longnames]),
-  coordinator:start_link(ProgName),
+  coordinator:start_link(ProgName, TmpPath, NumTasks),
   Cfg = dconfig:start_cluster([worker], NumWorkers),
   dconfig:all_start(Cfg),
   Cfg.
@@ -37,16 +46,10 @@ distr_clean(Cfg) ->
   coordinator:stop(),
   net_kernel:stop().
 
-distr_run(Cfg, QryName) ->
+distr_run(Cfg, QryName, TmpPath) ->
   dconfig:all_work(Cfg),
-  ok = coordinator:wait_for_finish(5000, 100),
-  FinalDB = coordinator:collect_results(1, "apps/erlog/test/tmp/"),
+  ok = coordinator:wait_for_finish(60000, 500),
+  NumTasks = coordinator:get_num_tasks(),
+  FinalDB = coordinator:collect_results(1, TmpPath, NumTasks),
   FinalDBQ = dbs:get_rel_by_pred(QryName, FinalDB),
   io:format("distributed evaluation, result db is ~n~s~n", [dbs:to_string(FinalDBQ)]).
-
-run_program(distr, ProgName, QryName, NumWorkers) ->
-  Cfg = distr_setup(ProgName, NumWorkers),
-  distr_run(Cfg, QryName),
-  distr_clean(Cfg).
-
-
