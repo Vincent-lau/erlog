@@ -16,43 +16,47 @@ write_results(Res, Repeats) ->
             [Repeats, Res]),
   file:close(Stream).
 
-time_against_workers(MaxWorkers) ->
-  time_against_workers(1, MaxWorkers, 10, []).
+time_against_workers(TimeType, MaxWorkers) ->
+  time_against_workers(TimeType, 1, MaxWorkers, 10, []).
 
-time_against_workers(NumWorkers, MaxWorkers, Repeats, Acc) when NumWorkers > MaxWorkers ->
+time_against_workers(_TimeType, NumWorkers, MaxWorkers, Repeats, Acc) when NumWorkers > MaxWorkers ->
   Res =
     lists:zip(
       lists:reverse(Acc), lists:seq(1, MaxWorkers, 2)),
   io:format("final time against #workers ~p~n", [Res]),
   write_results(Res, Repeats),
   Res;
-time_against_workers(NumWorkers, MaxWorkers, Repeats, Acc)
+time_against_workers(TimeType, NumWorkers, MaxWorkers, Repeats, Acc)
   when NumWorkers =< MaxWorkers ->
   io:format("currently ~p number of workers~n", [NumWorkers]),
-  Time = all_times(distr, Repeats, NumWorkers, MaxWorkers + 4),
+  Time = repeat_times(distr, TimeType, Repeats, NumWorkers, MaxWorkers + 4),
   io:format("times for ~p runs in this round is ~p~n", [Repeats, Time]),
-  time_against_workers(NumWorkers + 2, MaxWorkers, Repeats, [Time | Acc]).
+  time_against_workers(TimeType, NumWorkers + 2, MaxWorkers, Repeats, [Time | Acc]).
 
-all_times(distr, Repeats, NumWorkers, NumTasks) ->
-  [time_distr_nodes(NumWorkers, NumTasks) || _ <- lists:seq(1, Repeats)].
+repeat_times(distr, TimeType, Repeats, NumWorkers, NumTasks) ->
+  [time_distr_nodes(TimeType, NumWorkers, NumTasks) || _ <- lists:seq(1, Repeats)].
 
 time_single_node() ->
-  {Time, _R} =
-    timer:tc(erlog_worker,
-             run_program,
-             [single, ?PROG, "reachable"]),
+  {Time, _R} = timer:tc(erlog_worker, run_program, [single, ?PROG, "reachable"]),
   io:format("time used in millisecond is ~p~n", [Time / 1000]),
   Time.
 
-time_distr_nodes(NumWorkers, NumTasks) ->
-  Cfg =
-    erlog_worker:distr_setup(?PROG,
-                             NumWorkers,
-                             NumTasks,
-                             ?tmp_path),
+time_distr_nodes(wallclock, NumWorkers, NumTasks) ->
+  Cfg = erlog_worker:distr_setup(?PROG, NumWorkers, NumTasks, ?tmp_path),
   io:format("set up complete~n"),
   {Time, _R} = timer:tc(erlog_worker, distr_run, [Cfg, "reachable", ?tmp_path]),
   io:format("ready to clean up~n"),
   erlog_worker:distr_clean(Cfg),
   io:format("time used in millisecond is ~p~n", [Time / 1000]),
-  Time.
+  Time;
+time_distr_nodes(cpu, NumWorkers, NumTasks) ->
+  Cfg = erlog_worker:distr_setup(?PROG, NumWorkers, NumTasks, ?tmp_path),
+  io:format("set up complete~n"),
+  S1 = statistics(runtime),
+  io:format("stats 1 ~p~n", [S1]),
+  erlog_worker:distr_run(Cfg, "reachable", ?tmp_path),
+  {_TotTime, TimeSince} = statistics(runtime),
+  io:format("ready to clean up~n"),
+  erlog_worker:distr_clean(Cfg),
+  io:format("time used in millisecond is ~p~n", [TimeSince]),
+  TimeSince.
