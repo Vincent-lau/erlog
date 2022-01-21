@@ -1,6 +1,9 @@
 #!/usr/bin/env zsh
 
-RES_FILE=
+# create a fresh result file
+RES_FILE=apps/erlog/bench/results/timing_res.txt
+rm $RES_FILE
+touch $RES_FILE
 
 echo "=====================starting new iterations===================" >> apps/erlog/bench/results/timing_res.txt
 for N in {50..100..50}
