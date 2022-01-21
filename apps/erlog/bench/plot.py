@@ -29,7 +29,7 @@ def read_data(file_name):
         for l in in_file:
             line = l.strip("{},\n")
             time, num_workers = line.split(",")
-            time = float(time) / 1000
+            time = float(time) / 1000 / 1000
             throughput.append(float(num_edges) / float(time))
             times.append(round(float(time), 2))
             workers.append(num_workers)
@@ -53,7 +53,7 @@ def read_data2(file_name, num_edges):
             workers.append(int(data[-1]))
             times.append(data[0: -1])
     for t in times:
-        throughput.append([num_edges / (float(x) / 1000 / 1000) for x in t])
+        throughput.append([num_edges / (float(x) / 1000 ) for x in t])
     return (throughput, workers)
 
 
@@ -80,7 +80,7 @@ def plot(throughput, workers):
     ax.set_xlabel("number of workers")
     ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
     ax.set_ylabel(
-        "size of graph (#edges) divided by time measured by timer:tc in second")
+        "size of graph (#edges) divided by wall clock time measured by statistics(runtime) in second")
 
     ax.scatter(workers_flat, throughput_flat, s=6, alpha=0.8)
     ax.fill_between(workers, min_throughputs, max_throughputs,
