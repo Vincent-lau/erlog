@@ -18,7 +18,7 @@ groups() ->
 init_per_suite(Config) ->
   application:start(erlog),
   net_kernel:start(['coor@127.0.0.1', longnames]),
-  ProgramDir = ?config(data_dir, Config) ++ "../example_program/",
+  ProgramDir = ?config(data_dir, Config) ++ "../test_program/",
   [{program_dir, ProgramDir} | Config].
 
 end_per_suite(_Config) ->

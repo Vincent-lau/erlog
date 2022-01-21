@@ -1,1 +1,1 @@
-For placeholding purposes, see example_program directory
+For placeholding purposes, see test_program directory

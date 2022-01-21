@@ -26,7 +26,7 @@ ets_owner() ->
 init_per_suite(Config) ->
   Pid = spawn(fun ets_owner/0),
   TabId = ets:new(dl_atom_names, [named_table, public, {heir, Pid, []}]),
-  ProgramDir = ?config(data_dir, Config) ++ "../example_program/",
+  ProgramDir = ?config(data_dir, Config) ++ "../test_program/",
   [{table,TabId},{table_owner, Pid}, {program_dir, ProgramDir} | Config].
 
 end_per_suite(Config) ->
