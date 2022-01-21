@@ -5,12 +5,19 @@
 -export([all/0, groups/0, init_per_group/2, end_per_group/2, init_per_testcase/2,
          end_per_testcase/2, init_per_suite/1, end_per_suite/1]).
 -export([tc3workers/1, tc4workers/1, tc6workers/1, tclarge4workers/1, tc2_4workers/1,
-         scc4workers/1, rsg4workers/1, marrying4workers/1, nonlinear4workers/1]).
+         scc4workers/1, rsg4workers/1, marrying4workers/1, nonlinear4workers/1,
+         pointsto4workers/1]).
 
 -import(dl_repr, [cons_atom/2]).
 
 all() ->
-  [tc4workers, rsg4workers, nonlinear4workers, scc4workers, marrying4workers, tc2_4workers].
+  [tc4workers,
+   rsg4workers,
+   nonlinear4workers,
+   scc4workers,
+   marrying4workers,
+   tc2_4workers,
+   pointsto4workers].
 
 groups() ->
   [{tc_many_workers, [], [tc4workers, tc3workers, tc6workers]}].
@@ -42,7 +49,9 @@ init_per_testcase(tc3workers, Config) ->
 init_per_testcase(tc4workers, Config) ->
   multi_worker_init(4, "tc.dl", Config);
 init_per_testcase(tc6workers, Config) ->
-  multi_worker_init(6, "tc.dl", Config).
+  multi_worker_init(6, "tc.dl", Config);
+init_per_testcase(pointsto4workers, Config) ->
+  multi_worker_init(4, "pointsto.dl", Config).
 
 end_per_testcase(nonlinear4workers, Config) ->
   multi_worker_stop(Config);
@@ -61,6 +70,8 @@ end_per_testcase(tc3workers, Config) ->
 end_per_testcase(tc4workers, Config) ->
   multi_worker_stop(Config);
 end_per_testcase(tc6workers, Config) ->
+  multi_worker_stop(Config);
+end_per_testcase(pointsto4workers, Config) ->
   multi_worker_stop(Config).
 
 init_per_group(tc_many_workers, Config) ->
@@ -95,6 +106,9 @@ tc6workers(Config) ->
 
 scc4workers(Config) ->
   dist_eval_tests(Config, "scc").
+
+pointsto4workers(Config) ->
+  dist_eval_tests(Config, ["alias", "assign"]).
 
 multi_worker_init(NumWorkers, ProgName, Config) ->
   TmpDir = get_tmp_dir(ProgName, NumWorkers, Config),
@@ -134,15 +148,27 @@ stop_workers(Config) ->
   R = dconfig:stop_cluster(?config(worker_cfg, Config)),
   ct:pal("results of stopping workers ~p~n", [R]).
 
-dist_eval_tests(Config, QryName) ->
+dist_eval_tests(Config, QryNames) when is_list(hd(QryNames)) ->
   WorkerCfg = ?config(worker_cfg, Config),
   dconfig:all_work(WorkerCfg),
 
   ok = coordinator:wait_for_finish(5000, 500),
   Res = dbs:read_db(?config(tmp_dir, Config) ++ "final_db"),
   ct:pal("Total result db is~n~s~n", [dbs:to_string(Res)]),
-  ResQ = dbs:get_rel_by_pred(QryName, Res),
-  ct:pal("getting the query of ~s the result db: ~n~s~n", [QryName, dbs:to_string(Res)]),
-  Ans = dbs:read_db(?config(program_dir, Config) ++ QryName ++ ".csv", QryName),
-  ct:pal("Ans db is ~n~s~n", [dbs:to_string(Ans)]),
-  true = dbs:equal(Ans, ResQ).
+  ResQL = lists:map(fun(QryName) -> dbs:get_rel_by_pred(QryName, Res) end, QryNames),
+  lists:foreach(fun({QryName, ResQ}) ->
+                   ct:pal("getting the query of ~s the result db: ~n~s~n",
+                          [QryName, dbs:to_string(ResQ)])
+                end,
+                lists:zip(QryNames, ResQL)),
+  AnsL =
+    lists:map(fun(QryName) ->
+                 dbs:read_db(?config(program_dir, Config) ++ QryName ++ ".csv", QryName)
+              end,
+              QryNames),
+
+  ct:pal("Ans db is ~n~s~n", [lists:map(fun dbs:to_string/1, AnsL)]),
+
+  true = lists:all(fun({ResQ, Ans}) -> dbs:equal(Ans, ResQ) end, lists:zip(ResQL, AnsL));
+dist_eval_tests(Config, QryName) ->
+  dist_eval_tests(Config, [QryName]).
