@@ -1,6 +1,6 @@
 Definitions.
 
-DECL = \.((decl)|(output)|(input)) 
+DECL = \.((decl)|(output)|(input)|(type)) 
 Const = [a-z][0-9a-zA-Z_]*
 Var = [A-Z_][0-9a-zA-Z_]*
 WHITESPACE = [\s\t]
