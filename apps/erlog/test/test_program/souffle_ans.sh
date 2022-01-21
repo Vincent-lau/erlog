@@ -1,4 +1,4 @@
 #!/usr/bin/env sh
 
-echo "======generating ans for tc-large==========="
-souffle -D. tc-large.dl
+echo "======generating ans for $1==========="
+souffle -D. $1

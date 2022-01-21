@@ -1,0 +1,63 @@
+// simple call-insensitive field-sensitive points-to analysis in Datalog
+.type Variable 
+.type Allocation
+.type Field
+
+.decl assignAlloc(var:Variable, heap:Allocation)
+.decl assign(source:Variable, destination:Variable) output
+.decl primitiveAssign(source:Variable, dest:Variable)
+.decl load(base:Variable, dest:Variable, field:Field)
+.decl store(source:Variable, base:Variable, field:Field)
+.decl varPointsTo(var:Variable, heap:Allocation) output
+.decl alias(x:Variable,y:Variable) output
+
+assign(Var1, Var2) :- primitiveAssign(Var1,Var2). 
+
+alias(InstanceVar, IVar) :- varPointsTo(InstanceVar, InstanceHeap), varPointsTo(IVar, InstanceHeap).
+
+varPointsTo(Var, Heap) :- assignAlloc(Var, Heap). 
+
+varPointsTo(Var1, Heap) :- assign(Var2, Var1), varPointsTo(Var2, Heap).
+
+assign(Var1, Var2) :- store(Var1, InstanceVar2, Field), alias(InstanceVar2, InstanceVar1), load(InstanceVar1, Var2, Field).
+
+assignAlloc("a1","a0").
+assignAlloc("a1","a0").
+assignAlloc("a1","a0").
+assignAlloc("a0","a0").
+assignAlloc("a1","a0").
+assignAlloc("a0","a0").
+assignAlloc("a1","a0").
+assignAlloc("a0","a0").
+assignAlloc("a0","a0").
+assignAlloc("a1","a0").
+primitiveAssign("a0","a1").
+primitiveAssign("a0","a0").
+primitiveAssign("a0","a0").
+primitiveAssign("a1","a1").
+primitiveAssign("a0","a1").
+primitiveAssign("a1","a0").
+primitiveAssign("a1","a0").
+primitiveAssign("a1","a0").
+primitiveAssign("a0","a0").
+primitiveAssign("a1","a0").
+load("a1","a1","a0").
+load("a1","a1","a4").
+load("a0","a0","a9").
+load("a1","a1","a1").
+load("a0","a0","a3").
+load("a0","a1","a0").
+load("a1","a0","a5").
+load("a1","a1","a2").
+load("a0","a1","a9").
+load("a1","a1","a3").
+store("a0","a0","a7").
+store("a1","a0","a6").
+store("a0","a1","a2").
+store("a1","a0","a1").
+store("a0","a1","a2").
+store("a0","a1","a8").
+store("a1","a1","a6").
+store("a0","a0","a3").
+store("a1","a0","a2").
+store("a0","a1","a5").
