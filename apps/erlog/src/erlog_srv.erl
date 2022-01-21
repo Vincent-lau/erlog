@@ -15,7 +15,7 @@ init([]) ->
       file:delete("log/erlang.log");
     false ->
       ok
-    end,
+  end,
   io:format("Hello, heavy world!~n"),
 
   {ok, []}.
