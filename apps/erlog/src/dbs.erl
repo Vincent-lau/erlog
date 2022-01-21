@@ -82,8 +82,7 @@ write_db(FileName, DB, Modes) ->
 
 %%----------------------------------------------------------------------
 %% @doc
-%% Function: project
-%% Purpose: given a db instance, and columns to project, output the db
+%% Given a db instance, and columns to project, output the db
 %% with all atoms projected. This needs to be order preserving.
 %%
 %% Example: ordering preserving P(a, b, c) [2,1] -> P(b, a)
@@ -98,9 +97,6 @@ project(DBInstance, Cols) ->
 %% Function: project_atom
 %% Purpose: given an atom and columns to be projected, project the atom
 %% preserving the order
-%% Args:
-%% Returns:
-%%
 %% @end
 %%----------------------------------------------------------------------
 -spec project_atom(dl_atom(), [integer()]) -> dl_atom().
@@ -108,11 +104,10 @@ project_atom(A = #dl_atom{args = Args}, Cols) ->
   A#dl_atom{args = project_args(Args, Cols)}.
 
 %%----------------------------------------------------------------------
+%% @doc
 %% Function: project_args
 %% Purpose: order preserving argument projection
-%% Args:
-%% Returns:
-%%
+%% @end
 %%----------------------------------------------------------------------
 -spec project_args([dl_term()], [integer()]) -> [dl_term()].
 project_args(_, []) ->
