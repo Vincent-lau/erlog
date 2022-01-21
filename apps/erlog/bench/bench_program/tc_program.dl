@@ -1,0 +1,8 @@
+.decl link(a: symbol, b:symbol)
+
+.decl tc_large(a: symbol, b:symbol)
+.output tc_large
+
+tc_large(X, Y) :- link(X, Y).
+tc_large(X, Y) :- link(X, Z), tc_large(Z, Y).
+
