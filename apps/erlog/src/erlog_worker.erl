@@ -21,8 +21,8 @@ run_program(single, ProgName, QryName) ->
   EDB = dbs:from_list(Facts),
   Res = eval:eval_all(Prog2, EDB),
   ResQ = dbs:get_rel_by_pred(QryName, Res),
-  ResQ;
-% io:format("single node evaluation, result db is~n~s~n", [dbs:to_string(ResQ)]);
+  ResQ,
+  ?LOG_DEBUG(#{eval_mode => single, result_db => dbs:to_string(ResQ)});
 run_program(distr, ProgName, QryName) ->
   run_program(distr, ProgName, QryName, 4, 4).
 
@@ -52,4 +52,4 @@ distr_run(Cfg, QryName, TmpPath) ->
   NumTasks = coordinator:get_num_tasks(),
   FinalDB = coordinator:collect_results(1, TmpPath, NumTasks),
   FinalDBQ = dbs:get_rel_by_pred(QryName, FinalDB),
-  io:format("distributed evaluation, result db is ~n~s~n", [dbs:to_string(FinalDBQ)]).
+  ?LOG_DEBUG(#{eval_mode => distributed, result_db => dbs:to_string(FinalDBQ)}).
