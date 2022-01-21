@@ -48,7 +48,7 @@ distr_clean(Cfg) ->
 
 distr_run(Cfg, QryName, TmpPath) ->
   dconfig:all_work(Cfg),
-  ok = coordinator:wait_for_finish(60000, 500),
+  ok = coordinator:wait_for_finish(600000, 500),
   NumTasks = coordinator:get_num_tasks(),
   FinalDB = coordinator:collect_results(1, TmpPath, NumTasks),
   FinalDBQ = dbs:get_rel_by_pred(QryName, FinalDB),
