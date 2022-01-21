@@ -4,6 +4,7 @@
     "dconfig",
     "distr",
     "ebin",
+    "eflame",
     "erpc",
     "fprof",
     "fulldb",
