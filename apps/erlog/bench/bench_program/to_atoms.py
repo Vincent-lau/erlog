@@ -29,3 +29,5 @@ def pointsto_to_atoms():
       for line in in_file:
           l = line.split()
           print(f'store("v{l[0]}", "v{l[1]}", "f{l[2]}").')
+
+tc_to_atoms()
