@@ -5,6 +5,7 @@
     "distr",
     "ebin",
     "erpc",
+    "fprof",
     "fulldb",
     "noconnection",
     "noinput",
