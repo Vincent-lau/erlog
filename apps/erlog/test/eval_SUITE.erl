@@ -53,8 +53,12 @@ eval_tests(Config, ProgName, QryNames) when is_list(hd(QryNames)) ->
               end,
               QryNames),
   ct:pal("The result database is:~n~s~n and the ans db is ~n~s~n",
-         [dbs:to_string(Res), lists:map(fun dbs:to_string/1, AnsL)]),
-  true = lists:all(fun({ResQ, Ans}) -> dbs:equal(Ans, ResQ) end, lists:zip(ResQL, AnsL));
+         [lists:map(fun dbs:to_string/1, ResQL), lists:map(fun dbs:to_string/1, AnsL)]),
+
+  ct:pal("ResQ - Ans ~n~s~n, Ans-ResQ ~n~s~n",
+         [dbs:to_string(dbs:diff(hd(ResQL), hd(AnsL))), dbs:to_string(dbs:diff(hd(AnsL), hd(ResQL)))]),
+
+  true = lists:all(fun({ResQ, Ans}) -> dbs:equal(ResQ, Ans) end, lists:zip(ResQL, AnsL));
 eval_tests(Config, ProgName, QryName) ->
   eval_tests(Config, ProgName, [QryName]).
 
@@ -80,4 +84,4 @@ marrying_a_widower_tests(Config) ->
   eval_tests(Config, "marrying-a-widower.dl", "grandfather").
 
 pointsto_tests(Config) ->
-  eval_tests(Config, "pointsto.dl", ["assign", "alias"]).
+  eval_tests(Config, "pointsto.dl", ["assign", "alias", "varPointsTo"]).
