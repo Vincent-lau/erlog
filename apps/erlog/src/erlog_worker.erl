@@ -44,11 +44,12 @@ distr_setup(ProgName, NumWorkers, NumTasks, TmpPath) ->
 distr_clean(Cfg) ->
   dconfig:stop_cluster(Cfg),
   coordinator:stop(),
-  net_kernel:stop().
+  net_kernel:stop(),
+  timer:sleep(1000).
 
 distr_run(Cfg, QryName, TmpPath) ->
   dconfig:all_work(Cfg),
-  ok = coordinator:wait_for_finish(600000, 500),
+  ok = coordinator:wait_for_finish(600000 * 5, 500),
   NumTasks = coordinator:get_num_tasks(),
   FinalDB = coordinator:collect_results(1, TmpPath, NumTasks),
   FinalDBQ = dbs:get_rel_by_pred(QryName, FinalDB),
