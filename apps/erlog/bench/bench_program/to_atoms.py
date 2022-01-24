@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 
 def tc_to_atoms():
   atom_name = "link"
@@ -30,4 +31,11 @@ def pointsto_to_atoms():
           l = line.split()
           print(f'store("v{l[0]}", "v{l[1]}", "f{l[2]}").')
 
-tc_to_atoms()
+
+if sys.argv[1] == 'tc':
+  tc_to_atoms()
+elif sys.argv[1] == 'pointsto':
+  pointsto_to_atoms()
+else:
+  print("unrecognised program")
+

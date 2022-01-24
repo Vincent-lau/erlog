@@ -2,15 +2,13 @@
 
 # create a fresh result file
 RES_FILE=apps/erlog/bench/results/timing_res.txt
-rm $RES_FILE
-touch $RES_FILE
+# rm $RES_FILE
+# touch $RES_FILE
 
 Gen_tc() {
-    cd apps/erlog/bench/bench_program
-    # include general utilities
-    . ./utils.sh
-
+    echo "generating tc program"
     echo "current size of graph, i.e. value of N is $N"
+
     C=$N
     SIZE=$N
     E=`expr $C \* 10`    # each node has on average 10 neighbors
@@ -20,12 +18,15 @@ Gen_tc() {
     gen_fact_file   base      $E    $C $C
 
     cp ./tc_program.dl ./tc_bench.dl
-    ./to_atoms.py >> ./tc_bench.dl
+    ./to_atoms.py tc >> ./tc_bench.dl
     echo "graph generated into tc_bench.dl"
 }
 
 
 Gen_pointsto() {
+    echo "generating pointsto program"
+    echo "current size is $N"
+
     N=$N                        # number of instructions of each type
     O=`expr $N / 10`            # number of objects 
     V=`expr $N / 4`             # number of variables
@@ -39,12 +40,19 @@ Gen_pointsto() {
     gen_fact_file      load      $N    $V $V $F
     gen_fact_file      store     $N    $V $V $F
 
+    cp ./pointsto_program.dl ./pointsto_bench.dl
+    ./to_atoms.py pointsto >> pointsto_bench.dl 
+    echo "generated pointsto_bench.dl"
+
 }
 
-echo "=====================starting new iterations===================" >> apps/erlog/bench/results/timing_res.txt
-for N in {50..400..50}
+echo "=====================starting new iterations===================" >> $RES_FILE
+for N in {100..100..50}
     do
-        Gen_tc
+        cd apps/erlog/bench/bench_program
+        . ./utils.sh
+
+        Gen_pointsto
         echo "\n==============new timings===================" >> ../results/timing_res.txt
         echo "graph size $N" >> ../results/timing_res.txt
 
@@ -52,10 +60,15 @@ for N in {50..400..50}
         echo "going back to `pwd`"
         rebar3 compile
 
-        echo "now running program"
-        erl -pa "_build/default/lib/erlog/ebin" -pa "_build/default/lib/erlog/bench" -noshell -noinput -eval 'timing:start(), erlang:halt()' &
-        wait $!
+        # echo "now running program"
+        # erl -pa "_build/default/lib/erlog/ebin" \
+        #     -pa "_build/default/lib/erlog/bench" \
+        #     -config "config/sys.config" \
+        #     -noshell -noinput \
+        #     -eval 'application:start(erlog), timing:start(), application:stop(erlog), erlang:halt()' \
+        #     &
+        # wait $!
 
     done
 
-echo "=========================done===============================" >> apps/erlog/bench/results/timing_res.tx
+# echo "=========================done===============================" >> $RES_FILE
