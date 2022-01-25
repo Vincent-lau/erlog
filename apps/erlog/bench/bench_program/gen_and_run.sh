@@ -63,13 +63,47 @@ Gen_pointsto() {
 
 }
 
+Gen_rsg() {
+    echo "generating rsg program"
+    echo "current size is $N"
+
+    N=$N
+    F=`expr $N \* 3`
+    U=`expr $N \* 3`
+    D=`expr $N \* 3`
+
+    gen_fact_file flat $F $N $N
+    gen_fact_file up $U $N $N
+    gen_fact_file down $D $N $N
+
+    cp ./rsg_program.dl ./rsg_bench.dl
+    ./to_atoms.py rsg >> rsg_bench.dl 
+    echo "generated rsg_bench.dl"
+
+}
+
+
+Gen_cite() {
+    echo "generating data from citation network real data program"
+    echo "current size of graph, i.e. value of N is $N"
+
+    # subset the citation network data
+    C=`expr $N \* 10`
+    python3 subset.py $C
+
+    cp ./tc_program.dl ./tc_bench.dl
+    cat facts/citations.facts >> ./tc_bench.dl
+    echo "citation graph generated into tc_bench.dl"
+
+}
+
 echo "=====================starting new iterations===================" >> $RES_FILE
 for N in {50..50..50}
     do
         cd apps/erlog/bench/bench_program
         . ./utils.sh
 
-        Gen_scc
+        Gen_cite
         echo "\n==============new timings===================" >> ../results/timing_res.txt
         echo "graph size $N" >> ../results/timing_res.txt
 
