@@ -1,4 +1,8 @@
 [{<<"eflame">>,
   {git,"https://github.com/proger/eflame.git",
        {ref,"34d0c19dee808d614d75d91c143386d5120efb4b"}},
+  0},
+ {<<"recon">>,
+  {git,"https://github.com/ferd/recon.git",
+       {ref,"34194da6d9f8ed25f274e0ebb098dc9e95bcf547"}},
   0}].
