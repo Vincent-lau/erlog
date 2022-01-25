@@ -22,6 +22,23 @@ Gen_tc() {
     echo "graph generated into tc_bench.dl"
 }
 
+Gen_scc() {
+    echo "generating scc program"
+    echo "current size of graph, i.e. value of N is $N"
+
+    C=$N
+    SIZE=$N
+    E=`expr $C \* 10`    # each node has on average 10 neighbors
+
+    # create fact files as needed
+    #             | name | |entries| |       ranges        |
+    gen_fact_file   base      $E    $C $C
+
+    cp ./scc_program.dl ./scc_bench.dl
+    ./to_atoms.py tc >> ./scc_bench.dl
+    echo "graph generated into scc_bench.dl"
+}
+
 
 Gen_pointsto() {
     echo "generating pointsto program"
@@ -47,12 +64,12 @@ Gen_pointsto() {
 }
 
 echo "=====================starting new iterations===================" >> $RES_FILE
-for N in {100..100..50}
+for N in {50..50..50}
     do
         cd apps/erlog/bench/bench_program
         . ./utils.sh
 
-        Gen_pointsto
+        Gen_scc
         echo "\n==============new timings===================" >> ../results/timing_res.txt
         echo "graph size $N" >> ../results/timing_res.txt
 
