@@ -27,6 +27,4 @@ dl_parser.erl
 
 # benchmark recomputable data
 facts/
-results/
-tc_bench.dl
 
