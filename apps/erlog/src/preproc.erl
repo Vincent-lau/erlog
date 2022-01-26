@@ -1,8 +1,51 @@
 -module(preproc).
 
--export([lex_and_parse/2, process_rules/1, combine_args/1, combine_atoms/1, rule_part/1]).
+-export([lex_and_parse/2, process_rules/1, combine_args/1, combine_atoms/1, rule_part/1,
+         get_output_name/2]).
 
 -include("../include/data_repr.hrl").
+
+%%----------------------------------------------------------------------
+%%----------------------------------------------------------------------
+-spec get_output_name(InputType, Input) -> [string()] | no_output
+  when InputType :: file | stream | str,
+       Input :: file:io_device() | file:filename() | string().
+get_output_name(file, FName) ->
+  {ok, Stream} = file:open(FName, [read]),
+  Res = get_output_name(stream, Stream),
+  file:close(Stream),
+  Res;
+get_output_name(stream, S) ->
+  case io:get_line(S, "") of
+    eof ->
+      no_output;
+    L ->
+      case get_output_name(str, L) of
+        no_output ->
+          get_output_name(stream, S);
+        OutName ->
+          OutName
+      end
+  end;
+get_output_name(str, Str) ->
+  SList = string:lexemes(Str, "\n"),
+  case lists:filter(fun is_output_line/1, SList) of
+    [H] ->
+      [_H1, H2] = string:lexemes(H, " "),
+      H2;
+    [] ->
+      no_output;
+    _Other ->
+      error
+  end.
+
+is_output_line(S) ->
+  case string:lexemes(S, " ") of
+    L when length(L) == 2 andalso hd(L) =:= ".output" ->
+      true;
+    _Other ->
+      false
+  end.
 
 %%----------------------------------------------------------------------
 %% @doc
@@ -91,7 +134,6 @@ rule_part(R = #dl_rule{body = Body}) ->
 
 %%----------------------------------------------------------------------
 %% @doc
-%% Function:
 %% Purpose: Takes a list of atoms, generate a head atom that has all the args
 %% and the head atom has a random name
 %% Args: A list of atoms
@@ -110,7 +152,6 @@ combine_atoms(HeadName, Atoms) ->
 
 %%----------------------------------------------------------------------
 %% @doc
-%% Function:
 %% Purpose: Takes a list of list of args, flatten the list and unique all
 %% args according to the order they appear
 %% Args: A list of lists of args
