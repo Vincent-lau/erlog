@@ -36,15 +36,20 @@ def read_data(file_name):
     return (throughput, workers)
 
 
-def read_data2(file_name, num_edges):
+def read_data2(file_name):
     workers = []
     throughput = []
     times = []
+    graph_size = 0
     with open(file_name, "r") as in_file:
         for l in in_file:
             if l[0] == '=':
                 break
             elif l[0] == 'r':
+                continue
+            elif l.split()[0] == 'graph':
+                graph_size = int(l.split(' ')[2])
+                print(f"graph size is {graph_size}")
                 continue
             line = l.strip(" {}[],\n")
             line = line.replace("]", "")
@@ -53,8 +58,8 @@ def read_data2(file_name, num_edges):
             workers.append(int(data[-1]))
             times.append(data[0: -1])
     for t in times:
-        throughput.append([num_edges / (float(x) / 1000 ) for x in t])
-    return (throughput, workers)
+        throughput.append([graph_size * 10  / (float(x) / 1000 ) for x in t])
+    return (throughput, workers, graph_size)
 
 
 def func(x, a, b, c, d):
@@ -62,21 +67,21 @@ def func(x, a, b, c, d):
     return a * (x**3) + b*(x**2) + c * x + d
 
 
-def plot(throughput, workers):
+def plot(throughput, workers, graph_size):
     # confidence interval
     max_throughputs = [np.max(t) for t in throughput]
     min_throughputs = [np.min(t) for t in throughput]
     mean_throughputs = [np.mean(t) for t in throughput]
 
     # create flattened version
-    workers_flat = np.array([[w] * 10 for w in workers]).flatten()
+    workers_flat = np.array([[w] * 2 for w in workers]).flatten()
     throughput_flat = throughput.flatten()
 
     # fit the curve
     popt, pcov = curve_fit(func, workers, mean_throughputs)
 
     fig, ax = plt.subplots()
-    ax.set_title("throughput against #workers")
+    ax.set_title(f"throughput against #workers on graph size {graph_size}")
     ax.set_xlabel("number of workers")
     ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
     ax.set_ylabel(
@@ -90,9 +95,37 @@ def plot(throughput, workers):
     fig.show()
     plt.show()
 
+def plot_single():
+    times = [
+        [184903,178052,169339],
+        [1226074,1326181,1209456],
+        [4592585,4283908,4425614],
+        [10174121,10304838,11450345],
+        [23738472,27158589,26269800]
+    ]
+    graph_size = [50, 100, 150, 200, 250]
+    throughput = []
+    for i, s in enumerate(graph_size):
+        throughput.append([(s * 10) / t for t in times[i]])
+    throughput = np.array(throughput)
+    sizes = np.array([[s] * len(times[0]) for s in graph_size])
+    fig, ax = plt.subplots()
+    ax.scatter(sizes.flatten(), throughput.flatten())
+    ax.set_xlabel("graph size")
+    ax.set_ylabel("graph size / times")
+    ax.set_title("single node throughput")
+    plt.show()
+    
 
-(throughput, workers) = read_data2("time_worker.txt", 2000)
-throughput = np.array(throughput)
-workers = np.array(workers)
+def plot_distr():
+    (throughput, workers, graph_size) = read_data2("results/time_worker.txt")
+    throughput = np.array(throughput)
+    print(graph_size)
+    workers = np.array(workers)
 
-plot(throughput, workers)
+    plot(throughput, workers, graph_size)
+
+plot_distr()
+
+
+
