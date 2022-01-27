@@ -5,7 +5,7 @@
         {task_num :: integer(),
          stage_num :: integer(),
          state :: task_state(),
-         type :: task_category()}).
+         type :: task_category(),
+         start_time :: integer()}).
 
--type mr_task() ::
-  #task{}.
+-type mr_task() :: #task{}.

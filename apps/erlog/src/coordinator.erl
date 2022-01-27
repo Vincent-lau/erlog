@@ -33,6 +33,9 @@
 name() ->
   coor.
 
+time_out_val() ->
+  10.
+
 %%% Client API
 -spec start_link(file:filename()) -> {ok, pid()}.
 start_link(ProgName) ->
@@ -43,7 +46,6 @@ start_link(ProgName) ->
 start_link(ProgName, TmpPath) ->
   {ok, NumTasks} = application:get_env(erlog, num_tasks),
   start_link(ProgName, TmpPath, NumTasks).
-
 
 -spec start_link(file:filename(), file:filename(), integer()) -> {ok, pid()}.
 start_link(ProgName, TmpPath, NumTasks) ->
@@ -162,6 +164,29 @@ clean_tmp(TmpPath) ->
 
 %%----------------------------------------------------------------------
 %% @doc
+%% A task is assignable if
+%% <ol>
+%%  <li> it is idle </li>
+%%  <li> it is in the state in_progress and has timed out
+%% </ol>
+%% @end
+%%----------------------------------------------------------------------
+-spec assignable(mr_task()) -> boolean().
+assignable(#task{state = idle}) ->
+  true;
+assignable(#task{state = in_progress, start_time = StartTime}) ->
+  case erlang:system_time(seconds) - StartTime > time_out_val() of
+    true ->
+      io:format("found time out task: ~n"),
+      true;
+    false ->
+      false
+  end;
+assignable(#task{}) ->
+  false.
+
+%%----------------------------------------------------------------------
+%% @doc
 %% Function: find_next_task
 %% Purpose: given a list of tasks, find the next one to be assigned.
 %%  if a task can be assigned that means
@@ -175,10 +200,16 @@ clean_tmp(TmpPath) ->
 %%----------------------------------------------------------------------
 -spec find_next_task([mr_task()]) -> {mr_task(), [mr_task()]}.
 find_next_task(Tasks) ->
-  case lists:splitwith(fun(T) -> not tasks:is_idle(T) end, Tasks) of
-    {NonIdles, [IdleH | IdleT]} ->
-      NewTask = tasks:set_in_prog(IdleH),
-      {NewTask, NonIdles ++ [NewTask | IdleT]};
+  case lists:splitwith(fun(T) -> not assignable(T) end, Tasks) of
+    {NonAssignable, [AssignableH | AssignableT]} ->
+      NewTask =
+        case AssignableH of
+          #task{state = idle} ->
+            tasks:set_in_prog(AssignableH);
+          #task{state = in_progress} ->
+            tasks:reset_time(AssignableH)
+        end,
+      {NewTask, NonAssignable ++ [NewTask | AssignableT]};
     {[T = #task{type = terminate}], []} -> % only terminate task exists, assign it
       {T, Tasks};
     {_NonIdles, []} ->
@@ -192,37 +223,44 @@ find_next_task(Tasks) ->
 %% If all tasks are finished, then generate a new list of tasks and also
 %% the stage number for the next stage.
 %%
+%% Note that this function can be called by slow workers, or workers that
+%% were down and rejoined the network.
+%%
 %% @returns a list of new tasks, and an integer representing the stage number.
 %%
 %% @end
 %%----------------------------------------------------------------------
 -spec update_finished_task(mr_task(), state()) -> {[mr_task()], integer()}.
 update_finished_task(Task,
-                     State =
-                       #coor_state{tasks = Tasks,
-                                   stage_num = SN,
-                                   tmp_path = TmpPath,
-                                   num_tasks = NumTasks}) ->
+                     #coor_state{tasks = Tasks,
+                                 stage_num = SN,
+                                 tmp_path = TmpPath,
+                                 num_tasks = NumTasks}) ->
   ?LOG_DEBUG(#{task_finished => Task}),
-  {L1, [L2H | L2T]} = lists:splitwith(fun(T) -> T =/= Task end, Tasks),
-  L2H2 = tasks:set_finished(L2H),
-  NewTasks = L1 ++ [L2H2 | L2T],
-  case check_all_finished(NewTasks) of
-    true ->
-      ?LOG_DEBUG(#{finished_stage => SN}),
-      case Ts = generate_one_stage_tasks(SN + 1, TmpPath, NumTasks) of
-        [] ->
-          ?LOG_DEBUG(#{evaluation_finished_at_stage => SN}),
-          io:format("eval finished at stage ~p~n", [SN]),
-          FinalDB = collect_results(1, TmpPath, NumTasks),
-          dbs:write_db(TmpPath ++ "final_db", FinalDB),
-          {[tasks:new_terminate_task()], SN + 1};
-        _Ts ->
-          ?LOG_DEBUG(#{new_tasks_for_round => SN + 1, tasks => Ts}),
-          {Ts, SN + 1}
-      end;
-    false ->
-      {NewTasks, SN}
+  case lists:splitwith(fun(T) -> not tasks:equals(T, Task) end, Tasks) of
+    {_L, []} -> % the finished task is not in stage, ignore it
+      {Tasks, SN};
+    {L1, [L2H | L2T]} ->
+      L2H2 = tasks:set_finished(L2H),
+      NewTasks = L1 ++ [L2H2 | L2T],
+      case check_all_finished(NewTasks) of
+        true ->
+          ?LOG_DEBUG(#{finished_stage => SN}),
+          case Ts = generate_one_stage_tasks(SN + 1, TmpPath, NumTasks) of
+            [] ->
+              ?LOG_DEBUG(#{evaluation_finished_at_stage => SN}),
+              io:format("eval finished at stage ~p~n", [SN]),
+              FinalDB = collect_results(1, TmpPath, NumTasks),
+              io:format("final db is ~n~s~n", []),
+              dbs:write_db(TmpPath ++ "final_db", FinalDB),
+              {[tasks:new_terminate_task()], SN + 1};
+            _Ts ->
+              ?LOG_DEBUG(#{new_tasks_for_round => SN + 1, tasks => Ts}),
+              {Ts, SN + 1}
+          end;
+        false ->
+          {NewTasks, SN}
+      end
   end.
 
 %%----------------------------------------------------------------------

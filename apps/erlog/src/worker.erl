@@ -1,6 +1,6 @@
 -module(worker).
 
--export([start_link/0, start/0, start_working/0, stop/0]).
+-export([start_link/0, start/0, start_working/0, wait_working/0, stop/0]).
 -export([init/1, handle_cast/2, handle_call/3, terminate/2]).
 
 -include("../include/task_repr.hrl").
@@ -29,6 +29,9 @@ start_link() ->
 start_working() ->
   gen_server:cast(name(), work).
 
+wait_working() ->
+  gen_server:cast(name(), wait_work).
+
 stop() ->
   gen_server:call(name(), terminate).
 
@@ -54,7 +57,14 @@ handle_cast(work,
               #worker_state{coor_pid = CoorPid,
                             prog = Prog,
                             num_tasks = NumTasks}) ->
-  spawn(fun() -> work(CoorPid, Prog, NumTasks) end),
+  spawn(fun() -> work(CoorPid, Prog, NumTasks, false) end),
+  {noreply, State};
+handle_cast(wait_work,
+            State =
+              #worker_state{coor_pid = CoorPid,
+                            prog = Prog,
+                            num_tasks = NumTasks}) ->
+  spawn(fun() -> work(CoorPid, Prog, NumTasks, true) end),
   {noreply, State}.
 
 terminate(normal, _State) ->
@@ -66,13 +76,13 @@ terminate(coor_down, State) ->
 
 %%% Private functions
 
-work(Pid, Prog, NumTasks) ->
-  case rpc:call(?coor_node, coordinator, assign_task, []) of
+work(Pid, Prog, NumTasks, Wait) ->
+  case erpc:call(?coor_node, coordinator, assign_task, []) of
     T = #task{type = evaluate,
               task_num = TaskNum,
               stage_num = StageNum} ->
       ?LOG_DEBUG(#{task_num => TaskNum, stage_num => StageNum}),
-      TmpPath = rpc:call(?coor_node, coordinator, get_tmp_path, []),
+      TmpPath = erpc:call(?coor_node, coordinator, get_tmp_path, []),
       % HACK no need to distinguish different stages for the FullDB, just keep adding
       FName1 = io_lib:format("~sfulldb-~w-~w", [TmpPath, 1, TaskNum]),
       % TODO so here we are combining all full_dbs together, so when we generate
@@ -85,6 +95,12 @@ work(Pid, Prog, NumTasks) ->
         [dbs:read_db(
            io_lib:format("~s-~w-~w", [TmpPath ++ "fulldb", 1, X]))
          || X <- lists:seq(1, NumTasks)],
+      case Wait of
+        true ->
+          timer:sleep(11000);
+        false ->
+          ok
+      end,
       FullDB = lists:foldl(fun(DB, Acc) -> dbs:union(DB, Acc) end, dbs:new(), FullDBs),
       ?LOG_DEBUG(#{reading_fulldb_from_file_named => FName1,
                    full_db_read => dbs:to_string(FullDB)}),
@@ -106,15 +122,15 @@ work(Pid, Prog, NumTasks) ->
       frag:hash_frag(
         dbs:diff(NewFullDB, FullDB), Prog, 1, NumTasks, TmpPath ++ "fulldb"),
       % call finish task on coordinator
-      rpc:cast(?coor_node, coordinator, finish_task, [T]),
+      erpc:cast(?coor_node, coordinator, finish_task, [T]),
       % request new tasks
       io:format("~p stage-~w task-~w finished, requesting new task~n",
                 [node(), StageNum, TaskNum]),
-      work(Pid, Prog, NumTasks);
+      work(Pid, Prog, NumTasks, Wait);
     #task{type = wait} ->
       io:format("~p this is a wait task, sleeping for ~p sec~n", [node(), ?sleep_time / 1000]),
       timer:sleep(?sleep_time),
-      work(Pid, Prog, NumTasks);
+      work(Pid, Prog, NumTasks, Wait);
     #task{type = terminate} ->
       io:format("~p all done, time to relax~n", [node()]);
     {badrpc, Reason} -> % TODO do I need to distinguish different errors
