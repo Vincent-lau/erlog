@@ -1,6 +1,7 @@
 -module(worker).
 
--export([start_link/0, start/0, start_working/0, wait_working/0, stop/0]).
+-export([start_link/0, start/0, start/1, start_link/1, start_working/0, wait_working/0,
+         stop/0]).
 -export([init/1, handle_cast/2, handle_call/3, terminate/2]).
 
 -include("../include/task_repr.hrl").
@@ -13,18 +14,37 @@
 
 -behaviour(gen_server).
 
--record(worker_state, {coor_pid :: pid(), prog :: dl_program(), num_tasks :: integer()}).
+-type working_mode() :: success | failure.
+
+-record(worker_state,
+        {coor_pid :: pid(),
+         prog :: dl_program(),
+         num_tasks :: integer(),
+         mode :: working_mode()}).
 
 name() ->
   worker.
 
+crasher() ->
+  T = rand:uniform(1000),
+  io:format("sleeping time before fail ~p~n", [T]),
+  timer:sleep(T),
+  io:format("damn, I am dying~n"),
+  erlang:halt().
+
 %%% Client callbacks
 
 start() ->
-  gen_server:start({local, name()}, ?MODULE, [], []).
+  start(success).
 
 start_link() ->
-  gen_server:start_link({local, name()}, ?MODULE, [], []).
+  start_link(success).
+
+start(Mode) ->
+  gen_server:start({local, name()}, ?MODULE, [Mode], []).
+
+start_link(Mode) ->
+  gen_server:start_link({local, name()}, ?MODULE, [Mode], []).
 
 start_working() ->
   gen_server:cast(name(), work).
@@ -37,7 +57,7 @@ stop() ->
 
 %%% Server functions
 
-init([]) ->
+init([Mode]) ->
   true = net_kernel:connect_node(?coor_node),
   global:sync(), % make sure that worker sees the registered name
   CoorPid = global:whereis_name(coor),
@@ -47,7 +67,8 @@ init([]) ->
   {ok,
    #worker_state{coor_pid = CoorPid,
                  prog = Prog,
-                 num_tasks = NumTasks}}.
+                 num_tasks = NumTasks,
+                 mode = Mode}}.
 
 handle_call(terminate, _From, State) ->
   {stop, normal, ok, State}.
@@ -56,7 +77,14 @@ handle_cast(work,
             State =
               #worker_state{coor_pid = CoorPid,
                             prog = Prog,
-                            num_tasks = NumTasks}) ->
+                            num_tasks = NumTasks,
+                            mode = Mode}) ->
+  case Mode of
+    success ->
+      ok;
+    failure ->
+      spawn(fun crasher/0)
+  end,
   spawn(fun() -> work(CoorPid, Prog, NumTasks, false) end),
   {noreply, State};
 handle_cast(wait_work,
