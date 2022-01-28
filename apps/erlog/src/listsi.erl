@@ -31,12 +31,12 @@ filteri(Predi, L) ->
          [],
          L).
 
--spec mapi(fun((any(), integer()) -> any()), [{any(), integer}]) -> [any()].
+-spec mapi(fun((any(), integer()) -> any()), list()) -> [any()].
 mapi(Fi, L) ->
   foldri(fun(Ele, Idx, Acc) -> [Fi(Ele, Idx) | Acc] end, [], L).
 
 
--spec foldli(fun((any(), integer(), any()) -> any()), any(), [any()]) -> any().
+-spec foldli(fun((any(), integer(), any()) -> any()), any(), list()) -> any().
 foldli(Fi, Acc, L) ->
   foldli_rec(Fi, Acc, lists:zip(L, lists:seq(1, length(L)))).
 
