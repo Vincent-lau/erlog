@@ -12,26 +12,31 @@
 
 -import(dl_repr, [cons_atom/2]).
 
--define(fail_frac, 1).
+-define(FAIL_PERCENT, 0.5).
+-define(STRAGGLE_PERCENT, 0.5).
 
 num_failures(N) ->
-  trunc(N * ?fail_frac).
+  trunc(N * ?FAIL_PERCENT).
 
+num_stragglers(N) ->
+  trunc(N * ?STRAGGLE_PERCENT).
 
 all() ->
-  [
-    % tc4workers,
-  tclarge10workers
-  %  rsg4workers,
-  %  nonlinear4workers,
-  %  scc4workers,
-  %  marrying4workers,
-  %  tc2_4workers,
-  % pointsto4workers
-].
+  [{group, worker_straggle}, {group, worker_fail}].
 
 groups() ->
-  [{tc_many_workers, [], [tc4workers, tc3workers, tc6workers]}].
+  [{worker_fail, [{repeat, 1}, shuffle, sequence], all_tests()},
+   {worker_straggle, [{repeat, 2}, shuffle], all_tests()}].
+
+all_tests() ->
+  [tc4workers,
+   tclarge10workers,
+   rsg4workers,
+   nonlinear4workers,
+   scc4workers,
+   marrying4workers,
+   tc2_4workers,
+   pointsto4workers].
 
 init_per_suite(Config) ->
   application:start(erlog),
@@ -42,6 +47,16 @@ init_per_suite(Config) ->
 end_per_suite(_Config) ->
   net_kernel:stop(),
   application:stop(erlog).
+
+init_per_group(worker_fail, Config) ->
+  [{mode, failure} | Config];
+init_per_group(worker_straggle, Config) ->
+  [{mode, straggle} | Config].
+
+end_per_group(worker_fail, _Config) ->
+  ok;
+end_per_group(worker_straggle, _Config) ->
+  ok.
 
 init_per_testcase(nonlinear4workers, Config) ->
   multi_worker_init(4, "non-linear-ancestor.dl", Config);
@@ -85,12 +100,6 @@ end_per_testcase(tc6workers, Config) ->
 end_per_testcase(pointsto4workers, Config) ->
   multi_worker_stop(Config).
 
-init_per_group(tc_many_workers, Config) ->
-  [{query_name, "reachable"} | Config].
-
-end_per_group(tc_many_workers, _Config) ->
-  ok.
-
 nonlinear4workers(Config) ->
   dist_eval_tests(Config, "ancestor").
 
@@ -126,7 +135,13 @@ multi_worker_init(NumWorkers, ProgName, Config) ->
   clean_tmp(TmpDir),
   ct:pal("program name ~p~n", [ProgName]),
   {ok, Pid} = coordinator:start_link(?config(program_dir, Config) ++ ProgName, TmpDir),
-  Cfg = start_workers(NumWorkers),
+  Cfg =
+    case ?config(mode, Config) of
+      straggle ->
+        slow_start_workers(NumWorkers);
+      failure ->
+        fail_start_workers(NumWorkers)
+    end,
   [{prog_name, ProgName}, {worker_cfg, Cfg}, {tmp_dir, TmpDir}, {coor_pid, Pid} | Config].
 
 multi_worker_stop(Config) ->
@@ -148,10 +163,21 @@ clean_tmp(TmpPath) ->
   end,
   ok = file:make_dir(TmpPath).
 
-start_workers(NumWorkers) ->
+fail_start_workers(NumWorkers) ->
+  start_workers(NumWorkers, failure).
+
+slow_start_workers(NumWorkers) ->
+  start_workers(NumWorkers, straggle).
+
+start_workers(NumWorkers, Mode) ->
   Cfg = dconfig:start_cluster([worker], NumWorkers, "../../lib/erlog/ebin"),
   ct:pal("result of starting workers ~p~n", [Cfg]),
-  R = dconfig:fail_start(Cfg, num_failures(NumWorkers)),
+  R = case Mode of
+        failure ->
+          dconfig:fail_start(Cfg, num_failures(NumWorkers));
+        straggle ->
+          dconfig:slow_start(Cfg, num_stragglers(NumWorkers))
+      end,
   ct:pal("results of all_start ~p~n", [R]),
   Cfg.
 
