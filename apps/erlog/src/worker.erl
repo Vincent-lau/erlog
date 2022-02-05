@@ -1,7 +1,6 @@
 -module(worker).
 
--export([start_link/0, start/0, start/1, start_link/1, start_working/0, wait_working/0,
-         stop/0]).
+-export([start_link/0, start/0, start/1, start_link/1, start_working/0, stop/0]).
 -export([init/1, handle_cast/2, handle_call/3, terminate/2]).
 
 -include("../include/task_repr.hrl").
@@ -10,11 +9,11 @@
 -include_lib("kernel/include/logger.hrl").
 
 -define(coor_node, 'coor@127.0.0.1').
--define(sleep_time, 300).
+-define(SLEEP_TIME, 300).
 
 -behaviour(gen_server).
 
--type working_mode() :: success | failure.
+-type working_mode() :: success | failure | straggle.
 
 -record(worker_state,
         {coor_pid :: pid(),
@@ -24,13 +23,6 @@
 
 name() ->
   worker.
-
-crasher() ->
-  T = rand:uniform(1000),
-  io:format("sleeping time before fail ~p~n", [T]),
-  timer:sleep(T),
-  io:format("damn, I am dying~n"),
-  erlang:halt().
 
 %%% Client callbacks
 
@@ -48,9 +40,6 @@ start_link(Mode) ->
 
 start_working() ->
   gen_server:cast(name(), work).
-
-wait_working() ->
-  gen_server:cast(name(), wait_work).
 
 stop() ->
   gen_server:call(name(), terminate).
@@ -73,26 +62,14 @@ init([Mode]) ->
 handle_call(terminate, _From, State) ->
   {stop, normal, ok, State}.
 
-handle_cast(work,
-            State =
-              #worker_state{coor_pid = CoorPid,
-                            prog = Prog,
-                            num_tasks = NumTasks,
-                            mode = Mode}) ->
+handle_cast(work, State = #worker_state{mode = Mode}) ->
   case Mode of
-    success ->
-      ok;
     failure ->
-      spawn(fun crasher/0)
+      spawn_link(fun abnormal_worker:crasher/0);
+    _Other ->
+      ok
   end,
-  spawn(fun() -> work(CoorPid, Prog, NumTasks, false) end),
-  {noreply, State};
-handle_cast(wait_work,
-            State =
-              #worker_state{coor_pid = CoorPid,
-                            prog = Prog,
-                            num_tasks = NumTasks}) ->
-  spawn(fun() -> work(CoorPid, Prog, NumTasks, true) end),
+  spawn(fun() -> work(State) end),
   {noreply, State}.
 
 terminate(normal, _State) ->
@@ -104,7 +81,10 @@ terminate(coor_down, State) ->
 
 %%% Private functions
 
-work(Pid, Prog, NumTasks, Wait) ->
+work(State =
+       #worker_state{prog = Prog,
+                     num_tasks = NumTasks,
+                     mode = Mode}) ->
   case erpc:call(?coor_node, coordinator, assign_task, []) of
     T = #task{type = evaluate,
               task_num = TaskNum,
@@ -123,10 +103,10 @@ work(Pid, Prog, NumTasks, Wait) ->
         [dbs:read_db(
            io_lib:format("~s-~w-~w", [TmpPath ++ "fulldb", 1, X]))
          || X <- lists:seq(1, NumTasks)],
-      case Wait of
-        true ->
-          timer:sleep(11000);
-        false ->
+      case Mode of
+        straggle ->
+          abnormal_worker:straggler();
+        _ ->
           ok
       end,
       FullDB = lists:foldl(fun(DB, Acc) -> dbs:union(DB, Acc) end, dbs:new(), FullDBs),
@@ -154,11 +134,11 @@ work(Pid, Prog, NumTasks, Wait) ->
       % request new tasks
       io:format("~p stage-~w task-~w finished, requesting new task~n",
                 [node(), StageNum, TaskNum]),
-      work(Pid, Prog, NumTasks, Wait);
+      work(State#worker_state{mode = success});
     #task{type = wait} ->
-      io:format("~p this is a wait task, sleeping for ~p sec~n", [node(), ?sleep_time / 1000]),
-      timer:sleep(?sleep_time),
-      work(Pid, Prog, NumTasks, Wait);
+      io:format("~p this is a wait task, sleeping for ~p sec~n", [node(), ?SLEEP_TIME / 1000]),
+      timer:sleep(?SLEEP_TIME),
+      work(State);
     #task{type = terminate} ->
       io:format("~p all done, time to relax~n", [node()]);
     {badrpc, Reason} -> % TODO do I need to distinguish different errors

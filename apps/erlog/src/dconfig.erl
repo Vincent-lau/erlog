@@ -83,6 +83,11 @@ get_nodes(#node_config{nodes = Nodes}) ->
 get_num_nodes(#node_config{nodes = Nodes}) ->
   maps:size(Nodes).
 
+%%----------------------------------------------------------------------
+%% @doc
+%% Just start normally
+%% @end
+%%----------------------------------------------------------------------
 all_start(Cfg) ->
   multicall(worker, start, [], Cfg).
 
@@ -101,27 +106,34 @@ pick_n(M, N, Acc) ->
     true ->
       Acc;
     false ->
-      R = rand:uniform(N) - 1,
+      R = rand:uniform(N),
       pick_n(M, N, sets:add_element(R, Acc))
   end.
 
 %%----------------------------------------------------------------------
 %% @doc
-%% Given the number of workers that should fail, randomly choose that
-%% number of workers to fail
+%% Given the number of workers that should not behave normally, randomly
+%% choose that number of workers to fail
 %% @end
 %%----------------------------------------------------------------------
--spec fail_start(config(), integer()) -> ok.
-fail_start(Cfg, FailNum) ->
+-spec abnormal_start(config(), integer(), failure | straggle) -> ok.
+abnormal_start(Cfg, FailNum, Mode) ->
   FailIndices = pick_n(FailNum, get_num_nodes(Cfg)),
+  io:format(standard_error, "~p indices ~p~n", [Mode, sets:to_list(FailIndices)]),
   Nodes = get_nodes(Cfg),
   listsi:mapi(fun(Node, Idx) ->
                  case sets:is_element(Idx, FailIndices) of
-                   true -> call(Node, worker, start, [failure]);
+                   true -> call(Node, worker, start, [Mode]);
                    false -> call(Node, worker, start, [success])
                  end
               end,
               Nodes).
+
+slow_start(Cfg, FailNum) ->
+  abnormal_start(Cfg, FailNum, straggle).
+
+fail_start(Cfg, FailNum) ->
+  abnormal_start(Cfg, FailNum, failure).
 
 all_work(Cfg) ->
   multicall(worker, start_working, [], Cfg).
