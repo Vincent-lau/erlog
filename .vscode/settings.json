@@ -13,6 +13,7 @@
     "nomatch",
     "pointsto",
     "priv",
+    "PROB",
     "sfulldb",
     "sname",
     "stask",
