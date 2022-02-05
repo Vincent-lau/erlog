@@ -5,8 +5,6 @@
 
 -include("../include/data_repr.hrl").
 
-%%----------------------------------------------------------------------
-%%----------------------------------------------------------------------
 -spec get_output_name(InputType, Input) -> [string()] | no_output
   when InputType :: file | stream | str,
        Input :: file:io_device() | file:filename() | string().
