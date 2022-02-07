@@ -28,8 +28,7 @@
   join them together to get a new db.</td></tr>
 <tr><td valign="top"><a href="#new-0">new/0</a></td><td></td></tr>
 <tr><td valign="top"><a href="#project-2">project/2</a></td><td>  
-Function: project  
-Purpose: given a db instance, and columns to project, output the db  
+Given a db instance, and columns to project, output the db  
 with all atoms projected.</td></tr>
 <tr><td valign="top"><a href="#read_db-1">read_db/1</a></td><td>
   Read from a file of atoms with predicate symbols.</td></tr>
@@ -42,6 +41,7 @@ with all atoms projected.</td></tr>
 <tr><td valign="top"><a href="#union-2">union/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#write_db-2">write_db/2</a></td><td>Equivalent to <a href="#write_db-3"><tt>write_db(FileName, DB, [write])</tt></a>.
 </td></tr>
+<tr><td valign="top"><a href="#write_db-3">write_db/3</a></td><td></td></tr>
 </table>
 
 <h2><a name="functions">Function Details</a></h2>
@@ -119,8 +119,7 @@ with all atoms projected.</td></tr>
 <p><tt>project(DBInstance::<a href="#type-dl_db_instance">dl_db_instance()</a>, Cols::[integer()]) -&gt; <a href="#type-dl_db_instance">dl_db_instance()</a></tt><br></p>
 <p> </p>
 </div><p><p>  
-Function: project  
-Purpose: given a db instance, and columns to project, output the db  
+Given a db instance, and columns to project, output the db  
 with all atoms projected. This needs to be order preserving.</p>
  
   Example: ordering preserving P(a, b, c) [2,1] -&gt; P(b, a)</p>
@@ -170,10 +169,16 @@ with all atoms projected. This needs to be order preserving.</p>
 
 <h3 class="function"><a name="write_db-2">write_db/2</a></h3>
 <div class="spec">
-<p><tt>write_db(FileName::string(), DB::<a href="#type-dl_db_instance">dl_db_instance()</a>) -&gt; ok</tt><br></p>
+<p><tt>write_db(FileName::<a href="/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/kernel/doc/file.html#type-filename">file:filename()</a>, DB::<a href="#type-dl_db_instance">dl_db_instance()</a>) -&gt; ok</tt><br></p>
 <p> </p>
 </div><p>Equivalent to <a href="#write_db-3"><tt>write_db(FileName, DB, [write])</tt></a>.</p>
 
+
+<h3 class="function"><a name="write_db-3">write_db/3</a></h3>
+<div class="spec">
+<p><tt>write_db(FileName::<a href="/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/kernel/doc/file.html#type-filename">file:filename()</a>, DB::<a href="#type-dl_db_instance">dl_db_instance()</a>, Modes::[<a href="/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/kernel/doc/file.html#type-mode">file:mode()</a>]) -&gt; ok | {error, term()}</tt><br></p>
+<p> </p>
+</div>
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>

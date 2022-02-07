@@ -14,13 +14,14 @@
 
 
 <h2><a name="index">Function Index</a></h2>
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#cons_args_from_list-1">cons_args_from_list/1</a></td><td></td></tr>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#atom_to_string-1">atom_to_string/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#atoms_to_string-1">atoms_to_string/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#cons_args_from_list-1">cons_args_from_list/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#cons_atom-2">cons_atom/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#cons_const-1">cons_const/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#cons_rule-2">cons_rule/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#cons_term-1">cons_term/1</a></td><td></td></tr>
-<tr><td valign="top"><a href="#dl_const_to_string-1">dl_const_to_string/1</a></td><td></td></tr>
-<tr><td valign="top"><a href="#dl_var_to_string-1">dl_var_to_string/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#const_to_string-1">const_to_string/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#get_atom_args-1">get_atom_args/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#get_atom_args_by_index-2">get_atom_args_by_index/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#get_atom_name-1">get_atom_name/1</a></td><td></td></tr>
@@ -31,9 +32,25 @@
 <tr><td valign="top"><a href="#is_dl_const-1">is_dl_const/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#is_dl_rule-1">is_dl_rule/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#is_dl_var-1">is_dl_var/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#program_to_string-1">program_to_string/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#rule_to_string-1">rule_to_string/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#rules_to_string-1">rules_to_string/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#var_to_string-1">var_to_string/1</a></td><td></td></tr>
 </table>
 
 <h2><a name="functions">Function Details</a></h2>
+
+<h3 class="function"><a name="atom_to_string-1">atom_to_string/1</a></h3>
+<div class="spec">
+<p><tt>atom_to_string(A::<a href="#type-dl_atom">dl_atom()</a>) -&gt; string()</tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="atoms_to_string-1">atoms_to_string/1</a></h3>
+<div class="spec">
+<p><tt>atoms_to_string(Atoms::[<a href="#type-dl_atom">dl_atom()</a>]) -&gt; string()</tt><br></p>
+<p> </p>
+</div>
 
 <h3 class="function"><a name="cons_args_from_list-1">cons_args_from_list/1</a></h3>
 <div class="spec">
@@ -65,15 +82,9 @@
 <p> </p>
 </div>
 
-<h3 class="function"><a name="dl_const_to_string-1">dl_const_to_string/1</a></h3>
+<h3 class="function"><a name="const_to_string-1">const_to_string/1</a></h3>
 <div class="spec">
-<p><tt>dl_const_to_string(C) -&gt; any()</tt></p>
-<p> </p>
-</div>
-
-<h3 class="function"><a name="dl_var_to_string-1">dl_var_to_string/1</a></h3>
-<div class="spec">
-<p><tt>dl_var_to_string(Var) -&gt; any()</tt></p>
+<p><tt>const_to_string(C) -&gt; any()</tt></p>
 <p> </p>
 </div>
 
@@ -134,6 +145,30 @@
 <h3 class="function"><a name="is_dl_var-1">is_dl_var/1</a></h3>
 <div class="spec">
 <p><tt>is_dl_var(T::<a href="#type-dl_term">dl_term()</a>) -&gt; boolean()</tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="program_to_string-1">program_to_string/1</a></h3>
+<div class="spec">
+<p><tt>program_to_string(P::<a href="#type-dl_program">dl_program()</a>) -&gt; string()</tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="rule_to_string-1">rule_to_string/1</a></h3>
+<div class="spec">
+<p><tt>rule_to_string(Dl_rule::<a href="#type-dl_rule">dl_rule()</a>) -&gt; string()</tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="rules_to_string-1">rules_to_string/1</a></h3>
+<div class="spec">
+<p><tt>rules_to_string(P::[<a href="#type-dl_rule">dl_rule()</a>]) -&gt; string()</tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="var_to_string-1">var_to_string/1</a></h3>
+<div class="spec">
+<p><tt>var_to_string(Var) -&gt; any()</tt></p>
 <p> </p>
 </div>
 <hr>

@@ -54,6 +54,8 @@ Purpose: Find columns of Args2 that is in Args1, 1-based index
 Args:  
 Returns:  
 e.g.</td></tr>
+<tr><td valign="top"><a href="#imm_conseq-2">imm_conseq/2</a></td><td>Equivalent to <a href="#imm_conseq-3"><tt>imm_conseq(Program, DB, DB)</tt></a>.
+</td></tr>
 <tr><td valign="top"><a href="#imm_conseq-3">imm_conseq/3</a></td><td></td></tr>
 </table>
 
@@ -145,6 +147,13 @@ column 1, and then the return value of this function should be [2, 1]</p>
  
   so the strategy is to iterate over Args1 and see whether each element
   is in Args2, if so, what is the index of that element in *Args1*</p>
+
+<h3 class="function"><a name="imm_conseq-2">imm_conseq/2</a></h3>
+<div class="spec">
+<p><tt>imm_conseq(Program::<a href="#type-dl_program">dl_program()</a>, DB::<a href="#type-dl_db_instance">dl_db_instance()</a>) -&gt; <a href="#type-dl_db_instance">dl_db_instance()</a></tt><br></p>
+<p> </p>
+</div><p>Equivalent to <a href="#imm_conseq-3"><tt>imm_conseq(Program, DB, DB)</tt></a>.</p>
+
 
 <h3 class="function"><a name="imm_conseq-3">imm_conseq/3</a></h3>
 <div class="spec">

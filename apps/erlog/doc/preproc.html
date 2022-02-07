@@ -15,21 +15,22 @@
 
 <h2><a name="index">Function Index</a></h2>
 <table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#combine_args-1">combine_args/1</a></td><td>
-  Function:
   Purpose: Takes a list of list of args, flatten the list and unique all
   args according to the order they appear
   Args: A list of lists of args.</td></tr>
 <tr><td valign="top"><a href="#combine_atoms-1">combine_atoms/1</a></td><td>
-  Function:
   Purpose: Takes a list of atoms, generate a head atom that has all the args
   and the head atom has a random name
   Args: A list of atoms.</td></tr>
+<tr><td valign="top"><a href="#get_output_name-2">get_output_name/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#lex_and_parse-2">lex_and_parse/2</a></td><td>
   Given a file name as a string or a stream or a string of the program
   to be parsed, lex and parse the program from the file.</td></tr>
 <tr><td valign="top"><a href="#process_rules-1">process_rules/1</a></td><td>
   process rules so that all of them consist of two body atoms at most.</td></tr>
-<tr><td valign="top"><a href="#rule_part-1">rule_part/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#rule_part-1">rule_part/1</a></td><td>  
+partition rules with more than two body atoms into a list of  
+smaller rules e.g.</td></tr>
 </table>
 
 <h2><a name="functions">Function Details</a></h2>
@@ -42,7 +43,6 @@
  
   Example: [[c, b, a], [a, b, d]] -&gt; [c, b, a, d]</p>
 </div><p>
-  Function:
   Purpose: Takes a list of list of args, flatten the list and unique all
   args according to the order they appear
   Args: A list of lists of args</p>
@@ -53,10 +53,16 @@
 <p> </p>
 <p>returns:  A rule</p>
 </div><p>
-  Function:
   Purpose: Takes a list of atoms, generate a head atom that has all the args
   and the head atom has a random name
   Args: A list of atoms</p>
+
+<h3 class="function"><a name="get_output_name-2">get_output_name/2</a></h3>
+<div class="spec">
+<p><tt>get_output_name(InputType, Input) -&gt; [string()] | no_output</tt>
+<ul class="definitions"><li><tt>InputType = file | stream | str</tt></li><li><tt>Input = <a href="/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/kernel/doc/file.html#type-io_device">file:io_device()</a> | <a href="/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/kernel/doc/file.html#type-filename">file:filename()</a> | string()</tt></li></ul></p>
+<p> </p>
+</div>
 
 <h3 class="function"><a name="lex_and_parse-2">lex_and_parse/2</a></h3>
 <div class="spec">
@@ -82,7 +88,12 @@
 <div class="spec">
 <p><tt>rule_part(R::<a href="#type-dl_rule">dl_rule()</a>) -&gt; [<a href="#type-dl_rule">dl_rule()</a>]</tt><br></p>
 <p> </p>
-</div>
+</div><p><p>  
+partition rules with more than two body atoms into a list of  
+smaller rules e.g.</p>
+ 
+  a(x,y,z) :- b(w,x), c(x,y), d(y,z). is turned into
+  a(x,y,z) :- b(w,x), int(x,y,z) and int(x,y,z) :- c(x,y), d(y,z).</p>
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>

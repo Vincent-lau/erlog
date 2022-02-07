@@ -14,19 +14,29 @@
 
 
 <h2><a name="index">Function Index</a></h2>
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#is_finished-1">is_finished/1</a></td><td></td></tr>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#equals-2">equals/2</a></td><td>
+  We identify a task by its task# and stage# and its state.</td></tr>
+<tr><td valign="top"><a href="#is_finished-1">is_finished/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#is_idle-1">is_idle/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#new_task-0">new_task/0</a></td><td>generate a dummy task.</td></tr>
 <tr><td valign="top"><a href="#new_task-2">new_task/2</a></td><td>generate a new eval idle task.</td></tr>
 <tr><td valign="top"><a href="#new_task-4">new_task/4</a></td><td></td></tr>
 <tr><td valign="top"><a href="#new_terminate_task-0">new_terminate_task/0</a></td><td></td></tr>
 <tr><td valign="top"><a href="#new_wait_task-0">new_wait_task/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#reset_time-1">reset_time/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#set_finished-1">set_finished/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#set_idle-1">set_idle/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#set_in_prog-1">set_in_prog/1</a></td><td></td></tr>
 </table>
 
 <h2><a name="functions">Function Details</a></h2>
+
+<h3 class="function"><a name="equals-2">equals/2</a></h3>
+<div class="spec">
+<p><tt>equals(Task::<a href="#type-mr_task">mr_task()</a>, X2::<a href="#type-mr_task">mr_task()</a>) -&gt; boolean()</tt><br></p>
+<p> </p>
+</div><p>
+  We identify a task by its task# and stage# and its state</p>
 
 <h3 class="function"><a name="is_finished-1">is_finished/1</a></h3>
 <div class="spec">
@@ -67,6 +77,12 @@
 <h3 class="function"><a name="new_wait_task-0">new_wait_task/0</a></h3>
 <div class="spec">
 <p><tt>new_wait_task() -&gt; <a href="#type-mr_task">mr_task()</a></tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="reset_time-1">reset_time/1</a></h3>
+<div class="spec">
+<p><tt>reset_time(T::<a href="#type-mr_task">mr_task()</a>) -&gt; <a href="#type-mr_task">mr_task()</a></tt><br></p>
 <p> </p>
 </div>
 
