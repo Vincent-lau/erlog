@@ -113,11 +113,15 @@ read_and_lex(S) ->
 process_rules(Prog) ->
   lists:flatmap(fun rule_part/1, Prog).
 
-% partition rules with more than two body atoms into a list of
-% smaller rules e.g.
-%
-% a(x,y,z) :- b(w,x), c(x,y), d(y,z). is turned into
-% a(x,y,z) :- b(w,x), int(x,y,z) and int(x,y,z) :- c(x,y), d(y,z).
+%%----------------------------------------------------------------------
+%% @doc
+%% partition rules with more than two body atoms into a list of
+%% smaller rules e.g.
+%%
+%% a(x,y,z) :- b(w,x), c(x,y), d(y,z). is turned into
+%% a(x,y,z) :- b(w,x), int(x,y,z) and int(x,y,z) :- c(x,y), d(y,z).
+%% @end
+%%----------------------------------------------------------------------
 -spec rule_part(dl_rule()) -> [dl_rule()].
 rule_part(R = #dl_rule{body = Body}) ->
   case Body of
