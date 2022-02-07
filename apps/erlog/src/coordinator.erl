@@ -30,11 +30,12 @@
 
 -endif.
 
+% If a task has been assigned to a worker for more than 10 seconds, then time out
+% the task
+-define(TASK_TIMEOUT, 10).
+
 name() ->
   coor.
-
-time_out_val() ->
-  10.
 
 %%% Client API
 -spec start_link(file:filename()) -> {ok, pid()}.
@@ -167,7 +168,7 @@ clean_tmp(TmpPath) ->
 %% A task is assignable if
 %% <ol>
 %%  <li> it is idle </li>
-%%  <li> it is in the state in_progress and has timed out
+%%  <li> it is in the state in_progress and has timed out </li>
 %% </ol>
 %% @end
 %%----------------------------------------------------------------------
@@ -175,7 +176,7 @@ clean_tmp(TmpPath) ->
 assignable(#task{state = idle}) ->
   true;
 assignable(#task{state = in_progress, start_time = StartTime}) ->
-  case erlang:system_time(seconds) - StartTime > time_out_val() of
+  case erlang:system_time(seconds) - StartTime > ?TASK_TIMEOUT of
     true ->
       io:format("found time out task: ~n"),
       true;
@@ -251,7 +252,7 @@ update_finished_task(Task,
               ?LOG_DEBUG(#{evaluation_finished_at_stage => SN}),
               io:format("eval finished at stage ~p~n", [SN]),
               FinalDB = collect_results(1, TmpPath, NumTasks),
-              io:format("final db is ~n~s~n", []),
+              io:format("final db is ~n~s~n", [dbs:to_string(FinalDB)]),
               dbs:write_db(TmpPath ++ "final_db", FinalDB),
               {[tasks:new_terminate_task()], SN + 1};
             _Ts ->
