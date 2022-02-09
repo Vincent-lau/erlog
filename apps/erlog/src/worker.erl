@@ -132,17 +132,17 @@ work(State =
       % call finish task on coordinator
       erpc:cast(?coor_node, coordinator, finish_task, [T]),
       % request new tasks
-      io:format("~p stage-~w task-~w finished, requesting new task~n",
+      ?LOG_DEBUG("~p stage-~w task-~w finished, requesting new task~n",
                 [node(), StageNum, TaskNum]),
       work(State#worker_state{mode = success});
     #task{type = wait} ->
-      io:format("~p this is a wait task, sleeping for ~p sec~n", [node(), ?SLEEP_TIME / 1000]),
+      ?LOG_DEBUG("~p this is a wait task, sleeping for ~p sec~n", [node(), ?SLEEP_TIME / 1000]),
       timer:sleep(?SLEEP_TIME),
       work(State);
     #task{type = terminate} ->
-      io:format("~p all done, time to relax~n", [node()]);
+      ?LOG_DEBUG("~p all done, time to relax~n", [node()]);
     {badrpc, Reason} -> % TODO do I need to distinguish different errors
-      io:format("~p getting task from coordinator failed due to ~p~n", [node(), Reason])
+      ?LOG_NOTICE("~p getting task from coordinator failed due to ~p~n", [node(), Reason])
   end.
 
 %%% Private functions
