@@ -12,15 +12,6 @@
 
 -import(dl_repr, [cons_atom/2]).
 
--define(FAIL_PERCENT, 0.5).
--define(STRAGGLE_PERCENT, 0.5).
-
-num_failures(N) ->
-  trunc(N * ?FAIL_PERCENT).
-
-num_stragglers(N) ->
-  trunc(N * ?STRAGGLE_PERCENT).
-
 all() ->
   [{group, worker_straggle}, {group, worker_fail}].
 
@@ -174,9 +165,9 @@ start_workers(NumWorkers, Mode) ->
   ct:pal("result of starting workers ~p~n", [Cfg]),
   R = case Mode of
         failure ->
-          dconfig:fail_start(Cfg, num_failures(NumWorkers));
+          dconfig:fail_start(Cfg, abnormal_worker:num_failures(NumWorkers));
         straggle ->
-          dconfig:slow_start(Cfg, num_stragglers(NumWorkers))
+          dconfig:slow_start(Cfg, abnormal_worker:num_stragglers(NumWorkers))
       end,
   ct:pal("results of all_start ~p~n", [R]),
   Cfg.

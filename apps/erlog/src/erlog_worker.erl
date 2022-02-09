@@ -7,7 +7,7 @@
 
 -include_lib("kernel/include/logger.hrl").
 
--export([run_program/3, run_program/5, distr_clean/1, distr_setup/4, distr_run/3]).
+-export([run_program/3, run_program/5, distr_clean/1, distr_setup/5, distr_run/3]).
 
 -spec run_program(Mode, file:filename(), string()) -> ok when Mode :: single | distr.
 run_program(single, ProgName, QryName) ->
@@ -34,11 +34,28 @@ run_program(distr, ProgName, QryName, NumWorkers, NumTasks) ->
   distr_run(Cfg, QryName, TmpPath),
   distr_clean(Cfg).
 
+-spec distr_setup(string(), integer(), integer(), file:filename()) -> dconfig:config().
 distr_setup(ProgName, NumWorkers, NumTasks, TmpPath) ->
+  distr_setup(ProgName, NumWorkers, NumTasks, TmpPath, success).
+
+-spec distr_setup(string(),
+                  integer(),
+                  integer(),
+                  file:filename(),
+                  worker:working_mode()) ->
+                   dconfig:config().
+distr_setup(ProgName, NumWorkers, NumTasks, TmpPath, Mode) ->
   net_kernel:start(['coor@127.0.0.1', longnames]),
   coordinator:start_link(ProgName, TmpPath, NumTasks),
   Cfg = dconfig:start_cluster([worker], NumWorkers),
-  dconfig:all_start(Cfg),
+  case Mode of
+    success ->
+      dconfig:all_start(Cfg);
+    failure ->
+      dconfig:fail_start(Cfg, abnormal_worker:num_failures(NumWorkers));
+    straggle ->
+      dconfig:slow_start(Cfg, abnormal_worker:num_stragglers(NumWorkers))
+  end,
   Cfg.
 
 distr_clean(Cfg) ->

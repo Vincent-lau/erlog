@@ -1,6 +1,7 @@
 -module(dconfig).
 
--compile(export_all).
+-export([start_cluster/2, all_start/1, stop_cluster/1, all_work/1, fail_start/2,
+         slow_start/2]).
 
 -record(node_config, {nodes :: #{node() => port()}}).
 
@@ -83,13 +84,6 @@ get_nodes(#node_config{nodes = Nodes}) ->
 get_num_nodes(#node_config{nodes = Nodes}) ->
   maps:size(Nodes).
 
-%%----------------------------------------------------------------------
-%% @doc
-%% Just start normally
-%% @end
-%%----------------------------------------------------------------------
-all_start(Cfg) ->
-  multicall(worker, start, [], Cfg).
 
 %%----------------------------------------------------------------------
 %% @doc
@@ -112,6 +106,23 @@ pick_n(M, N, Acc) ->
 
 %%----------------------------------------------------------------------
 %% @doc
+%% Just start normally
+%% @end
+%%----------------------------------------------------------------------
+all_start(Cfg) ->
+  multicall(worker, start, [], Cfg).
+
+-spec slow_start(config(), integer()) -> ok.
+slow_start(Cfg, FailNum) ->
+  abnormal_start(Cfg, FailNum, straggle).
+
+-spec fail_start(config(), integer()) -> ok.
+fail_start(Cfg, FailNum) ->
+  abnormal_start(Cfg, FailNum, failure).
+
+
+%%----------------------------------------------------------------------
+%% @doc
 %% Given the number of workers that should not behave normally, randomly
 %% choose that number of workers to fail
 %% @end
@@ -128,12 +139,6 @@ abnormal_start(Cfg, FailNum, Mode) ->
                  end
               end,
               Nodes).
-
-slow_start(Cfg, FailNum) ->
-  abnormal_start(Cfg, FailNum, straggle).
-
-fail_start(Cfg, FailNum) ->
-  abnormal_start(Cfg, FailNum, failure).
 
 all_work(Cfg) ->
   multicall(worker, start_working, [], Cfg).

@@ -252,7 +252,7 @@ update_finished_task(Task,
               ?LOG_DEBUG(#{evaluation_finished_at_stage => SN}),
               io:format("eval finished at stage ~p~n", [SN]),
               FinalDB = collect_results(1, TmpPath, NumTasks),
-              io:format("final db is ~n~s~n", [dbs:to_string(FinalDB)]),
+              % io:format("final db is ~n~s~n", [dbs:to_string(FinalDB)]),
               dbs:write_db(TmpPath ++ "final_db", FinalDB),
               {[tasks:new_terminate_task()], SN + 1};
             _Ts ->
