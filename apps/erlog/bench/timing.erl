@@ -41,10 +41,9 @@ time_against_workers(_TimeType, NumWorkers, MaxWorkers, Repeats, Acc)
 time_against_workers(TimeType, NumWorkers, MaxWorkers, Repeats, Acc)
   when NumWorkers =< MaxWorkers ->
   io:format("currently ~p number of workers~n", [NumWorkers]),
-  Time = repeat_times(distr, TimeType, Repeats, NumWorkers, MaxWorkers + 4),
+  Time = repeat_times(distr, TimeType, Repeats, NumWorkers, trunc(MaxWorkers * 1.5)),
   io:format("times for ~p runs in this round is ~p~n", [Repeats, Time]),
   time_against_workers(TimeType, NumWorkers + 2, MaxWorkers, Repeats, [Time | Acc]).
-
 
 -spec write_results(list(), integer()) -> ok.
 write_results(Res, Repeats) ->
@@ -59,7 +58,6 @@ write_results(Res, Repeats) ->
        TimeType :: cpu | wallclock.
 repeat_times(distr, TimeType, Repeats, NumWorkers, NumTasks) ->
   [time_distr_nodes(TimeType, NumWorkers, NumTasks) || _ <- lists:seq(1, Repeats)].
-
 
 repeat_times(single, _TimeType, Repeats) ->
   Res = [time_single_node() || _ <- lists:seq(1, Repeats)],
