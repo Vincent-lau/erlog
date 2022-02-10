@@ -21,13 +21,16 @@ start_link() ->
 %%                  modules => modules()}   % optional
 init([]) ->
     SupFlags =
-        #{strategy => one_for_all,
+        #{strategy => one_for_one,
           intensity => 0,
-          period => 1},
+          period => 1,
+          auto_shutdown => any_significant},
     ChildSpecs =
         [#{id => main,
            start => {worker, start_link, []},
-           shutdown => 5000}],
+           shutdown => 5000,
+           restart => temporary,
+           significant => true}],
     {ok, {SupFlags, ChildSpecs}}.
 
 %% internal functions

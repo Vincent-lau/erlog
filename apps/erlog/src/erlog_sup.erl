@@ -12,6 +12,9 @@
 
 -define(SERVER, ?MODULE).
 
+start_link({Mode, ProgName}) ->
+    supervisor:start_link({local, ?SERVER}, ?MODULE, [Mode, ProgName]).
+
 start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
