@@ -28,4 +28,5 @@ dl_parser.erl
 # benchmark recomputable data
 facts/
 timing_res.txt
+bench/tmp
 

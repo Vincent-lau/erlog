@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit
 
+num_rep = 4
+
 
 def get_graph_size(file_name):
     num_nodes = 0
@@ -61,6 +63,30 @@ def read_data2(file_name):
         throughput.append([graph_size * 10  / (float(x) / 1000 ) for x in t])
     return (throughput, workers, graph_size)
 
+def read_fault(file_name):
+    workers = []
+    throughput = []
+    times = []
+    graph_size = 0
+    with open(file_name, "r") as in_file:
+        for l in in_file:
+            if l[0] == '=':
+                break
+            elif l.split()[0] == 'graph':
+                graph_size = int(l.split(' ')[2])
+                print(f"graph size is {graph_size}")
+                continue
+            line = l.strip(" {}[],\n")
+            line = line.replace("]", "")
+            line = line.replace(" ", "")
+            data = line.split(",")
+            workers.append(int(data[-1]))
+            times.append(data[0: -1])
+    for t in times:
+        throughput.append([graph_size * 10  / (float(x) / 1000 ) for x in t])
+    return (throughput, workers, graph_size)
+
+
 
 def func(x, a, b, c, d):
     print(x)
@@ -74,18 +100,18 @@ def plot(throughput, workers, graph_size):
     mean_throughputs = [np.mean(t) for t in throughput]
 
     # create flattened version
-    workers_flat = np.array([[w] * 2 for w in workers]).flatten()
+    workers_flat = np.array([[w] * num_rep for w in workers]).flatten()
     throughput_flat = throughput.flatten()
 
     # fit the curve
     popt, pcov = curve_fit(func, workers, mean_throughputs)
 
     fig, ax = plt.subplots()
-    ax.set_title(f"throughput against #workers on graph size {graph_size}")
+    ax.set_title(f"throughput of tc against #workers on graph size {graph_size}")
     ax.set_xlabel("number of workers")
     ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
     ax.set_ylabel(
-        "size of graph (#edges) divided by wall clock time measured by statistics(runtime) in second")
+        "size of graph (#edges) divided by wall clock time measured by timer:tc/3 in second")
 
     ax.scatter(workers_flat, throughput_flat, s=6, alpha=0.8)
     ax.fill_between(workers, min_throughputs, max_throughputs,
@@ -117,7 +143,7 @@ def plot_single():
     plt.show()
     
 
-def plot_distr():
+def plot_distributed():
     (throughput, workers, graph_size) = read_data2("results/time_worker.txt")
     throughput = np.array(throughput)
     print(graph_size)
@@ -125,7 +151,7 @@ def plot_distr():
 
     plot(throughput, workers, graph_size)
 
-plot_distr()
+plot_distributed()
 
 
 

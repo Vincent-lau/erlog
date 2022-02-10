@@ -2,7 +2,7 @@
 
 -compile(export_all).
 
--define(PROG, "apps/erlog/bench/bench_program/tc_bench.dl").
+-define(PROG, "apps/erlog/bench_program/tc_bench.dl").
 -define(BENCH_DIR, "apps/erlog/bench/").
 
 prof_single(fprof) ->

@@ -1,17 +1,25 @@
 -module(timing).
 
--compile(export_all).
+-export([start/0, start/1]).
 
--define(PROG, "apps/erlog/bench/bench_program/tc_bench.dl").
--define(tmp_path, "apps/erlog/test/tmp/").
--define(res_path, "apps/erlog/bench/results/timing_res.txt").
+-define(PROG, "apps/bench/bench_program/tc_bench.dl").
+-define(tmp_path, "apps/bench/tmp/").
+-define(res_path, "apps/bench/results/timing_res.txt").
+
+-include_lib("kernel/include/logger.hrl").
 
 start() ->
-  io:format("current timing program ~p~n", [?PROG]),
-  time_against_workers(wallclock, failure, 1, 10, 2, []).
+  start(success).
 
-start(single) ->
-  repeat_times(single, foo, 3).
+start(WorkerSpec) ->
+  {ok, Stream} = file:open(?res_path, [write]),
+  io:format(Stream, "experiment time ~p~n", [calendar:local_time()]),
+  file:close(Stream),
+  io:format("current timing program ~p~n", [?PROG]),
+  time_against_workers(wallclock, WorkerSpec, 1, 5, 2, []).
+
+% start(single) ->
+%   repeat_times(single, foo, 3).
 
 -spec time_against_workers(TimeType, integer()) -> list()
   when TimeType :: cpu | wallclock.
@@ -29,52 +37,53 @@ time_against_workers(TimeType, MaxWorkers) ->
 %% @end
 %%----------------------------------------------------------------------
 -spec time_against_workers(TimeType,
-                           worker:working_mode(),
+                           worker:worker_spec(),
                            integer(),
                            integer(),
                            integer(),
                            list()) ->
                             list()
   when TimeType :: cpu | wallclock.
-time_against_workers(_TimeType, _WMode, NumWorkers, MaxWorkers, Repeats, Acc)
+time_against_workers(_TimeType, WSpec, NumWorkers, MaxWorkers, Repeats, Acc)
   when NumWorkers > MaxWorkers ->
   Res =
     lists:zip(
       lists:reverse(Acc), lists:seq(1, MaxWorkers, 2)),
-  io:format("final time against #workers ~p~n", [Res]),
-  write_results(Res, Repeats),
+  write_results(Res, WSpec, Repeats),
   Res;
-time_against_workers(TimeType, WorkerMode, NumWorkers, MaxWorkers, Repeats, Acc)
+time_against_workers(TimeType, WorkerSpec, NumWorkers, MaxWorkers, Repeats, Acc)
   when NumWorkers =< MaxWorkers ->
   io:format("currently ~p number of workers~n", [NumWorkers]),
   Time =
-    repeat_times(distr, TimeType, WorkerMode, Repeats, NumWorkers, trunc(MaxWorkers * 1.5)),
+    repeat_times(distr, TimeType, WorkerSpec, Repeats, NumWorkers, trunc(MaxWorkers * 1.5)),
   io:format("times for ~p runs in this round is ~p~n", [Repeats, Time]),
   time_against_workers(TimeType,
-                       WorkerMode,
+                       WorkerSpec,
                        NumWorkers + 2,
                        MaxWorkers,
                        Repeats,
                        [Time | Acc]).
 
--spec write_results(list(), integer()) -> ok.
-write_results(Res, Repeats) ->
+-spec write_results(list(), worker:worker_spec(), integer()) -> ok.
+write_results(Res, WSpec, Repeats) ->
   {ok, Stream} = file:open(?res_path, [append]),
+  io:format(Stream, "worker spec, ~p~n", [WSpec]),
   io:format(Stream,
             "results of timing measurement: {~p*times, #workers} ~n~p~n",
             [Repeats, Res]),
+  io:format(Stream, "~n", []),
   file:close(Stream).
 
 repeat_times(distr, TimeType, Repeats, NumWorkers, NumTasks) ->
   repeat_times(distr, TimeType, success, Repeats, NumWorkers, NumTasks).
 
--spec repeat_times(Mode, TimeType, WorkerMode, integer(), integer(), integer()) ->
+-spec repeat_times(Mode, TimeType, WorkerSpec, integer(), integer(), integer()) ->
                     [integer()]
   when Mode :: distr | single_node,
        TimeType :: cpu | wallclock,
-       WorkerMode :: worker:working_mode().
-repeat_times(distr, TimeType, WorkerMode, Repeats, NumWorkers, NumTasks) ->
-  [time_distr_nodes(TimeType, WorkerMode, NumWorkers, NumTasks)
+       WorkerSpec :: worker:worker_spec().
+repeat_times(distr, TimeType, WorkerSpec, Repeats, NumWorkers, NumTasks) ->
+  [time_distr_nodes(TimeType, WorkerSpec, NumWorkers, NumTasks)
    || _ <- lists:seq(1, Repeats)].
 
 repeat_times(single, _TimeType, Repeats) ->
@@ -91,29 +100,31 @@ time_single_node() ->
   io:format("time used in millisecond is ~p~n", [Time / 1000]),
   Time.
 
+-spec time_distr_nodes(TimeType, integer(), integer()) -> integer()
+  when TimeType :: wallclock | cpu.
 time_distr_nodes(TimeType, NumWorkers, NumTasks) ->
   time_distr_nodes(TimeType, success, NumWorkers, NumTasks).
 
--spec time_distr_nodes(TimeType, worker:working_mode(), integer(), integer()) -> integer()
+-spec time_distr_nodes(TimeType, worker:worker_spec(), integer(), integer()) -> integer()
   when TimeType :: wallclock | cpu.
-time_distr_nodes(wallclock, WorkerMode, NumWorkers, NumTasks) ->
-  Cfg = erlog_worker:distr_setup(?PROG, NumWorkers, NumTasks, ?tmp_path, WorkerMode),
+time_distr_nodes(wallclock, WorkerSpec, NumWorkers, NumTasks) ->
+  Cfg = erlog_worker:distr_setup(?PROG, NumWorkers, NumTasks, ?tmp_path, WorkerSpec),
   io:format("set up complete~n"),
   QryName = preproc:get_output_name(file, ?PROG),
   {Time, _R} = timer:tc(erlog_worker, distr_run, [Cfg, QryName, ?tmp_path]),
-  io:format("ready to clean up~n"),
+  ?LOG_DEBUG("ready to clean up~n"),
   erlog_worker:distr_clean(Cfg),
   io:format("time used in millisecond is ~p~n", [Time / 1000]),
   Time;
-time_distr_nodes(cpu, WorkerMode, NumWorkers, NumTasks) ->
-  Cfg = erlog_worker:distr_setup(?PROG, NumWorkers, NumTasks, ?tmp_path, WorkerMode),
+time_distr_nodes(cpu, WorkerSpec, NumWorkers, NumTasks) ->
+  Cfg = erlog_worker:distr_setup(?PROG, NumWorkers, NumTasks, ?tmp_path, WorkerSpec),
   io:format("set up complete~n"),
   S1 = statistics(runtime),
   io:format("stats 1 ~p~n", [S1]),
   QryName = preproc:get_output_name(file, ?PROG),
   erlog_worker:distr_run(Cfg, QryName, ?tmp_path),
   {_TotTime, TimeSince} = statistics(runtime),
-  io:format("ready to clean up~n"),
+  ?LOG_DEBUG("ready to clean up~n"),
   erlog_worker:distr_clean(Cfg),
   io:format("time used in millisecond is ~p~n", [TimeSince]),
   TimeSince.

@@ -98,12 +98,12 @@ Gen_cite() {
 }
 
 echo "=====================starting new iterations===================" >> $RES_FILE
-for N in {50..50..50}
+for N in {150..150..50}
     do
-        cd apps/erlog/bench/bench_program
+        cd apps/bench/bench_program
         . ./utils.sh
 
-        Gen_cite
+        Gen_tc
         echo "\n==============new timings===================" >> ../results/timing_res.txt
         echo "graph size $N" >> ../results/timing_res.txt
 
