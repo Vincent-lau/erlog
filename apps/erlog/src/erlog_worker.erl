@@ -34,6 +34,11 @@ run_program(distr, ProgName, QryName, NumWorkers, NumTasks) ->
   distr_run(Cfg, QryName, TmpPath),
   distr_clean(Cfg).
 
+%%----------------------------------------------------------------------
+%% @doc
+%% @equiv distr_setup(ProgName, NumWorkers, NumTasks, TmpPath, success)
+%% @end
+%%----------------------------------------------------------------------
 -spec distr_setup(string(), integer(), integer(), file:filename()) -> dconfig:config().
 distr_setup(ProgName, NumWorkers, NumTasks, TmpPath) ->
   distr_setup(ProgName, NumWorkers, NumTasks, TmpPath, success).
@@ -42,19 +47,21 @@ distr_setup(ProgName, NumWorkers, NumTasks, TmpPath) ->
                   integer(),
                   integer(),
                   file:filename(),
-                  worker:working_mode()) ->
+                  worker:worker_spec()) ->
                    dconfig:config().
-distr_setup(ProgName, NumWorkers, NumTasks, TmpPath, Mode) ->
+distr_setup(ProgName, NumWorkers, NumTasks, TmpPath, Spec) ->
   net_kernel:start(['coor@127.0.0.1', longnames]),
   coordinator:start_link(ProgName, TmpPath, NumTasks),
   Cfg = dconfig:start_cluster([worker], NumWorkers),
-  case Mode of
+  case Spec of
     success ->
       dconfig:all_start(Cfg);
-    failure ->
-      dconfig:fail_start(Cfg, abnormal_worker:num_failures(NumWorkers));
-    straggle ->
-      dconfig:slow_start(Cfg, abnormal_worker:num_stragglers(NumWorkers))
+    {failure, Percent} ->
+      io:format("worker working in failure mode and the failure percent is ~p~n", [Percent]),
+      dconfig:fail_start(Cfg, abnormal_worker:num_failures(NumWorkers, Percent));
+    {straggle, Percent} ->
+      io:format("worker working in straggle mode and the straggle percent is ~p~n", [Percent]),
+      dconfig:slow_start(Cfg, abnormal_worker:num_stragglers(NumWorkers, Percent))
   end,
   Cfg.
 
