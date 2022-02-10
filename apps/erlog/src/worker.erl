@@ -14,6 +14,7 @@
 -behaviour(gen_server).
 
 -type working_mode() :: success | failure | straggle.
+-type worker_spec() :: success | {failure, float()} | {straggle, float()}.
 
 -record(worker_state,
         {coor_pid :: pid(),
