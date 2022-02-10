@@ -1,7 +1,7 @@
 -module(eval).
 
--export([eval_seminaive/2, eval_seminaive_one/3, eval_all/2, get_overlap_cols/2, eval_one_rule/3,
-         get_proj_cols/2, get_edb_program/1, imm_conseq/3, imm_conseq/2]).
+-export([eval_seminaive/2, eval_seminaive_one/3, eval_all/2, get_overlap_cols/2,
+         eval_one_rule/3, get_proj_cols/2, get_edb_program/1, imm_conseq/3, imm_conseq/2]).
 
 -include("../include/data_repr.hrl").
 
@@ -153,16 +153,20 @@ join_with_delta(Atom1, Atom2, L1, L2, Rule, Rules, FullDB, DeltaDB) ->
 %%----------------------------------------------------------------------
 -spec eval_one_rule(dl_rule(), dl_program(), dl_db_instance(), dl_db_instance()) ->
                      dl_db_instance().
-eval_one_rule(Rule = #dl_rule{head = Head, body = [B1 = #dl_atom{}]}, Rules, FullDB, DeltaDB) ->
+eval_one_rule(Rule = #dl_rule{head = Head, body = [B1 = #dl_atom{}]},
+              Rules,
+              FullDB,
+              DeltaDB) ->
   % PROJECTION
   % first find all relations with the same pred as the rule in IDB
   % then need to find columns that needs to be projected
-  Atoms = case is_idb_pred(B1, Rules) of
-    true ->
-      dbs:get_rel_by_pred(get_atom_name(B1), DeltaDB);
-    false ->
-      dbs:get_rel_by_pred(get_atom_name(B1), FullDB)
-  end,
+  Atoms =
+    case is_idb_pred(B1, Rules) of
+      true ->
+        dbs:get_rel_by_pred(get_atom_name(B1), DeltaDB);
+      false ->
+        dbs:get_rel_by_pred(get_atom_name(B1), FullDB)
+    end,
   Cols = get_proj_cols(dl_repr:get_atom_args(Head), dl_repr:get_atom_args(B1)),
   ?LOG_DEBUG(#{rule => dl_repr:rule_to_string(Rule),
                rule_is_projection => true,
@@ -246,6 +250,7 @@ eval_all(Program, EDB) ->
   ?LOG_DEBUG(#{initial_db => dbs:to_string(EDB), program => Program}),
   eval_seminaive(Program, EDB).
 
+-spec eval_naive(dl_program(), dl_db_instance()) -> dl_db_instance().
 eval_naive(Program, EDB) ->
   NewDB = imm_conseq(Program, EDB),
   ?LOG_DEBUG(#{after_imm_cq_db => dbs:to_string(NewDB)}),
@@ -272,6 +277,13 @@ eval_naive(Program, EDB) ->
 get_edb_program(Program) ->
   lists:filter(fun(Rule) ->
                   lists:all(fun(A) -> not is_idb_pred(A, Program) end, get_rule_body(Rule))
+               end,
+               Program).
+
+-spec get_idb_program(dl_program()) -> dl_program().
+get_idb_program(Program) ->
+  lists:filter(fun(Rule) ->
+                  lists:any(fun(A) -> is_idb_pred(A, Program) end, get_rule_body(Rule))
                end,
                Program).
 
@@ -314,8 +326,8 @@ eval_seminaive(Program, FullDB, DeltaDB) ->
 %% @doc
 %% Using seminaive evaluation to evaluate a program
 %% <ol>
-%% <li> We first P' such that it only contains rules with no idb predicate in
-%% its body </li>
+%% <li> We first compute P' such that it only contains rules with no idb
+%% predicate in its body </li>
 %% <li> then we compute the deltas based on the edb program </li>
 %% </ol>
 %%
@@ -326,7 +338,7 @@ eval_seminaive(Program, FullDB, DeltaDB) ->
 %% link(b, c).
 %% reachable(c, d).
 %% '''
-%% Then the final `reachable(c, d)' is also an edb predicate, as we can potentially
+%% Then the last `reachable(c, d)' is also an edb predicate, as we can potentially
 %% treat it like `reachable_edb(c, d)' and have a new rule saying that
 %% `reachable(X, Y) :- reachable_edb(c, d).'
 %%
@@ -339,5 +351,5 @@ eval_seminaive(Program, EDB) ->
   EDBProg = get_edb_program(Program),
   DeltaDB = imm_conseq(EDBProg, EDB, dbs:new()),
   % put all EDB into DeltaDB as well in case predicates in EDB occur in the head
-  % of rules, c.f. marrying-a-widower
-  eval_seminaive(Program, EDB, dbs:union(DeltaDB, EDB)).
+  % of rules, cf. marrying-a-widower
+  eval_seminaive(get_idb_program(Program), EDB, dbs:union(DeltaDB, EDB)).
