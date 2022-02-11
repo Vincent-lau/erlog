@@ -161,6 +161,7 @@ slow_start_workers(NumWorkers) ->
   start_workers(NumWorkers, straggle).
 
 start_workers(NumWorkers, Mode) ->
+  ct:pal("current path~p~n", [file:get_cwd()]),
   Cfg = dconfig:start_cluster([worker], NumWorkers, "../../lib/erlog/ebin"),
   ct:pal("result of starting workers ~p~n", [Cfg]),
   R = case Mode of

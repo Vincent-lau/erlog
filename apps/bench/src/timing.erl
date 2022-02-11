@@ -12,9 +12,6 @@ start() ->
   start(success).
 
 start(WorkerSpec) ->
-  {ok, Stream} = file:open(?res_path, [write]),
-  io:format(Stream, "experiment time ~p~n", [calendar:local_time()]),
-  file:close(Stream),
   io:format("current timing program ~p~n", [?PROG]),
   time_against_workers(wallclock, WorkerSpec, 1, 5, 2, []).
 
