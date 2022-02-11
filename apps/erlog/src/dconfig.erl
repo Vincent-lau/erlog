@@ -1,6 +1,6 @@
 -module(dconfig).
 
--export([start_cluster/2, all_start/1, stop_cluster/1, all_work/1, fail_start/2,
+-export([start_cluster/2, start_cluster/3, all_start/1, stop_cluster/1, all_work/1, fail_start/2,
          slow_start/2]).
 
 -include_lib("kernel/include/logger.hrl").

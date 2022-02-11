@@ -1,6 +1,7 @@
 -module(abnormal_worker).
 
--export([crasher/0, straggler/0, num_failures/2, num_stragglers/2]).
+-export([crasher/0, straggler/0, num_failures/1, num_stragglers/1, num_failures/2,
+         num_stragglers/2]).
 
 % time before crash
 -define(MAX_HEALTHY_TIME, 30000).
