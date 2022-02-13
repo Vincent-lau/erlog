@@ -11,6 +11,7 @@
     "noconnection",
     "noinput",
     "nomatch",
+    "orelse",
     "pointsto",
     "priv",
     "PROB",
