@@ -6,6 +6,7 @@
          stage_num :: integer(),
          state :: task_state(),
          type :: task_category(),
-         start_time :: integer()}).
+         start_time :: integer(),
+         assigned_worker :: node()}).
 
 -type mr_task() :: #task{}.

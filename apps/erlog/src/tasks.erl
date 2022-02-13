@@ -1,8 +1,9 @@
 -module(tasks).
 
--export([set_finished/1, set_idle/1, set_in_prog/1, reset_time/1]).
--export([is_idle/1, is_finished/1, equals/2]).
--export([new_task/0, new_task/2, new_task/4, new_wait_task/0, new_terminate_task/0]).
+-export([set_finished/1, set_idle/1, set_in_prog/1, set_worker/2, reset_time/1]).
+-export([is_idle/1, is_finished/1, is_in_progress/1, is_eval/1, is_assigned/1, equals/2]).
+-export([new_task/0, new_task/2, new_task/4, new_wait_task/0, new_terminate_task/0,
+         reset_task/1]).
 
 -include("../include/task_repr.hrl").
 
@@ -32,6 +33,24 @@ is_finished(#task{state = finished}) ->
 is_finished(#task{}) ->
   false.
 
+-spec is_in_progress(mr_task()) -> boolean().
+is_in_progress(#task{state = in_progress}) ->
+  true;
+is_in_progress(#task{}) ->
+  false.
+
+-spec is_eval(mr_task()) -> boolean().
+is_eval(#task{type = evaluate}) ->
+  true;
+is_eval(#task{}) ->
+  false.
+
+-spec is_assigned(mr_task()) -> boolean().
+is_assigned(#task{assigned_worker = none}) ->
+  false;
+is_assigned(#task{}) ->
+  true.
+
 -spec set_finished(mr_task()) -> mr_task().
 set_finished(T = #task{}) ->
   T#task{state = finished}.
@@ -44,9 +63,17 @@ set_idle(T = #task{}) ->
 set_in_prog(T = #task{}) ->
   T#task{state = in_progress}.
 
+set_worker(T = #task{}, WorkerNode) ->
+  T#task{assigned_worker = WorkerNode}.
+
 -spec reset_time(mr_task()) -> mr_task().
 reset_time(T = #task{}) ->
   T#task{start_time = erlang:system_time(seconds)}.
+
+%% @doc this is to reset the state of the task when the assigned worker dies
+-spec reset_task(mr_task()) -> mr_task().
+reset_task(T = #task{}) ->
+  set_worker(reset_time(set_idle(T)), none).
 
 %% @doc generate a dummy task
 -spec new_task() -> mr_task().
@@ -74,4 +101,5 @@ new_task(StageNum, TaskNum, TaskState, TaskType) ->
         stage_num = StageNum,
         state = TaskState,
         type = TaskType,
-        start_time = erlang:system_time(seconds)}.
+        start_time = erlang:system_time(seconds),
+        assigned_worker = none}.

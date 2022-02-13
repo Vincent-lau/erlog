@@ -86,7 +86,7 @@ work(State =
        #worker_state{prog = Prog,
                      num_tasks = NumTasks,
                      mode = Mode}) ->
-  case erpc:call(?coor_node, coordinator, assign_task, []) of
+  case erpc:call(?coor_node, coordinator, assign_task, [node()]) of
     T = #task{type = evaluate,
               task_num = TaskNum,
               stage_num = StageNum} ->

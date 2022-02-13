@@ -10,7 +10,7 @@
 -import(dl_repr, [get_rule_headname/1]).
 
 -export([start_link/3, start_link/2, start_link/1, get_tmp_path/0, get_prog/0,
-         get_num_tasks/0, get_current_stage_num/0, assign_task/0, finish_task/1, done/0, stop/0]).
+         get_num_tasks/0, get_current_stage_num/0, assign_task/1, finish_task/1, done/0, stop/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 -export([collect_results/3, wait_for_finish/2]).
@@ -66,8 +66,8 @@ get_num_tasks() ->
 get_prog() ->
   gen_server:call({global, name()}, prog).
 
-assign_task() ->
-  gen_server:call({global, name()}, assign).
+assign_task(WorkerNode) ->
+  gen_server:call({global, name()}, {assign, WorkerNode}).
 
 finish_task(Task) ->
   gen_server:cast({global, name()}, {finish, Task}).
@@ -120,8 +120,8 @@ handle_call(prog, _From, State = #coor_state{prog = Prog}) ->
   {reply, Prog, State};
 handle_call(num_tasks, _From, State = #coor_state{num_tasks = NumTasks}) ->
   {reply, NumTasks, State};
-handle_call(assign, _From, State = #coor_state{tasks = Tasks}) ->
-  {Task, NewTasks} = find_next_task(Tasks),
+handle_call({assign, WorkerNode}, _From, State = #coor_state{tasks = Tasks}) ->
+  {Task, NewTasks} = find_next_task(Tasks, WorkerNode),
   ?LOG_DEBUG(#{assigned_task_from_server => Task}),
   ?LOG_DEBUG(#{old_tasks => Tasks, new_tasks => NewTasks}),
   {reply, Task, State#coor_state{tasks = NewTasks}};
@@ -146,7 +146,7 @@ handle_info(Msg, State) ->
 
 terminate(normal, #coor_state{tmp_path = TmpPath}) ->
   clean_tmp(TmpPath),
-  ?LOG_NOTICE("coordinator terminated~n", []),
+  ?LOG_DEBUG("coordinator terminated~n", []),
   ok.
 
 code_change(_OldVsn, State, _Extra) ->
@@ -196,11 +196,20 @@ assignable(#task{}) ->
 %%    <li>@todo the worker has timed out </li>
 %%  </ol>
 %% if there is none available, then give a wait task
+%% @param WorkerNode is the node that is requesting the task
 %% @returns the task that can be assigned, and the updated list of tasks.
 %% @end
 %%----------------------------------------------------------------------
--spec find_next_task([mr_task()]) -> {mr_task(), [mr_task()]}.
-find_next_task(Tasks) ->
+-spec find_next_task([mr_task()], node()) -> {mr_task(), [mr_task()]}.
+find_next_task(Tasks1, WorkerNode) ->
+  % We reset the task here instead of spawn a new process and periodically
+  % ping the worker because in that way, we would have to use msg passing
+  % to send back the modified Tasks, and this can be cumbersome, since we would
+  % have to put the logic to update the state of the server somewhere anyway,
+  % where do we put it, and how often do we check that, and also how do we make
+  % sure that the task sent to us is up to date? I don't see much value in doing
+  % that.
+  Tasks = reset_dead_tasks(Tasks1),
   case lists:splitwith(fun(T) -> not assignable(T) end, Tasks) of
     {NonAssignable, [AssignableH | AssignableT]} ->
       NewTask =
@@ -210,7 +219,8 @@ find_next_task(Tasks) ->
           #task{state = in_progress} ->
             tasks:reset_time(AssignableH)
         end,
-      {NewTask, NonAssignable ++ [NewTask | AssignableT]};
+      AssignedTask = tasks:set_worker(NewTask, WorkerNode),
+      {AssignedTask, NonAssignable ++ [AssignedTask | AssignableT]};
     {[T = #task{type = terminate}], []} -> % only terminate task exists, assign it
       {T, Tasks};
     {_NonIdles, []} ->
@@ -361,6 +371,12 @@ spin_checker(Freq) ->
       spin_checker(Freq)
   end.
 
+%%----------------------------------------------------------------------
+%% @doc
+%% This function will synchronously wait and return only if the master
+%% has finished its job.
+%% @end
+%%----------------------------------------------------------------------
 -spec wait_for_finish(timeout(), timeout()) -> ok | timeout.
 wait_for_finish(Timeout, Freq) ->
   {Pid, Ref} = spawn_monitor(fun() -> spin_checker(Freq) end),
@@ -371,3 +387,24 @@ wait_for_finish(Timeout, Freq) ->
     exit(Pid, timeout),
     timeout
   end.
+
+%% @doc this will find all the dead nodes and reset their tasks
+reset_dead_tasks(Tasks) ->
+  Dead =
+    sets:from_list(
+      lists:filter(fun(Node) -> net_adm:ping(Node) =/= pong end, nodes())),
+  Alive = sets:from_list(nodes()),
+  lists:map(fun(T = #task{assigned_worker = Worker}) ->
+               case tasks:is_eval(T)
+                    andalso tasks:is_assigned(T)
+                    andalso tasks:is_in_progress(T)
+                    andalso (sets:is_element(Worker, Dead)
+                             orelse not sets:is_element(Worker, Alive))
+               of
+                 true ->
+                   io:format(standard_error, "found dead task ~p~n", [T]),
+                   tasks:reset_task(T);
+                 false -> T
+               end
+            end,
+            Tasks).
