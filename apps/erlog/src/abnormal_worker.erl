@@ -30,7 +30,7 @@ crasher() ->
   T = rand:uniform(?MAX_HEALTHY_TIME) + 1000,
   io:format("sleeping time before fail ~p~n", [T]),
   timer:sleep(T),
-  io:format(standard_error, "damn, I am dying~n", []),
+  io:format(standard_error, "damn, I am dying ~p~n", [node()]),
   erlang:halt().
 
 straggler() ->
