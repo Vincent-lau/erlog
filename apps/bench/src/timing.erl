@@ -13,7 +13,7 @@ start() ->
 
 start(WorkerSpec) ->
   io:format("current timing program ~p~n", [?PROG]),
-  time_against_workers(wallclock, WorkerSpec, 1, 5, 2, []).
+  time_against_workers(wallclock, WorkerSpec, 5, 8, 2).
 
 % start(single) ->
 %   repeat_times(single, foo, 3).
@@ -21,7 +21,11 @@ start(WorkerSpec) ->
 -spec time_against_workers(TimeType, integer()) -> list()
   when TimeType :: cpu | wallclock.
 time_against_workers(TimeType, MaxWorkers) ->
-  time_against_workers(TimeType, success, 1, MaxWorkers, 10, []).
+  time_against_workers(TimeType, success, 1, MaxWorkers, 10).
+
+
+time_against_workers(TimeType, WSpec, MinWorkers, MaxWorkers, Repeats) ->
+  time_against_workers(TimeType, WSpec, MinWorkers, MinWorkers, MaxWorkers, Repeats, []).
 
 %%----------------------------------------------------------------------
 %% @doc
@@ -29,6 +33,7 @@ time_against_workers(TimeType, MaxWorkers) ->
 %% to compute a particular program.
 %%
 %% @param Acc number of trials
+%% @param MinWorkers starting number of workers
 %%
 %% @returns a list of {[time1, time2, ...], #workers}
 %% @end
@@ -38,17 +43,18 @@ time_against_workers(TimeType, MaxWorkers) ->
                            integer(),
                            integer(),
                            integer(),
+                           integer(),
                            list()) ->
                             list()
   when TimeType :: cpu | wallclock.
-time_against_workers(_TimeType, WSpec, NumWorkers, MaxWorkers, Repeats, Acc)
+time_against_workers(_TimeType, WSpec, NumWorkers, MinWorkers, MaxWorkers, Repeats, Acc)
   when NumWorkers > MaxWorkers ->
   Res =
     lists:zip(
-      lists:reverse(Acc), lists:seq(1, MaxWorkers, 2)),
+      lists:reverse(Acc), lists:seq(MinWorkers, MaxWorkers, 2)),
   write_results(Res, WSpec, Repeats),
   Res;
-time_against_workers(TimeType, WorkerSpec, NumWorkers, MaxWorkers, Repeats, Acc)
+time_against_workers(TimeType, WorkerSpec, NumWorkers, MinWorkers, MaxWorkers, Repeats, Acc)
   when NumWorkers =< MaxWorkers ->
   io:format("currently ~p number of workers~n", [NumWorkers]),
   Time =
@@ -57,6 +63,7 @@ time_against_workers(TimeType, WorkerSpec, NumWorkers, MaxWorkers, Repeats, Acc)
   time_against_workers(TimeType,
                        WorkerSpec,
                        NumWorkers + 2,
+                       MinWorkers,
                        MaxWorkers,
                        Repeats,
                        [Time | Acc]).
