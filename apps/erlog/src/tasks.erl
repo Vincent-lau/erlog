@@ -4,8 +4,13 @@
 -export([is_idle/1, is_finished/1, is_in_progress/1, is_eval/1, is_assigned/1, equals/2]).
 -export([new_task/0, new_task/2, new_task/4, new_wait_task/0, new_terminate_task/0,
          reset_task/1]).
+-export([get_start_time/1]).
 
 -include("../include/task_repr.hrl").
+
+
+-spec get_start_time(mr_task()) -> integer().
+get_start_time(#task{start_time = ST}) -> ST.
 
 %%----------------------------------------------------------------------
 %% @doc
@@ -68,7 +73,7 @@ set_worker(T = #task{}, WorkerNode) ->
 
 -spec reset_time(mr_task()) -> mr_task().
 reset_time(T = #task{}) ->
-  T#task{start_time = erlang:system_time(seconds)}.
+  T#task{start_time = erlang:monotonic_time(seconds)}.
 
 %% @doc this is to reset the state of the task when the assigned worker dies
 -spec reset_task(mr_task()) -> mr_task().
@@ -101,5 +106,5 @@ new_task(StageNum, TaskNum, TaskState, TaskType) ->
         stage_num = StageNum,
         state = TaskState,
         type = TaskType,
-        start_time = erlang:system_time(seconds),
+        start_time = erlang:monotonic_time(seconds),
         assigned_worker = none}.
