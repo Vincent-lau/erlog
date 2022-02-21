@@ -21,7 +21,7 @@
          prog :: dl_program(),
          stage_num :: integer(),
          tmp_path :: file:filename(),
-         task_timeout :: integer()}).
+         task_timeout :: erlang:timeout()}).
 
 -type state() :: #coor_state{}.
 
@@ -31,10 +31,20 @@
 
 -endif.
 
-% @doc return the timeout proportional to the size of the graph
-% say the graph has 1000 edges, then maybe time seconds is fine
-get_task_timeout(TaskSize) ->
-  TaskSize / 100.
+-define(INITIAL_TIMEOUT, 240).
+% higher alpha discounts older observations faster
+-define(TIMEOUT_ALPHA, 0.5).
+
+-spec avg_timeout(timer:time(), erlang:timeout()) -> erlang:timeout().
+avg_timeout(_TimeTaken, infinity) ->
+  infinity;
+avg_timeout(TimeTaken, CurTimeOut) ->
+  % adding some leeway to tolerate slightly slower worker(s)
+  trunc(?TIMEOUT_ALPHA * TimeTaken + (1 - ?TIMEOUT_ALPHA) * CurTimeOut) + 3.
+
+-spec backoff_timeout(timeout()) -> timeout().
+backoff_timeout(TimeOut) ->
+  TimeOut * 2.
 
 name() ->
   coor.
@@ -100,7 +110,6 @@ init([ProgName, TmpPath, NumTasks]) ->
   EDBProg = eval:get_edb_program(Program),
   DeltaDB = eval:imm_conseq(EDBProg, EDB, dbs:new()),
   FullDB = dbs:union(DeltaDB, EDB),
-  TimeOut = get_task_timeout(dbs:size(FullDB) / NumTasks),
   frag:hash_frag(FullDB, Program, 1, NumTasks, TmpPath ++ "fulldb"),
   % similar to what I did in eval_seminaive, we put DeltaDB union EDB as the
   % DeltaDB in case the input contain "idb" predicates
@@ -113,7 +122,7 @@ init([ProgName, TmpPath, NumTasks]) ->
                prog = Program,
                stage_num = 1,
                tmp_path = TmpPath,
-               task_timeout = TimeOut}}.
+               task_timeout = ?INITIAL_TIMEOUT}}.
 
 handle_call(stage_num, _From, State = #coor_state{stage_num = StageNum}) ->
   {reply, StageNum, State};
@@ -124,13 +133,11 @@ handle_call(prog, _From, State = #coor_state{prog = Prog}) ->
   {reply, Prog, State};
 handle_call(num_tasks, _From, State = #coor_state{num_tasks = NumTasks}) ->
   {reply, NumTasks, State};
-handle_call({assign, WorkerNode},
-            _From,
-            State = #coor_state{tasks = Tasks, task_timeout = TimeOut}) ->
-  {Task, NewTasks} = find_next_task(Tasks, WorkerNode, TimeOut),
+handle_call({assign, WorkerNode}, _From, State = #coor_state{tasks = Tasks}) ->
+  {Task, NewState} = find_next_task(State, WorkerNode),
   ?LOG_DEBUG(#{assigned_task_from_server => Task}),
-  ?LOG_DEBUG(#{old_tasks => Tasks, new_tasks => NewTasks}),
-  {reply, Task, State#coor_state{tasks = NewTasks}};
+  ?LOG_DEBUG(#{old_tasks => Tasks, new_tasks => NewState#coor_state.tasks}),
+  {reply, Task, NewState};
 handle_call(finished, _From, State = #coor_state{tasks = Tasks}) ->
   case Tasks of
     [#task{type = terminate}] ->
@@ -142,9 +149,9 @@ handle_call(terminate, _From, State) ->
   {stop, normal, ok, State}.
 
 handle_cast({finish, Task}, State = #coor_state{}) ->
-  {NewTasks, SN} = update_finished_task(Task, State),
+  NewState = update_finished_task(Task, State),
   % TODO can check NewTasks and see if we need to terminate the VM
-  {noreply, State#coor_state{tasks = NewTasks, stage_num = SN}}.
+  {noreply, NewState}.
 
 handle_info(Msg, State) ->
   ?LOG_NOTICE("Unexpected message: ~p~n", [Msg]),
@@ -181,10 +188,10 @@ clean_tmp(TmpPath) ->
 -spec assignable(mr_task(), integer()) -> boolean().
 assignable(#task{state = idle}, _TimeOut) ->
   true;
-assignable(#task{state = in_progress, start_time = StartTime}, TimeOut) ->
-  case erlang:system_time(seconds) - StartTime > TimeOut of
+assignable(T = #task{state = in_progress, start_time = StartTime}, TimeOut) ->
+  case erlang:monotonic_time(seconds) - StartTime > TimeOut of
     true ->
-      io:format("found time out task: ~n"),
+      io:format("found time out task: ~p~n", [T]),
       true;
     false ->
       false
@@ -206,8 +213,8 @@ assignable(#task{}, _TimeOut) ->
 %% @returns the task that can be assigned, and the updated list of tasks.
 %% @end
 %%----------------------------------------------------------------------
--spec find_next_task([mr_task()], node(), integer()) -> {mr_task(), [mr_task()]}.
-find_next_task(Tasks1, WorkerNode, TimeOut) ->
+-spec find_next_task(state(), node()) -> {mr_task(), state()}.
+find_next_task(State = #coor_state{tasks = Tasks1, task_timeout = TimeOut}, WorkerNode) ->
   % We reset the task here instead of spawn a new process and periodically
   % ping the worker because in that way, we would have to use msg passing
   % to send back the modified Tasks, and this can be cumbersome, since we would
@@ -218,20 +225,24 @@ find_next_task(Tasks1, WorkerNode, TimeOut) ->
   Tasks = reset_dead_tasks(Tasks1),
   case lists:splitwith(fun(T) -> not assignable(T, TimeOut) end, Tasks) of
     {NonAssignable, [AssignableH | AssignableT]} ->
-      NewTask =
+      {NewTask, NewTimeOut} =
         case AssignableH of
           #task{state = idle} ->
-            tasks:set_in_prog(AssignableH);
+            {tasks:set_in_prog(AssignableH), TimeOut};
           #task{state = in_progress} ->
-            tasks:reset_time(AssignableH)
+            % this means that there is a task timeout, so exp backoff
+            io:format("double timeout to ~p~n",[backoff_timeout(TimeOut)]),
+            {tasks:reset_time(AssignableH), backoff_timeout(TimeOut)}
         end,
       AssignedTask = tasks:set_worker(NewTask, WorkerNode),
-      {AssignedTask, NonAssignable ++ [AssignedTask | AssignableT]};
+      {AssignedTask,
+       State#coor_state{tasks = NonAssignable ++ [AssignedTask | AssignableT],
+                        task_timeout = NewTimeOut}};
     {[T = #task{type = terminate}], []} -> % only terminate task exists, assign it
-      {T, Tasks};
+      {T, State#coor_state{tasks = Tasks}};
     {_NonIdles, []} ->
       % there is no idle/terminate task, hence all in progress return wait task
-      {tasks:new_wait_task(), Tasks}
+      {tasks:new_wait_task(), State#coor_state{tasks = Tasks}}
   end.
 
 %%----------------------------------------------------------------------
@@ -247,18 +258,23 @@ find_next_task(Tasks1, WorkerNode, TimeOut) ->
 %%
 %% @end
 %%----------------------------------------------------------------------
--spec update_finished_task(mr_task(), state()) -> {[mr_task()], integer()}.
+-spec update_finished_task(mr_task(), state()) -> state().
 update_finished_task(Task,
-                     #coor_state{tasks = Tasks,
-                                 stage_num = SN,
-                                 tmp_path = TmpPath,
-                                 num_tasks = NumTasks}) ->
+                     State =
+                       #coor_state{tasks = Tasks,
+                                   stage_num = SN,
+                                   tmp_path = TmpPath,
+                                   num_tasks = NumTasks,
+                                   task_timeout = TimeOut}) ->
   ?LOG_DEBUG(#{task_finished => Task}),
   case lists:splitwith(fun(T) -> not tasks:equals(T, Task) end, Tasks) of
     {_L, []} -> % the finished task is not in stage, ignore it
-      {Tasks, SN};
+      State;
     {L1, [L2H | L2T]} ->
       L2H2 = tasks:set_finished(L2H),
+      TimeTaken = erlang:monotonic_time(seconds) - tasks:get_start_time(L2H),
+      NewTimeOut = avg_timeout(TimeTaken, TimeOut),
+      io:format("new time out is ~p~n", [NewTimeOut]),
       NewTasks = L1 ++ [L2H2 | L2T],
       case check_all_finished(NewTasks) of
         true ->
@@ -270,13 +286,19 @@ update_finished_task(Task,
               FinalDB = collect_results(1, TmpPath, NumTasks),
               % io:format("final db is ~n~s~n", [dbs:to_string(FinalDB)]),
               dbs:write_db(TmpPath ++ "final_db", FinalDB),
-              {[tasks:new_terminate_task()], SN + 1};
+              State#coor_state{tasks = [tasks:new_terminate_task()],
+                               stage_num = SN + 1,
+                               task_timeout = NewTimeOut};
             _Ts ->
               ?LOG_DEBUG(#{new_tasks_for_round => SN + 1, tasks => Ts}),
-              {Ts, SN + 1}
+              State#coor_state{tasks = Ts,
+                               stage_num = SN + 1,
+                               task_timeout = NewTimeOut}
           end;
         false ->
-          {NewTasks, SN}
+          State#coor_state{tasks = NewTasks,
+                           stage_num = SN,
+                           task_timeout = NewTimeOut}
       end
   end.
 
