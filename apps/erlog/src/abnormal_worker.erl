@@ -10,21 +10,21 @@
 
 % being slow, so sleep for 11 seconds
 -define(MAX_STRAGGLE_TIME, 11000).
--define(STRAGGLE_PROB, 0.5).
+-define(STRAGGLE_PROB, 1).
 
 -spec num_failures(integer(), float()) -> integer().
 num_failures(N, Percent) ->
   trunc(N * Percent).
 
 num_failures(N) ->
-  num_failures(N, 0.5).
+  num_failures(N, rand:uniform(9) * 0.1).
 
 -spec num_stragglers(integer(), float()) -> integer().
 num_stragglers(N, Percent) ->
   trunc(N * Percent).
 
 num_stragglers(N) ->
-  num_stragglers(N, 0.5).
+  num_stragglers(N, rand:uniform(9) * 0.1).
 
 crasher() ->
   T = rand:uniform(?MAX_HEALTHY_TIME) + 1000,
