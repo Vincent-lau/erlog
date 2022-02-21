@@ -20,7 +20,8 @@
          num_tasks :: non_neg_integer(),
          prog :: dl_program(),
          stage_num :: integer(),
-         tmp_path :: file:filename()}).
+         tmp_path :: file:filename(),
+         task_timeout :: integer()}).
 
 -type state() :: #coor_state{}.
 
@@ -30,9 +31,10 @@
 
 -endif.
 
-% If a task has been assigned to a worker for more than 10 seconds, then time out
-% the task
--define(TASK_TIMEOUT, 10).
+% @doc return the timeout proportional to the size of the graph
+% say the graph has 1000 edges, then maybe time seconds is fine
+get_task_timeout(TaskSize) ->
+  TaskSize / 100.
 
 name() ->
   coor.
@@ -98,6 +100,7 @@ init([ProgName, TmpPath, NumTasks]) ->
   EDBProg = eval:get_edb_program(Program),
   DeltaDB = eval:imm_conseq(EDBProg, EDB, dbs:new()),
   FullDB = dbs:union(DeltaDB, EDB),
+  TimeOut = get_task_timeout(dbs:size(FullDB) / NumTasks),
   frag:hash_frag(FullDB, Program, 1, NumTasks, TmpPath ++ "fulldb"),
   % similar to what I did in eval_seminaive, we put DeltaDB union EDB as the
   % DeltaDB in case the input contain "idb" predicates
@@ -109,7 +112,8 @@ init([ProgName, TmpPath, NumTasks]) ->
                num_tasks = NumTasks,
                prog = Program,
                stage_num = 1,
-               tmp_path = TmpPath}}.
+               tmp_path = TmpPath,
+               task_timeout = TimeOut}}.
 
 handle_call(stage_num, _From, State = #coor_state{stage_num = StageNum}) ->
   {reply, StageNum, State};
@@ -120,8 +124,10 @@ handle_call(prog, _From, State = #coor_state{prog = Prog}) ->
   {reply, Prog, State};
 handle_call(num_tasks, _From, State = #coor_state{num_tasks = NumTasks}) ->
   {reply, NumTasks, State};
-handle_call({assign, WorkerNode}, _From, State = #coor_state{tasks = Tasks}) ->
-  {Task, NewTasks} = find_next_task(Tasks, WorkerNode),
+handle_call({assign, WorkerNode},
+            _From,
+            State = #coor_state{tasks = Tasks, task_timeout = TimeOut}) ->
+  {Task, NewTasks} = find_next_task(Tasks, WorkerNode, TimeOut),
   ?LOG_DEBUG(#{assigned_task_from_server => Task}),
   ?LOG_DEBUG(#{old_tasks => Tasks, new_tasks => NewTasks}),
   {reply, Task, State#coor_state{tasks = NewTasks}};
@@ -172,18 +178,18 @@ clean_tmp(TmpPath) ->
 %% </ol>
 %% @end
 %%----------------------------------------------------------------------
--spec assignable(mr_task()) -> boolean().
-assignable(#task{state = idle}) ->
+-spec assignable(mr_task(), integer()) -> boolean().
+assignable(#task{state = idle}, _TimeOut) ->
   true;
-assignable(#task{state = in_progress, start_time = StartTime}) ->
-  case erlang:system_time(seconds) - StartTime > ?TASK_TIMEOUT of
+assignable(#task{state = in_progress, start_time = StartTime}, TimeOut) ->
+  case erlang:system_time(seconds) - StartTime > TimeOut of
     true ->
       io:format("found time out task: ~n"),
       true;
     false ->
       false
   end;
-assignable(#task{}) ->
+assignable(#task{}, _TimeOut) ->
   false.
 
 %%----------------------------------------------------------------------
@@ -200,8 +206,8 @@ assignable(#task{}) ->
 %% @returns the task that can be assigned, and the updated list of tasks.
 %% @end
 %%----------------------------------------------------------------------
--spec find_next_task([mr_task()], node()) -> {mr_task(), [mr_task()]}.
-find_next_task(Tasks1, WorkerNode) ->
+-spec find_next_task([mr_task()], node(), integer()) -> {mr_task(), [mr_task()]}.
+find_next_task(Tasks1, WorkerNode, TimeOut) ->
   % We reset the task here instead of spawn a new process and periodically
   % ping the worker because in that way, we would have to use msg passing
   % to send back the modified Tasks, and this can be cumbersome, since we would
@@ -210,7 +216,7 @@ find_next_task(Tasks1, WorkerNode) ->
   % sure that the task sent to us is up to date? I don't see much value in doing
   % that.
   Tasks = reset_dead_tasks(Tasks1),
-  case lists:splitwith(fun(T) -> not assignable(T) end, Tasks) of
+  case lists:splitwith(fun(T) -> not assignable(T, TimeOut) end, Tasks) of
     {NonAssignable, [AssignableH | AssignableT]} ->
       NewTask =
         case AssignableH of
@@ -389,6 +395,7 @@ wait_for_finish(Timeout, Freq) ->
   end.
 
 %% @doc this will find all the dead nodes and reset their tasks
+-spec reset_dead_tasks([mr_task()]) -> [mr_task()].
 reset_dead_tasks(Tasks) ->
   Dead =
     sets:from_list(
