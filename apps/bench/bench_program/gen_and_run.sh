@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
 
 # create a fresh result file
-RES_FILE=apps/erlog/bench/results/timing_res.txt
+RES_FILE=apps/bench/results/timing_res.txt
 # rm $RES_FILE
 # touch $RES_FILE
 
@@ -98,28 +98,27 @@ Gen_cite() {
 }
 
 echo "=====================starting new iterations===================" >> $RES_FILE
-for N in {150..150..50}
-    do
-        cd apps/bench/bench_program
-        . ./utils.sh
+N=$1
 
-        Gen_tc
-        echo "\n==============new timings===================" >> ../results/timing_res.txt
-        echo "graph size $N" >> ../results/timing_res.txt
+cd apps/bench/bench_program
+. ./utils.sh
 
-        cd ../../../../
-        echo "going back to `pwd`"
-        rebar3 compile
+Gen_cite
+echo "\n==============new timings===================" >> ../results/timing_res.txt
+echo "graph size $N" >> ../results/timing_res.txt
 
-        # echo "now running program"
-        # erl -pa "_build/default/lib/erlog/ebin" \
-        #     -pa "_build/default/lib/erlog/bench" \
-        #     -config "config/sys.config" \
-        #     -noshell -noinput \
-        #     -eval 'application:start(erlog), timing:start(), application:stop(erlog), erlang:halt()' \
-        #     &
-        # wait $!
+cd ../../../../
+echo "going back to `pwd`"
+rebar3 compile
 
-    done
+# echo "now running program"
+# erl -pa "_build/default/lib/erlog/ebin" \
+#     -pa "_build/default/lib/erlog/bench" \
+#     -config "config/sys.config" \
+#     -noshell -noinput \
+#     -eval 'application:start(erlog), timing:start(), application:stop(erlog), erlang:halt()' \
+#     &
+# wait $!
+
 
 # echo "=========================done===============================" >> $RES_FILE
