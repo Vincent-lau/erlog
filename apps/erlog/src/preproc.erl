@@ -5,6 +5,8 @@
 
 -include("../include/data_repr.hrl").
 
+-include_lib("kernel/include/logger.hrl").
+
 -spec get_output_name(InputType, Input) -> [string()] | no_output
   when InputType :: file | stream | str,
        Input :: file:io_device() | file:filename() | string().
@@ -88,10 +90,16 @@ lex_and_parse(Stream) when is_pid(Stream) or is_atom(Stream) ->
     [] ->
       {[], []};
     _T ->
-      {ok, Prog} = dl_parser:parse(Tokens),
-      Facts = lists:filter(fun dl_repr:is_dl_atom/1, Prog),
-      Rules = lists:filter(fun dl_repr:is_dl_rule/1, Prog),
-      {Facts, Rules}
+      try dl_parser:parse(Tokens) of
+        {ok, Prog} ->
+          Facts = lists:filter(fun dl_repr:is_dl_atom/1, Prog),
+          Rules = lists:filter(fun dl_repr:is_dl_rule/1, Prog),
+          {Facts, Rules}
+      catch
+        error:Error ->
+          ?LOG_WARNING(#{error_caused_by_token => Tokens}),
+          {error, caught, Error}
+      end
   end.
 
 read_and_lex(S) ->
