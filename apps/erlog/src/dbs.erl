@@ -3,7 +3,7 @@
 -export([project/2, join/5, get_rel_by_pred/2, get_rel_by_pred_and_rest/2,
   rename_pred/2]).
 -export([new/0, is_empty/1, diff/2, filteri/2, foreach/2, split_args/2, equal/2,
-  union/2, from_list/1, flatten/1]).
+  union/2, from_list/1, flatten/1, size/1]).
 -export([to_string/1]).
 -export([read_db/1, read_db/2, write_db/2, write_db/3]).
 
@@ -237,6 +237,10 @@ from_list(L) ->
 -spec flatten([dl_db_instance()]) -> dl_db_instance().
 flatten(L) ->
   sets:union(L).
+
+-spec size(dl_db_instance()) -> integer().
+size(DB) ->
+  sets:size(DB).
 
 
 -spec to_string(dl_db_instance()) -> string().
