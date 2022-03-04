@@ -138,7 +138,7 @@ work(State =
       % request new tasks
       ?LOG_DEBUG("~p stage-~w task-~w finished, requesting new task~n",
                 [node(), StageNum, TaskNum]),
-      work(State#worker_state{mode = success});
+      work(State);
     #task{type = wait} ->
       ?LOG_DEBUG("~p this is a wait task, sleeping for ~p sec~n", [node(), ?SLEEP_TIME / 1000]),
       timer:sleep(?SLEEP_TIME),
