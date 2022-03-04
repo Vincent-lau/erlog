@@ -10,7 +10,7 @@
 
 % being slow, so sleep for 11 seconds
 -define(MAX_STRAGGLE_TIME, 11000).
--define(STRAGGLE_PROB, 1).
+-define(STRAGGLE_PROB, 0.5).
 
 -spec num_failures(integer(), float()) -> integer().
 num_failures(N, Percent) ->
