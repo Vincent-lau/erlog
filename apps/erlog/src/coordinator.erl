@@ -10,10 +10,11 @@
 -import(dl_repr, [get_rule_headname/1]).
 
 -export([start_link/3, start_link/2, start_link/1, get_tmp_path/0, get_prog/0,
-         get_num_tasks/0, get_current_stage_num/0, assign_task/1, finish_task/1, done/0, stop/0]).
+         get_num_tasks/0, get_current_stage_num/0, assign_task/1, finish_task/1, done/0, stop/0,
+         reg_worker/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
--export([collect_results/3, wait_for_finish/2]).
+-export([collect_results/3, wait_for_finish/1]).
 
 -record(coor_state,
         {tasks :: [mr_task()],
@@ -21,7 +22,8 @@
          prog :: dl_program(),
          stage_num :: integer(),
          tmp_path :: file:filename(),
-         task_timeout :: erlang:timeout()}).
+         task_timeout :: erlang:timeout(),
+         node_speed :: #{node() => timer:time()}}).
 
 -type state() :: #coor_state{}.
 
@@ -36,12 +38,16 @@
 -define(TIMEOUT_ALPHA, 0.5).
 -define(BACKUP_TIMEOUT, 3).
 
--spec avg_timeout(timer:time(), erlang:timeout()) -> erlang:timeout().
+-spec avg_timeout(timer:time(), timer:time()) -> timer:time().
 avg_timeout(_TimeTaken, infinity) ->
   infinity;
 avg_timeout(TimeTaken, CurTimeOut) ->
   % adding some leeway to tolerate slightly slower worker(s)
-  trunc(?TIMEOUT_ALPHA * TimeTaken + (1 - ?TIMEOUT_ALPHA) * CurTimeOut) + 3.
+  avg_time(TimeTaken, CurTimeOut) + 3.
+
+-spec avg_time(timer:time(), erlang:timeout()) -> erlang:timeout().
+avg_time(TimeTaken, CurTimeOut) ->
+  trunc(?TIMEOUT_ALPHA * TimeTaken + (1 - ?TIMEOUT_ALPHA) * CurTimeOut).
 
 % currently no backoff_timeout due to existence of stragglers affecting execution time
 -spec backoff_timeout(timeout()) -> timeout().
@@ -67,6 +73,9 @@ start_link(ProgName, TmpPath, NumTasks) ->
   gen_server:start_link({global, name()}, ?MODULE, [ProgName, TmpPath, NumTasks], []).
 
 %% Synchronous call
+
+reg_worker(WorkerNode) ->
+  gen_server:cast({global, name()}, {reg, WorkerNode}).
 
 get_current_stage_num() ->
   gen_server:call({global, name()}, stage_num).
@@ -124,7 +133,8 @@ init([ProgName, TmpPath, NumTasks]) ->
                prog = Program,
                stage_num = 1,
                tmp_path = TmpPath,
-               task_timeout = ?INITIAL_TIMEOUT}}.
+               task_timeout = ?INITIAL_TIMEOUT,
+               node_speed = maps:new()}}.
 
 handle_call(stage_num, _From, State = #coor_state{stage_num = StageNum}) ->
   {reply, StageNum, State};
@@ -150,6 +160,10 @@ handle_call(finished, _From, State = #coor_state{tasks = Tasks}) ->
 handle_call(terminate, _From, State) ->
   {stop, normal, ok, State}.
 
+handle_cast({reg, WorkerNode}, State = #coor_state{node_speed = NodeSpeed}) ->
+  NewNodeSpeed = NodeSpeed#{WorkerNode => ?INITIAL_TIMEOUT},
+  io:format("registered ~p~n", [NewNodeSpeed]),
+  {noreply, State#coor_state{node_speed = NewNodeSpeed}};
 handle_cast({finish, Task}, State = #coor_state{}) ->
   NewState = update_finished_task(Task, State),
   % TODO can check NewTasks and see if we need to terminate the VM
@@ -210,7 +224,8 @@ timed_out_task(T = #task{state = in_progress, start_time = StartTime}, TimeOut) 
     false ->
       false
   end;
-timed_out_task(_T, _TimeOut) -> % if the task is not in progress, then it has not timed out
+timed_out_task(_T,
+               _TimeOut) -> % if the task is not in progress, then it has not timed out
   false.
 
 -spec find_idle_task([mr_task()], node()) -> {mr_task(), [mr_task()]} | none.
@@ -251,7 +266,11 @@ find_timed_out_task(Tasks, WorkerNode, TimeOut) ->
 %% @end
 %%----------------------------------------------------------------------
 -spec find_next_task(state(), node()) -> {mr_task(), state()}.
-find_next_task(State = #coor_state{tasks = Tasks1, task_timeout = TimeOut}, WorkerNode) ->
+find_next_task(State =
+                 #coor_state{tasks = Tasks1,
+                             task_timeout = TimeOut,
+                             node_speed = NodeSpeed},
+               WorkerNode) ->
   % We reset the task here instead of spawn a new process and periodically
   % ping the worker because in that way, we would have to use msg passing
   % to send back the modified Tasks, and this can be cumbersome, since we would
@@ -264,18 +283,26 @@ find_next_task(State = #coor_state{tasks = Tasks1, task_timeout = TimeOut}, Work
     [T = #task{type = terminate}] -> % only terminate task exists, assign it
       {T, State#coor_state{tasks = Tasks}};
     _Other ->
-      case find_idle_task(Tasks, WorkerNode) of % then we look for idle tasks
+      case find_idle_task(Tasks, WorkerNode) % then we look for idle tasks
+      of
         {AssignedTask, NewTasks} ->
           {AssignedTask, State#coor_state{tasks = NewTasks}};
         none ->
-          case find_timed_out_task(Tasks, WorkerNode, TimeOut) of % now we look for timed out tasks
+          case find_timed_out_task(Tasks, WorkerNode, TimeOut) % now we look for timed out tasks
+          of
             {AssignedTask, NewTasks} ->
               {AssignedTask,
                State#coor_state{tasks = NewTasks, task_timeout = backoff_timeout(TimeOut)}};
             none ->
-              case find_timed_out_task(Tasks, WorkerNode, ?BACKUP_TIMEOUT) of % finally go for backup tasks
+              case find_timed_out_task(Tasks,
+                                       WorkerNode,
+                                       maps:get(WorkerNode,
+                                                NodeSpeed)) % finally go for backup tasks
+              of
                 {AssignedTask, NewTasks} ->
-                  io:format("current back up time out is ~p, found a backup task~n", [?BACKUP_TIMEOUT]),
+                  io:format("found a backup task assigned to worker ~p with higher speed "
+                            "~p~n",
+                            [WorkerNode, maps:get(WorkerNode, NodeSpeed)]),
                   {AssignedTask, State#coor_state{tasks = NewTasks}};
                 none -> % all failed, assign a wait task
                   {tasks:new_wait_task(), State#coor_state{tasks = Tasks}}
@@ -298,13 +325,14 @@ find_next_task(State = #coor_state{tasks = Tasks1, task_timeout = TimeOut}, Work
 %% @end
 %%----------------------------------------------------------------------
 -spec update_finished_task(mr_task(), state()) -> state().
-update_finished_task(Task,
+update_finished_task(Task = #task{assigned_worker = WorkerNode},
                      State =
                        #coor_state{tasks = Tasks,
                                    stage_num = SN,
                                    tmp_path = TmpPath,
                                    num_tasks = NumTasks,
-                                   task_timeout = TimeOut}) ->
+                                   task_timeout = TimeOut,
+                                   node_speed = NodeSpeed}) ->
   ?LOG_DEBUG(#{task_finished => Task}),
   case lists:splitwith(fun(T) -> not tasks:equals(T, Task) end, Tasks) of
     {_L, []} -> % the finished task is not in stage, ignore it
@@ -312,14 +340,17 @@ update_finished_task(Task,
     {L1, [L2H | L2T]} ->
       L2H2 = tasks:set_finished(L2H),
       TimeTaken = erlang:monotonic_time(seconds) - tasks:get_start_time(L2H),
+
       NewTimeOut = avg_timeout(TimeTaken, TimeOut),
-      io:format("new time out is ~p~n", [NewTimeOut]),
+      NewTime = avg_time(TimeTaken, maps:get(WorkerNode, NodeSpeed)),
+
+      ?LOG_DEBUG("new time out is ~p~n", [NewTimeOut]),
       NewTasks = L1 ++ [L2H2 | L2T],
       case check_all_finished(NewTasks) of
         true ->
           ?LOG_DEBUG(#{finished_stage => SN}),
-          case Ts = generate_one_stage_tasks(SN + 1, TmpPath, NumTasks) of
-            [] ->
+          case generate_one_stage_tasks(SN + 1, TmpPath, NumTasks) of
+            [] -> % nothing to generate, we are done
               ?LOG_DEBUG(#{evaluation_finished_at_stage => SN}),
               io:format("eval finished at stage ~p~n", [SN]),
               FinalDB = collect_results(1, TmpPath, NumTasks),
@@ -328,17 +359,20 @@ update_finished_task(Task,
               done_checker ! {self(), task_done},
               State#coor_state{tasks = [tasks:new_terminate_task()],
                                stage_num = SN + 1,
-                               task_timeout = NewTimeOut};
-            _Ts ->
+                               task_timeout = NewTimeOut,
+                               node_speed = NodeSpeed#{WorkerNode := NewTime}};
+            Ts -> % we enter the next round
               ?LOG_DEBUG(#{new_tasks_for_round => SN + 1, tasks => Ts}),
               State#coor_state{tasks = Ts,
                                stage_num = SN + 1,
-                               task_timeout = NewTimeOut}
+                               task_timeout = NewTimeOut,
+                               node_speed = NodeSpeed#{WorkerNode := NewTime}}
           end;
         false ->
           State#coor_state{tasks = NewTasks,
                            stage_num = SN,
-                           task_timeout = NewTimeOut}
+                           task_timeout = NewTimeOut,
+                           node_speed = NodeSpeed#{WorkerNode := NewTime}}
       end
   end.
 
@@ -445,16 +479,20 @@ spin_checker(Freq) ->
 %% has finished its job.
 %% @end
 %%----------------------------------------------------------------------
--spec wait_for_finish(timeout(), timeout()) -> ok | timeout.
-wait_for_finish(Timeout, Freq) ->
-  {Pid, Ref} = spawn_monitor(fun() -> spin_checker(Freq) end),
-  receive
-    {'DOWN', Ref, process, Pid, done} ->
-      ok
-  after Timeout ->
-    exit(Pid, timeout),
-    timeout
-  end.
+-spec wait_for_finish(timeout()) -> ok | timeout.
+wait_for_finish(Timeout) ->
+  register(done_checker, self()),
+  Res = receive
+    {_Pid, task_done} ->
+      ok;
+    X ->
+      io:format("received something else ~p~n", [X]),
+      exit(X)
+    after Timeout ->
+      exit(exe_timeout)
+    end,
+  unregister(done_checker),
+  Res.
 
 %% @doc this will find all the dead nodes and reset their tasks
 -spec reset_dead_tasks([mr_task()]) -> [mr_task()].
