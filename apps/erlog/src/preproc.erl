@@ -108,7 +108,17 @@ read_and_lex(S) ->
       [];
     Line when is_list(Line) ->
       {ok, Tokens, _} = dl_lexer:string(Line),
-      Tokens ++ read_and_lex(S)
+      case length(Tokens) of
+        0 ->
+          read_and_lex(S);
+        _N ->
+          case lists:last(Tokens) of
+            {'.', _} ->
+              Tokens ++ read_and_lex(S);
+            _Other -> % this is incomplete results, so just ignore it
+              read_and_lex(S)
+          end
+      end
   end.
 
 %%----------------------------------------------------------------------
