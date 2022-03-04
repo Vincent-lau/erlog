@@ -34,6 +34,7 @@
 -define(INITIAL_TIMEOUT, 240).
 % higher alpha discounts older observations faster
 -define(TIMEOUT_ALPHA, 0.5).
+-define(BACKUP_TIMEOUT, 3).
 
 -spec avg_timeout(timer:time(), erlang:timeout()) -> erlang:timeout().
 avg_timeout(_TimeTaken, infinity) ->
@@ -42,9 +43,10 @@ avg_timeout(TimeTaken, CurTimeOut) ->
   % adding some leeway to tolerate slightly slower worker(s)
   trunc(?TIMEOUT_ALPHA * TimeTaken + (1 - ?TIMEOUT_ALPHA) * CurTimeOut) + 3.
 
+% currently no backoff_timeout due to existence of stragglers affecting execution time
 -spec backoff_timeout(timeout()) -> timeout().
 backoff_timeout(TimeOut) ->
-  TimeOut * 2.
+  TimeOut.
 
 name() ->
   coor.
@@ -199,6 +201,41 @@ assignable(T = #task{state = in_progress, start_time = StartTime}, TimeOut) ->
 assignable(#task{}, _TimeOut) ->
   false.
 
+-spec timed_out_task(mr_task(), timeout()) -> boolean().
+timed_out_task(T = #task{state = in_progress, start_time = StartTime}, TimeOut) ->
+  case erlang:monotonic_time(seconds) - StartTime > TimeOut of
+    true ->
+      io:format("found time out task: ~p~n", [T]),
+      true;
+    false ->
+      false
+  end;
+timed_out_task(_T, _TimeOut) -> % if the task is not in progress, then it has not timed out
+  false.
+
+-spec find_idle_task([mr_task()], node()) -> {mr_task(), [mr_task()]} | none.
+find_idle_task(Tasks, WorkerNode) ->
+  case lists:splitwith(fun(T) -> not tasks:is_idle(T) end, Tasks) of
+    {NonIdle, [IdleH | IdleT]} ->
+      NewTask = tasks:set_in_prog(IdleH),
+      AssignedTask = tasks:set_worker(NewTask, WorkerNode),
+      {AssignedTask, NonIdle ++ [AssignedTask | IdleT]};
+    {_NonIdle, []} ->
+      none
+  end.
+
+-spec find_timed_out_task([mr_task()], node(), timeout()) ->
+                           {mr_task(), [mr_task()]} | none.
+find_timed_out_task(Tasks, WorkerNode, TimeOut) ->
+  case lists:splitwith(fun(T) -> not timed_out_task(T, TimeOut) end, Tasks) of
+    {TimedIn, [TimedOutH | TimedOutT]} ->
+      NewTask = tasks:reset_time(TimedOutH),
+      AssignedTask = tasks:set_worker(NewTask, WorkerNode),
+      {AssignedTask, TimedIn ++ [AssignedTask | TimedOutT]};
+    {_TimedIn, []} ->
+      none
+  end.
+
 %%----------------------------------------------------------------------
 %% @doc
 %% Function: find_next_task
@@ -223,26 +260,28 @@ find_next_task(State = #coor_state{tasks = Tasks1, task_timeout = TimeOut}, Work
   % sure that the task sent to us is up to date? I don't see much value in doing
   % that.
   Tasks = reset_dead_tasks(Tasks1),
-  case lists:splitwith(fun(T) -> not assignable(T, TimeOut) end, Tasks) of
-    {NonAssignable, [AssignableH | AssignableT]} ->
-      {NewTask, NewTimeOut} =
-        case AssignableH of
-          #task{state = idle} ->
-            {tasks:set_in_prog(AssignableH), TimeOut};
-          #task{state = in_progress} ->
-            % this means that there is a task timeout, so exp backoff
-            io:format("double timeout to ~p~n",[backoff_timeout(TimeOut)]),
-            {tasks:reset_time(AssignableH), backoff_timeout(TimeOut)}
-        end,
-      AssignedTask = tasks:set_worker(NewTask, WorkerNode),
-      {AssignedTask,
-       State#coor_state{tasks = NonAssignable ++ [AssignedTask | AssignableT],
-                        task_timeout = NewTimeOut}};
-    {[T = #task{type = terminate}], []} -> % only terminate task exists, assign it
+  case Tasks of
+    [T = #task{type = terminate}] -> % only terminate task exists, assign it
       {T, State#coor_state{tasks = Tasks}};
-    {_NonIdles, []} ->
-      % there is no idle/terminate task, hence all in progress return wait task
-      {tasks:new_wait_task(), State#coor_state{tasks = Tasks}}
+    _Other ->
+      case find_idle_task(Tasks, WorkerNode) of % then we look for idle tasks
+        {AssignedTask, NewTasks} ->
+          {AssignedTask, State#coor_state{tasks = NewTasks}};
+        none ->
+          case find_timed_out_task(Tasks, WorkerNode, TimeOut) of % now we look for timed out tasks
+            {AssignedTask, NewTasks} ->
+              {AssignedTask,
+               State#coor_state{tasks = NewTasks, task_timeout = backoff_timeout(TimeOut)}};
+            none ->
+              case find_timed_out_task(Tasks, WorkerNode, ?BACKUP_TIMEOUT) of % finally go for backup tasks
+                {AssignedTask, NewTasks} ->
+                  io:format("current back up time out is ~p, found a backup task~n", [?BACKUP_TIMEOUT]),
+                  {AssignedTask, State#coor_state{tasks = NewTasks}};
+                none -> % all failed, assign a wait task
+                  {tasks:new_wait_task(), State#coor_state{tasks = Tasks}}
+              end
+          end
+      end
   end.
 
 %%----------------------------------------------------------------------
@@ -286,6 +325,7 @@ update_finished_task(Task,
               FinalDB = collect_results(1, TmpPath, NumTasks),
               % io:format("final db is ~n~s~n", [dbs:to_string(FinalDB)]),
               dbs:write_db(TmpPath ++ "final_db", FinalDB),
+              done_checker ! {self(), task_done},
               State#coor_state{tasks = [tasks:new_terminate_task()],
                                stage_num = SN + 1,
                                task_timeout = NewTimeOut};
