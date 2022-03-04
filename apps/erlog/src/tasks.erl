@@ -73,7 +73,7 @@ set_worker(T = #task{}, WorkerNode) ->
 
 -spec reset_time(mr_task()) -> mr_task().
 reset_time(T = #task{}) ->
-  T#task{start_time = erlang:monotonic_time(seconds)}.
+  T#task{start_time = erlang:monotonic_time(millisecond)}.
 
 %% @doc this is to reset the state of the task when the assigned worker dies
 -spec reset_task(mr_task()) -> mr_task().
@@ -106,5 +106,5 @@ new_task(StageNum, TaskNum, TaskState, TaskType) ->
         stage_num = StageNum,
         state = TaskState,
         type = TaskType,
-        start_time = erlang:monotonic_time(seconds),
+        start_time = erlang:monotonic_time(millisecond),
         assigned_worker = none}.

@@ -33,21 +33,20 @@
 
 -endif.
 
--define(INITIAL_TIMEOUT, 240).
+-define(INITIAL_TIMEOUT, 240 * 1000).
 % higher alpha discounts older observations faster
 -define(TIMEOUT_ALPHA, 0.5).
--define(BACKUP_TIMEOUT, 3).
 
 -spec avg_timeout(timer:time(), timer:time()) -> timer:time().
 avg_timeout(_TimeTaken, infinity) ->
   infinity;
 avg_timeout(TimeTaken, CurTimeOut) ->
   % adding some leeway to tolerate slightly slower worker(s)
-  avg_time(TimeTaken, CurTimeOut) + 3.
+  avg_time(TimeTaken, CurTimeOut) + 3 * 1000.
 
 -spec avg_time(timer:time(), erlang:timeout()) -> erlang:timeout().
-avg_time(TimeTaken, CurTimeOut) ->
-  trunc(?TIMEOUT_ALPHA * TimeTaken + (1 - ?TIMEOUT_ALPHA) * CurTimeOut).
+avg_time(TimeTaken, CurTime) ->
+  trunc(?TIMEOUT_ALPHA * TimeTaken + (1 - ?TIMEOUT_ALPHA) * CurTime).
 
 % currently no backoff_timeout due to existence of stragglers affecting execution time
 -spec backoff_timeout(timeout()) -> timeout().
@@ -205,7 +204,7 @@ clean_tmp(TmpPath) ->
 assignable(#task{state = idle}, _TimeOut) ->
   true;
 assignable(T = #task{state = in_progress, start_time = StartTime}, TimeOut) ->
-  case erlang:monotonic_time(seconds) - StartTime > TimeOut of
+  case erlang:monotonic_time(millisecond) - StartTime > TimeOut of
     true ->
       io:format("found time out task: ~p~n", [T]),
       true;
@@ -217,7 +216,7 @@ assignable(#task{}, _TimeOut) ->
 
 -spec timed_out_task(mr_task(), timeout()) -> boolean().
 timed_out_task(T = #task{state = in_progress, start_time = StartTime}, TimeOut) ->
-  case erlang:monotonic_time(seconds) - StartTime > TimeOut of
+  case erlang:monotonic_time(millisecond) - StartTime > TimeOut of
     true ->
       io:format("found time out task: ~p~n", [T]),
       true;
@@ -339,7 +338,7 @@ update_finished_task(Task = #task{assigned_worker = WorkerNode},
       State;
     {L1, [L2H | L2T]} ->
       L2H2 = tasks:set_finished(L2H),
-      TimeTaken = erlang:monotonic_time(seconds) - tasks:get_start_time(L2H),
+      TimeTaken = erlang:monotonic_time(millisecond) - tasks:get_start_time(L2H),
 
       NewTimeOut = avg_timeout(TimeTaken, TimeOut),
       NewTime = avg_time(TimeTaken, maps:get(WorkerNode, NodeSpeed)),
