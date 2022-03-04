@@ -152,7 +152,7 @@ dist_eval_tests(Config, QryNames) when is_list(hd(QryNames)) ->
   WorkerCfg = ?config(worker_cfg, Config),
   dconfig:all_work(WorkerCfg),
 
-  ok = coordinator:wait_for_finish(5000, 500),
+  ok = coordinator:wait_for_finish(5000),
   Res = dbs:read_db(?config(tmp_dir, Config) ++ "final_db"),
   ct:pal("Total result db is~n~s~n", [dbs:to_string(Res)]),
   ResQL = lists:map(fun(QryName) -> dbs:get_rel_by_pred(QryName, Res) end, QryNames),

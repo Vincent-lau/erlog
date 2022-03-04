@@ -16,8 +16,8 @@ all() ->
   [{group, worker_straggle}, {group, worker_fail}].
 
 groups() ->
-  [{worker_fail, [{repeat, 1}, shuffle, sequence], all_tests()},
-   {worker_straggle, [{repeat, 2}, shuffle], all_tests()}].
+  [{worker_fail, [{repeat, 3}, shuffle, sequence], all_tests()},
+   {worker_straggle, [{repeat, 5}, shuffle], all_tests()}].
 
 all_tests() ->
   [tc4workers,
@@ -180,8 +180,7 @@ stop_workers(Config) ->
 dist_eval_tests(Config, QryNames) when is_list(hd(QryNames)) ->
   WorkerCfg = ?config(worker_cfg, Config),
   dconfig:all_work(WorkerCfg),
-
-  ok = coordinator:wait_for_finish(50000, 500),
+  ok = coordinator:wait_for_finish(1000 * 50),
   Res = dbs:read_db(?config(tmp_dir, Config) ++ "final_db"),
   ct:pal("Total result db is~n~s~n", [dbs:to_string(Res)]),
   ResQL = lists:map(fun(QryName) -> dbs:get_rel_by_pred(QryName, Res) end, QryNames),

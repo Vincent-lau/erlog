@@ -60,7 +60,9 @@ distr_setup(ProgName, NumWorkers, NumTasks, TmpPath, Spec) ->
       io:format("worker working in failure mode and the failure percent is ~p~n", [Percent]),
       dconfig:fail_start(Cfg, abnormal_worker:num_failures(NumWorkers, Percent));
     {straggle, Percent} ->
-      io:format("worker working in straggle mode and the straggle percent is ~p~n", [Percent]),
+      io:format("worker working in straggle mode and the straggle percent is "
+                "~p~n",
+                [Percent]),
       dconfig:slow_start(Cfg, abnormal_worker:num_stragglers(NumWorkers, Percent))
   end,
   Cfg.
@@ -73,7 +75,7 @@ distr_clean(Cfg) ->
 
 distr_run(Cfg, QryName, TmpPath) ->
   dconfig:all_work(Cfg),
-  ok = coordinator:wait_for_finish(600000 * 5, 500),
+  coordinator:wait_for_finish(60 * 60 * 1000),
   NumTasks = coordinator:get_num_tasks(),
   FinalDB = coordinator:collect_results(1, TmpPath, NumTasks),
   FinalDBQ = dbs:get_rel_by_pred(QryName, FinalDB),
