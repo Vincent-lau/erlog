@@ -53,6 +53,7 @@ init([Mode]) ->
   true = net_kernel:connect_node(?coor_node),
   global:sync(), % make sure that worker sees the registered name
   CoorPid = global:whereis_name(coor),
+  erpc:cast(?coor_node, coordinator, reg_worker, [node()]),
   Prog = rpc:call(?coor_node, coordinator, get_prog, []),
   NumTasks = rpc:call(?coor_node, coordinator, get_num_tasks, []),
   spawn(fun check_coor/0),
