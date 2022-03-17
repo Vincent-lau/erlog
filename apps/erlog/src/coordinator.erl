@@ -10,7 +10,7 @@
 -import(dl_repr, [get_rule_headname/1]).
 
 -export([start_link/3, start_link/2, start_link/1, get_tmp_path/0, get_prog/0,
-         get_num_tasks/0, get_current_stage_num/0, assign_task/1, finish_task/1, done/0, stop/0,
+         get_num_tasks/0, get_current_stage_num/0, assign_task/1, finish_task/2, done/0, stop/0,
          reg_worker/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
@@ -23,7 +23,8 @@
          stage_num :: integer(),
          tmp_path :: file:filename(),
          task_timeout :: erlang:timeout(),
-         nodes_rate :: #{node() => number()}}).
+         nodes_rate :: #{node() => number()},
+         nodes_tasks :: #{node() => mr_task()}}).
 
         % use task/file size divide execution time, exp avg to represent speed
         % paper uses ProgressScore/T to represent ProgressRate, here we do something
@@ -96,8 +97,8 @@ get_prog() ->
 assign_task(WorkerNode) ->
   gen_server:call({global, name()}, {assign, WorkerNode}).
 
-finish_task(Task) ->
-  gen_server:cast({global, name()}, {finish, Task}).
+finish_task(Task, WorkerNode) ->
+  gen_server:call({global, name()}, {finish, Task, WorkerNode}).
 
 stop() ->
   gen_server:call({global, name()}, terminate).
@@ -138,7 +139,8 @@ init([ProgName, TmpPath, NumTasks]) ->
                stage_num = 1,
                tmp_path = TmpPath,
                task_timeout = ?INITIAL_TIMEOUT,
-               nodes_rate = maps:new()}}.
+               nodes_rate = maps:new(),
+               nodes_tasks = maps:new()}}.
 
 handle_call(stage_num, _From, State = #coor_state{stage_num = StageNum}) ->
   {reply, StageNum, State};
@@ -149,11 +151,27 @@ handle_call(prog, _From, State = #coor_state{prog = Prog}) ->
   {reply, Prog, State};
 handle_call(num_tasks, _From, State = #coor_state{num_tasks = NumTasks}) ->
   {reply, NumTasks, State};
-handle_call({assign, WorkerNode}, _From, State = #coor_state{tasks = Tasks}) ->
-  {Task, NewState} = find_next_task(State, WorkerNode),
-  ?LOG_DEBUG(#{assigned_task_from_server => Task}),
-  ?LOG_DEBUG(#{old_tasks => Tasks, new_tasks => NewState#coor_state.tasks}),
-  {reply, Task, NewState};
+handle_call({assign, WorkerNode},
+            _From,
+            State = #coor_state{tasks = Tasks, nodes_tasks = NodesTasks}) ->
+  case tasks:is_eval(
+         maps:get(WorkerNode, NodesTasks))
+  of
+    true -> % if assigned an eval task, then give it a wait one
+      {reply, maps:get(WorkerNode, NodesTasks), State};
+    false ->
+      {Task, NewState} = find_next_task(State, WorkerNode),
+      ?LOG_DEBUG(#{assigned_task_from_server => Task, to => WorkerNode}),
+      ?LOG_DEBUG(#{old_tasks => Tasks, new_tasks => NewState#coor_state.tasks}),
+      {reply, Task, NewState#coor_state{nodes_tasks = NodesTasks#{WorkerNode => Task}}}
+  end;
+handle_call({finish, Task, WorkerNode},
+            _From,
+            State = #coor_state{nodes_tasks = NodesTasks}) ->
+  NewState = update_finished_task(Task, State),
+  {reply,
+   ok,
+   NewState#coor_state{nodes_tasks = NodesTasks#{WorkerNode => tasks:new_wait_task()}}};
 handle_call(finished, _From, State = #coor_state{tasks = Tasks}) ->
   case Tasks of
     [#task{type = terminate}] ->
@@ -164,13 +182,11 @@ handle_call(finished, _From, State = #coor_state{tasks = Tasks}) ->
 handle_call(terminate, _From, State) ->
   {stop, normal, ok, State}.
 
-handle_cast({reg, WorkerNode}, State = #coor_state{nodes_rate = NodesRate}) ->
+handle_cast({reg, WorkerNode},
+            State = #coor_state{nodes_rate = NodesRate, nodes_tasks = NodesTasks}) ->
   NewNodesRate = NodesRate#{WorkerNode => 0.001}, % to avoid division by zero
-  {noreply, State#coor_state{nodes_rate = NewNodesRate}};
-handle_cast({finish, Task}, State = #coor_state{}) ->
-  NewState = update_finished_task(Task, State),
-  % TODO can check NewTasks and see if we need to terminate the VM
-  {noreply, NewState}.
+  NewNodesTasks = NodesTasks#{WorkerNode => tasks:new_wait_task()},
+  {noreply, State#coor_state{nodes_rate = NewNodesRate, nodes_tasks = NewNodesTasks}}.
 
 handle_info(Msg, State) ->
   ?LOG_NOTICE("Unexpected message: ~p~n", [Msg]),
@@ -231,8 +247,9 @@ timed_out_task(_T,
                _TimeOut) -> % if the task is not in progress, then it has not timed out
   false.
 
--spec find_idle_task([mr_task()], node()) -> {mr_task(), [mr_task()]} | none.
-find_idle_task(Tasks, WorkerNode) ->
+%% @edoc this function will find an idle task, and if found, set its state appropriately
+-spec find_set_idle_task([mr_task()], node()) -> {mr_task(), [mr_task()]} | none.
+find_set_idle_task(Tasks, WorkerNode) ->
   case lists:splitwith(fun(T) -> not tasks:is_idle(T) end, Tasks) of
     {NonIdle, [IdleH | IdleT]} ->
       NewTask = tasks:set_in_prog(IdleH),
@@ -242,9 +259,9 @@ find_idle_task(Tasks, WorkerNode) ->
       none
   end.
 
--spec find_timed_out_task([mr_task()], node(), timeout()) ->
-                           {mr_task(), [mr_task()]} | none.
-find_timed_out_task(Tasks, WorkerNode, TimeOut) ->
+-spec find_set_timed_out_task([mr_task()], node(), timeout()) ->
+                               {mr_task(), [mr_task()]} | none.
+find_set_timed_out_task(Tasks, WorkerNode, TimeOut) ->
   case lists:splitwith(fun(T) -> not timed_out_task(T, TimeOut) end, Tasks) of
     {TimedIn, [TimedOutH | TimedOutT]} ->
       NewTask = tasks:reset_time(TimedOutH),
@@ -255,7 +272,9 @@ find_timed_out_task(Tasks, WorkerNode, TimeOut) ->
   end.
 
 -spec possibly_faster(mr_task(), number(), number()) -> boolean().
-possibly_faster(T=#task{size = Size, start_time = StartTime, state = in_progress},
+possibly_faster(#task{size = Size,
+                      start_time = StartTime,
+                      state = in_progress},
                 AssignedWorkerRate,
                 NewWorkerRate) ->
   EstCompletion = Size / NewWorkerRate,
@@ -263,15 +282,17 @@ possibly_faster(T=#task{size = Size, start_time = StartTime, state = in_progress
     Size / AssignedWorkerRate - (erlang:monotonic_time(millisecond) - StartTime),
   % io:format("estimated remaining time is~p~n", [EstRemaining]),
   case EstRemaining < 0 of
-    true -> true;
-    false -> EstCompletion < EstRemaining
+    true ->
+      true;
+    false ->
+      EstCompletion < EstRemaining
   end;
 possibly_faster(_T, _A, _N) ->
   false.
 
--spec find_speculative_task([mr_task()], node(), #{node() => number()}) ->
-                             {mr_task(), [mr_task()]} | none.
-find_speculative_task(Tasks, WorkerNode, NodesRate) ->
+-spec find_set_speculative_task([mr_task()], node(), #{node() => number()}) ->
+                                 {mr_task(), [mr_task()]} | none.
+find_set_speculative_task(Tasks, WorkerNode, NodesRate) ->
   % for each task, calcuate the estimated time, compare with estimated remaining time
   case lists:splitwith(fun(T) ->
                           not
@@ -315,7 +336,8 @@ near_completion(Tasks) ->
 find_next_task(State =
                  #coor_state{tasks = Tasks1,
                              task_timeout = TimeOut,
-                             nodes_rate = NodesRate},
+                             nodes_rate = NodesRate,
+                             nodes_tasks = NodesTasks},
                WorkerNode) ->
   % We reset the task here instead of spawn a new process and periodically
   % ping the worker because in that way, we would have to use msg passing
@@ -329,10 +351,11 @@ find_next_task(State =
     [T = #task{type = terminate}] -> % only terminate task exists, assign it
       {T, State#coor_state{tasks = Tasks}};
     _Other ->
-      case find_idle_task(Tasks, WorkerNode) % then we look for idle tasks
+      case find_set_idle_task(Tasks, WorkerNode) % then we look for idle tasks
       of
         {AssignedTask, NewTasks} ->
-          {AssignedTask, State#coor_state{tasks = NewTasks}};
+          NewNodesTasks = NodesTasks#{WorkerNode => AssignedTask},
+          {AssignedTask, State#coor_state{tasks = NewTasks, nodes_tasks = NewNodesTasks}};
         none ->
           % case find_timed_out_task(Tasks, WorkerNode, TimeOut) % now we look for timed out tasks
           % of
@@ -341,17 +364,26 @@ find_next_task(State =
           %      State#coor_state{tasks = NewTasks, task_timeout = backoff_timeout(TimeOut)}};
           case near_completion(Tasks) of
             true ->
-              case find_speculative_task(Tasks, WorkerNode, NodesRate) % finally go for backup tasks
+              case find_set_speculative_task(Tasks,
+                                             WorkerNode,
+                                             NodesRate) % finally go for backup tasks
               of
                 {AssignedTask, NewTasks} ->
-                  io:format("found a spec task assigned to worker ~p with higher speed ~n",
-                            [WorkerNode]),
-                  {AssignedTask, State#coor_state{tasks = NewTasks}};
+                  ?LOG_DEBUG(#{reassigning_task => AssignedTask,
+                               from => AssignedTask#task.assigned_worker,
+                               to => WorkerNode}),
+                  NewNodesTasks = NodesTasks#{WorkerNode => AssignedTask},
+                  {AssignedTask, State#coor_state{tasks = NewTasks, nodes_tasks = NewNodesTasks}};
                 none -> % all failed, assign a wait task
-                  {tasks:new_wait_task(), State#coor_state{tasks = Tasks}}
+                  WaitTask = tasks:new_wait_task(),
+                  {WaitTask,
+                   State#coor_state{tasks = Tasks,
+                                    nodes_tasks = NodesTasks#{WorkerNode => WaitTask}}}
               end;
             false ->
-              {tasks:new_wait_task(), State#coor_state{tasks = Tasks}}
+              WaitTask = tasks:new_wait_task(),
+              {WaitTask,
+               State#coor_state{tasks = Tasks, nodes_tasks = NodesTasks#{WorkerNode => WaitTask}}}
           end
       end
   end.
@@ -393,7 +425,6 @@ update_finished_task(Task = #task{assigned_worker = WorkerNode},
       ProgRate = L2H#task.size / (TimeTaken + 2000),
       NewProgRate = exp_avg(ProgRate, maps:get(WorkerNode, NodesRate)),
       % io:format("new progress rate ~p~n", [NewProgRate]),
-
       % io:format("new time out is ~p~n", [NewTimeOut]),
       % io:format("new time for worker ~p is ~p~n", [WorkerNode, NewTime]),
       NewTasks = L1 ++ [L2H2 | L2T],
@@ -511,18 +542,6 @@ check_fixpoint(StageNum, TaskNum, TmpPath) ->
                db_equal => dbs:equal(DB1, DB2)}),
   dbs:equal(DB1, DB2).
 
-spin_checker(Freq) ->
-  case coordinator:done() of
-    true ->
-      io:format("The coordinator has finished its job.~n"),
-      exit(done);
-    false ->
-      timer:sleep(Freq),
-      % io:format("still waiting, currently the coordinator is in stage ~p of "
-      %           "execution~n",
-      %           [coordinator:get_current_stage_num()]),
-      spin_checker(Freq)
-  end.
 
 %%----------------------------------------------------------------------
 %% @doc
@@ -538,7 +557,6 @@ wait_for_finish(Timeout) ->
       {_Pid, task_done} ->
         ok;
       X ->
-        io:format("received something else ~p~n", [X]),
         exit(X)
     after Timeout ->
       exit(exe_timeout)
