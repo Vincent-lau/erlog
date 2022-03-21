@@ -30,3 +30,4 @@ facts/
 timing_res.txt
 bench/tmp
 
+apps/bench/results/fprof.trace
