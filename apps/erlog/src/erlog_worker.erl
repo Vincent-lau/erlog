@@ -7,6 +7,9 @@
 
 -include_lib("kernel/include/logger.hrl").
 
+% wait time in millisecond
+-define(WAIT_TIME, infinity).
+
 -export([run_program/3, run_program/5, distr_clean/1, distr_setup/5, distr_run/3]).
 
 -spec run_program(Mode, file:filename(), string()) -> ok when Mode :: single | distr.
@@ -75,7 +78,7 @@ distr_clean(Cfg) ->
 
 distr_run(Cfg, QryName, TmpPath) ->
   dconfig:all_work(Cfg),
-  coordinator:wait_for_finish(60 * 60 * 1000),
+  coordinator:wait_for_finish(?WAIT_TIME),
   NumTasks = coordinator:get_num_tasks(),
   FinalDB = coordinator:collect_results(1, TmpPath, NumTasks),
   FinalDBQ = dbs:get_rel_by_pred(QryName, FinalDB),

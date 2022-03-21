@@ -7,6 +7,7 @@
          state :: task_state(),
          type :: task_category(),
          start_time :: integer(),
-         assigned_worker :: node()}).
+         assigned_worker :: node(),
+         size :: number()}).
 
 -type mr_task() :: #task{}.

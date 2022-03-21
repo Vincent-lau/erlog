@@ -1,7 +1,7 @@
 -module(dconfig).
 
--export([start_cluster/2, start_cluster/3, all_start/1, stop_cluster/1, all_work/1, fail_start/2,
-         slow_start/2]).
+-export([start_cluster/2, start_cluster/3, all_start/1, stop_cluster/1, all_work/1,
+         fail_start/2, slow_start/2]).
 
 -include_lib("kernel/include/logger.hrl").
 
@@ -141,11 +141,15 @@ abnormal_start(Cfg, FailNum, Mode) ->
               Nodes).
 
 all_work(Cfg) ->
-  multicall(worker, start_working, [], Cfg).
+  multicast(worker, start_working, [], Cfg).
 
 multicall(Module, Function, Args, Cfg) ->
   Nodes = get_nodes(Cfg),
   erpc:multicall(Nodes, Module, Function, Args).
+
+multicast(Module, Function, Args, Cfg) ->
+  Nodes = get_nodes(Cfg),
+  erpc:multicast(Nodes, Module, Function, Args).
 
 call(Node, Module, Function, Args) ->
   erpc:call(Node, Module, Function, Args).
