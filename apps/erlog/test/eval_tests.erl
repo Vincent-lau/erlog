@@ -63,7 +63,7 @@ find_correct_edb_pred({Program, _EDB}) ->
 
 eval_to_end({Program, EDB}) ->
   FinalIDB = eval:eval_all(Program, EDB),
-  ?_assertEqual(final_db(), FinalIDB).
+  ?_assert(dbs:equal(final_db(), FinalIDB)).
 
 trans_closure_rule({Prog = [_, Rule2], EDB}) ->
   DeltaAtoms = eval:eval_one_rule(Rule2, Prog, EDB),

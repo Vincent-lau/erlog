@@ -77,9 +77,9 @@ join_two_lists(_) ->
   DB1 = dbs:from_list([Link1, Link2]),
   DB2 = dbs:from_list([Reachable1, Reachable2]),
   Delta = dbs:join(DB2, DB1, [2], [1], cons_const("reachable")),
-  [?_assertEqual(dbs:from_list([cons_atom("reachable", ["a", "b", "c"]),
+  [?_assert(dbs:equal(dbs:from_list([cons_atom("reachable", ["a", "b", "c"]),
                                 cons_atom("reachable", ["a", "b", "d"])]),
-                 Delta)].
+                 Delta))].
 
 join_3_tuples(_) ->
   Link1 = cons_atom("link", ["b", "c", "d"]),
