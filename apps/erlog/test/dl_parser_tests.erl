@@ -10,14 +10,14 @@ parse_test_() ->
    {"parse program", {setup, fun start_multi/0, fun parse_multiple_rules/1}}].
 
 start() ->
-  [{dl_const, 1, reachable},
+  [{dl_const, 1, "reachable"},
    {'(', 1},
    {dl_var, 1, "X"},
    {',', 1},
    {dl_var, 1, "Y"},
    {')', 1},
    {':-', 1},
-   {dl_const, 1, link},
+   {dl_const, 1, "link"},
    {'(', 1},
    {dl_var, 1, "X"},
    {',', 1},
@@ -30,8 +30,8 @@ start_multi() ->
 
 parse_one_rule(R) ->
   {ok, A} = dl_parser:parse(R),
-  [?_assertEqual([#dl_rule{head = #dl_atom{pred_sym = reachable, args = ["X", "Y"]},
-                           body = [#dl_atom{pred_sym = link, args = ["X", "Y"]}]}],
+  [?_assertEqual([#dl_rule{head = #dl_atom{pred_sym = "reachable", args = ["X", "Y"]},
+                           body = [#dl_atom{pred_sym = "link", args = ["X", "Y"]}]}],
                  A)].
 
 parse_multiple_rules(R) ->
@@ -50,20 +50,20 @@ parse_multiple_rules(R) ->
 %%%%%%%%%%%%%%%%%%%%%%%%
 
 reachable_atom(Arg1, Arg2) ->
-  #dl_atom{pred_sym = reachable, args = [Arg1, Arg2]}.
+  #dl_atom{pred_sym = "reachable", args = [Arg1, Arg2]}.
 
 link_atom(Arg1, Arg2) ->
-  #dl_atom{pred_sym = link, args = [Arg1, Arg2]}.
+  #dl_atom{pred_sym = "link", args = [Arg1, Arg2]}.
 
 tc1_tks(Sym1, Sym2, LineNo) ->
-  [{dl_const, LineNo, reachable},
+  [{dl_const, LineNo, "reachable"},
    {'(', LineNo},
    {dl_var, LineNo, Sym1},
    {',', LineNo},
    {dl_var, LineNo, Sym2},
    {')', LineNo},
    {':-', LineNo},
-   {dl_const, LineNo, link},
+   {dl_const, LineNo, "link"},
    {'(', LineNo},
    {dl_var, LineNo, Sym1},
    {',', LineNo},
@@ -72,21 +72,21 @@ tc1_tks(Sym1, Sym2, LineNo) ->
    {'.', LineNo}].
 
 tc2_tks(Sym1, Sym2, Sym3, LineNo) ->
-  [{dl_const, LineNo, reachable},
+  [{dl_const, LineNo, "reachable"},
    {'(', LineNo},
    {dl_var, LineNo, Sym1},
    {',', LineNo},
    {dl_var, LineNo, Sym2},
    {')', LineNo},
    {':-', LineNo},
-   {dl_const, LineNo, link},
+   {dl_const, LineNo, "link"},
    {'(', LineNo},
    {dl_var, LineNo, Sym1},
    {',', LineNo},
    {dl_var, LineNo, Sym3},
    {')', LineNo},
    {',', LineNo},
-   {dl_const, LineNo, reachable},
+   {dl_const, LineNo, "reachable"},
    {'(', LineNo},
    {dl_var, LineNo, Sym3},
    {',', LineNo},

@@ -23,9 +23,9 @@ is_dl_rule(_) ->
 
 -spec cons_const(string() | atom()) -> dl_const().
 cons_const(S) when is_list(S)->
-  list_to_atom(S);
+  S;
 cons_const(A) when is_atom(A) ->
-  A.
+  atom_to_list(A).
 
 -spec cons_atom(string(), [dl_term() | string()]) -> dl_atom().
 cons_atom(PredSym, TermsStr) when is_list(hd(TermsStr)) ->
@@ -57,7 +57,7 @@ atoms_to_string(Atoms = [#dl_atom{} | _]) ->
 
 -spec atom_to_string(dl_atom()) -> string().
 atom_to_string(A = #dl_atom{pred_sym = Sym}) ->
-  io_lib:format("~w(~s)", [Sym, args_to_string(dl_repr:get_atom_args(A))]).
+  io_lib:format("~s(~s)", [Sym, args_to_string(dl_repr:get_atom_args(A))]).
 
 -spec program_to_string(dl_program()) -> string().
 program_to_string(P) -> rules_to_string(P).
@@ -83,7 +83,9 @@ var_to_string(Var) ->
   Var.
 
 const_to_string(C) when is_atom(C) ->
-  atom_to_list(C).
+  atom_to_list(C);
+const_to_string(C) when is_list(C) ->
+  C.
 
 %% from the outside world, should only see strings
 -spec get_atom_args(dl_atom()) -> [string()].
@@ -103,7 +105,7 @@ get_atom_args_by_index(Cols, #dl_atom{args = Args}) ->
 
 -spec get_atom_name(dl_atom()) -> string().
 get_atom_name(#dl_atom{pred_sym = S}) ->
-  atom_to_list(S).
+  const_to_string(S).
 
 get_rule_head(#dl_rule{head = Head}) ->
   Head.

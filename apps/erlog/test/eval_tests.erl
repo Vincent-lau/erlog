@@ -80,9 +80,9 @@ trans_closure_rule({Prog = [_, Rule2], EDB}) ->
 
 singleton_rule({Prog = [R1, _], EDB}) ->
   DeltaAtoms = eval:eval_one_rule(R1, Prog, EDB),
-  [?_assertEqual(dbs:from_list([#dl_atom{pred_sym = reachable, args = [a, b]},
-                                #dl_atom{pred_sym = reachable, args = [b, c]},
-                                #dl_atom{pred_sym = reachable, args = [c, d]}]),
+  [?_assertEqual(dbs:from_list([#dl_atom{pred_sym = "reachable", args = [a, b]},
+                                #dl_atom{pred_sym = "reachable", args = [b, c]},
+                                #dl_atom{pred_sym = "reachable", args = [c, d]}]),
                  DeltaAtoms)].
 
 multi_proj_cols(_) ->
@@ -145,28 +145,28 @@ eval_complete_overlapping_cols(_) ->
 %%% HELPER FUNCTIONS %%%
 %%%%%%%%%%%%%%%%%%%%%%%%
 initial_db() ->
-  dbs:from_list([#dl_atom{pred_sym = link, args = [a, b]},
-                 #dl_atom{pred_sym = link, args = [b, c]},
-                 #dl_atom{pred_sym = link, args = [c, d]}]).
+  dbs:from_list([#dl_atom{pred_sym = "link", args = [a, b]},
+                 #dl_atom{pred_sym = "link", args = [b, c]},
+                 #dl_atom{pred_sym = "link", args = [c, d]}]).
 
 first_iter_db() ->
-  dbs:from_list([#dl_atom{pred_sym = link, args = [a, b]},
-                 #dl_atom{pred_sym = link, args = [b, c]},
-                 #dl_atom{pred_sym = link, args = [c, d]},
-                 #dl_atom{pred_sym = reachable, args = [a, b]},
-                 #dl_atom{pred_sym = reachable, args = [b, c]},
-                 #dl_atom{pred_sym = reachable, args = [c, d]}]).
+  dbs:from_list([#dl_atom{pred_sym = "link", args = [a, b]},
+                 #dl_atom{pred_sym = "link", args = [b, c]},
+                 #dl_atom{pred_sym = "link", args = [c, d]},
+                 #dl_atom{pred_sym = "reachable", args = [a, b]},
+                 #dl_atom{pred_sym = "reachable", args = [b, c]},
+                 #dl_atom{pred_sym = "reachable", args = [c, d]}]).
 
 final_db() ->
-  dbs:from_list([#dl_atom{pred_sym = reachable, args = [a, b]},
-                 #dl_atom{pred_sym = reachable, args = [b, c]},
-                 #dl_atom{pred_sym = reachable, args = [c, d]},
-                 #dl_atom{pred_sym = reachable, args = [a, c]},
-                 #dl_atom{pred_sym = reachable, args = [b, d]},
-                 #dl_atom{pred_sym = reachable, args = [a, d]},
-                 #dl_atom{pred_sym = link, args = [a, b]},
-                 #dl_atom{pred_sym = link, args = [b, c]},
-                 #dl_atom{pred_sym = link, args = [c, d]}]).
+  dbs:from_list([#dl_atom{pred_sym = "reachable", args = [a, b]},
+                 #dl_atom{pred_sym = "reachable", args = [b, c]},
+                 #dl_atom{pred_sym = "reachable", args = [c, d]},
+                 #dl_atom{pred_sym = "reachable", args = [a, c]},
+                 #dl_atom{pred_sym = "reachable", args = [b, d]},
+                 #dl_atom{pred_sym = "reachable", args = [a, d]},
+                 #dl_atom{pred_sym = "link", args = [a, b]},
+                 #dl_atom{pred_sym = "link", args = [b, c]},
+                 #dl_atom{pred_sym = "link", args = [c, d]}]).
 
 tc_prog() ->
   [rule1(), rule2()].
@@ -178,10 +178,10 @@ rule2() ->
   cons_rule(reachable_atom("X", "Y"), [link_atom("X", "Z"), reachable_atom("Z", "Y")]).
 
 reachable_atom(Arg1, Arg2) ->
-  #dl_atom{pred_sym = reachable, args = [Arg1, Arg2]}.
+  #dl_atom{pred_sym = "reachable", args = [Arg1, Arg2]}.
 
 link_atom(Arg1, Arg2) ->
-  #dl_atom{pred_sym = link, args = [Arg1, Arg2]}.
+  #dl_atom{pred_sym = "link", args = [Arg1, Arg2]}.
 
 overlapping_args() ->
   Args1 = cons_args_from_list(["T", "Y", "L"]),

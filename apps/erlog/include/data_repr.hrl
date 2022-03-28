@@ -1,10 +1,9 @@
--type dl_const() :: atom().
+-type dl_const() :: string().
 -type dl_var() :: string().
 -type dl_term() :: dl_const() | dl_var().
 
 -record(dl_atom, {pred_sym, args}).
 
-% TODO change dl_const to string
 -type dl_atom() :: #dl_atom{pred_sym :: dl_const(), args :: [dl_term()]}.
 
 -record(dl_rule, {head, body}).
