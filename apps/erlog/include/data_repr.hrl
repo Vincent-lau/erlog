@@ -11,4 +11,4 @@
 
 -type dl_rule() :: #dl_rule{head :: dl_atom(), body :: [dl_atom()]}.
 -type dl_program() :: [dl_rule()].
--type dl_db_instance() :: sets:set(dl_atom()).
+-type dl_db_instance() :: gb_sets:set(dl_atom()).

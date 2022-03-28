@@ -170,11 +170,11 @@ rename_pred(NewPred, DB) ->
 
 -spec new() -> dl_db_instance().
 new() ->
-  sets:new().
+  gb_sets:new().
 
 -spec is_empty(dl_db_instance()) -> boolean().
 is_empty(DB) ->
-  sets:is_empty(DB).
+  gb_sets:is_empty(DB).
 
 %%----------------------------------------------------------------------
 %% Function: diff
@@ -185,33 +185,33 @@ is_empty(DB) ->
 %%----------------------------------------------------------------------
 -spec diff(dl_db_instance(), dl_db_instance()) -> dl_db_instance().
 diff(DB1, DB2) ->
-  sets:subtract(DB1, DB2).
+  gb_sets:subtract(DB1, DB2).
 
 -spec filteri(fun((dl_atom(), integer()) -> boolean()), dl_db_instance()) ->
                dl_db_instance().
 filteri(Predi, Set) ->
-  L = sets:to_list(Set),
+  L = gb_sets:to_list(Set),
   L2 = listsi:filteri(Predi, L),
-  sets:from_list(L2).
+  gb_sets:from_list(L2).
 
 -spec map(fun((dl_atom()) -> dl_atom()), dl_db_instance()) -> dl_db_instance().
 map(Fun, Set) ->
-  L = sets:to_list(Set),
+  L = gb_sets:to_list(Set),
   L2 = lists:map(Fun, L),
-  sets:from_list(L2).
+  gb_sets:from_list(L2).
 
-%% input Set would be a set of sets
--spec flatmap(fun((term()) -> term()), sets:set()) -> sets:set().
+%% input Set would be a set of gb_sets
+-spec flatmap(fun((term()) -> term()), gb_sets:set()) -> gb_sets:set().
 flatmap(Fun, Set) ->
   S2 = map(Fun, Set),
-  sets:union(
-    sets:to_list(S2)).
+  gb_sets:union(
+    gb_sets:to_list(S2)).
 
 filter(Pred, Set) ->
-  sets:filter(Pred, Set).
+  gb_sets:filter(Pred, Set).
 
 foreach(Fun, Set) ->
-  L = sets:to_list(Set),
+  L = gb_sets:to_list(Set),
   lists:foreach(Fun, L).
 
 nth_args([], _) ->
@@ -224,26 +224,26 @@ split_args(N, Args) ->
 
 -spec equal(dl_db_instance(), dl_db_instance()) -> boolean().
 equal(DB1, DB2) ->
-  sets:is_subset(DB1, DB2) andalso sets:is_subset(DB2, DB1).
+  gb_sets:is_subset(DB1, DB2) andalso gb_sets:is_subset(DB2, DB1).
 
 -spec union(dl_db_instance(), dl_db_instance()) -> dl_db_instance().
 union(CurDB, NewDB) ->
-  sets:union(CurDB, NewDB).
+  gb_sets:union(CurDB, NewDB).
 
 -spec from_list([dl_atom()]) -> dl_db_instance().
 from_list(L) ->
-  sets:from_list(L).
+  gb_sets:from_list(L).
 
 -spec flatten([dl_db_instance()]) -> dl_db_instance().
 flatten(L) ->
-  sets:union(L).
+  gb_sets:union(L).
 
 -spec size(dl_db_instance()) -> integer().
 size(DB) ->
-  sets:size(DB).
+  gb_sets:size(DB).
 
 
 -spec to_string(dl_db_instance()) -> string().
 to_string(DB) ->
-  L = sets:to_list(DB),
+  L = gb_sets:to_list(DB),
   lists:join(".\n", lists:map(fun(Atom) -> dl_repr:atom_to_string(Atom) end, L)) ++ ".".
