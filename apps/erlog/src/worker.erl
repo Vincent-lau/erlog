@@ -147,7 +147,7 @@ work(State =
       % with only tuples that have not been generated before
       frag:hash_frag(NewDeltaDB, Prog, StageNum + 1, NumTasks, TmpPath ++ "task"),
       frag:hash_frag(
-        dbs:diff(NewFullDB, FullDB), Prog, 1, NumTasks, TmpPath ++ "fulldb"),
+        dbs:subtract(NewFullDB, FullDB), Prog, 1, NumTasks, TmpPath ++ "fulldb"),
       % call finish task on coordinator
       finish_task(T),
       ?LOG_INFO("~p rpc results for finish at stage ~p task ~p ~n", [node(), StageNum, TaskNum]),
