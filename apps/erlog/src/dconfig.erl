@@ -3,9 +3,11 @@
 -export([start_cluster/2, start_cluster/3, all_start/1, stop_cluster/1, all_work/1,
          fail_start/2, slow_start/2]).
 
+-export([add_node/1, remove_node/2]).
+
 -include_lib("kernel/include/logger.hrl").
 
--record(node_config, {nodes :: #{node() => port()}}).
+-record(node_config, {nodes :: #{node() => port()}, max_node_no :: integer()}).
 
 -type config() :: #node_config{}.
 
@@ -61,7 +63,7 @@ get_name_cmd(NodeName) ->
 %% @param PA is the path to the executable which can be empty.
 %% @end
 %%----------------------------------------------------------------------
--spec start_node(atom(), string()) -> port().
+-spec start_node(node(), string()) -> port().
 start_node(Name, PA) ->
   NameCmd = get_name_cmd(Name),
   Cmd = io_lib:format("erl -noshell -noinput ~s -pa ~s", [NameCmd, PA]),
@@ -154,8 +156,12 @@ multicast(Module, Function, Args, Cfg) ->
 call(Node, Module, Function, Args) ->
   erpc:call(Node, Module, Function, Args).
 
+get_code_path() ->
+  CodePath = code:get_path(),
+  lists:concat(lists:join(" ", CodePath)).
+
 start_cluster([BaseName], Num) ->
-  start_cluster([BaseName], Num, os:cmd("rebar3 path")).
+  start_cluster([BaseName], Num, get_code_path()).
 
 -spec start_cluster(list(), integer(), string()) -> config().
 start_cluster([BaseName], Num, PA) ->
@@ -173,7 +179,7 @@ start_cluster([BaseName, longnames], Num, PA) ->
   NodePids = lists:map(fun(N) -> start_node(N, PA) end, NodeNames),
   wait_for_start(NodeNames),
   Nodes = lists:zip(NodeNames, NodePids),
-  #node_config{nodes = maps:from_list(Nodes)}.
+  #node_config{nodes = maps:from_list(Nodes), max_node_no = Num + 1}.
 
 wait_for_start(NodeNames) ->
   wait_for_nodes(NodeNames, pong, 1, 10).
@@ -200,9 +206,11 @@ stop_cluster(Cfg) ->
   wait_for_stop(get_nodes(Cfg)),
   R.
 
--spec add_node(atom(), config()) -> config().
-add_node(Name, Cfg) ->
-  ok.
+-spec add_node(config()) -> config().
+add_node(#node_config{nodes = Nodes, max_node_no = MaxNode}) ->
+  NodeName = list_to_atom("worker" ++ integer_to_list(MaxNode) ++ "@127.0.0.1"),
+  Pid = start_node(NodeName, get_code_path()),
+  #node_config{nodes = Nodes#{NodeName => Pid}, max_node_no = MaxNode + 1}.
 
 %%----------------------------------------------------------------------
 %% @doc
@@ -211,8 +219,9 @@ add_node(Name, Cfg) ->
 %% @end
 %%----------------------------------------------------------------------
 -spec remove_node(node(), config()) -> config().
-remove_node(Name, Cfg) ->
-  ok.
+remove_node(NodeName, Cfg = #node_config{nodes = Nodes}) ->
+  stop_node(NodeName, Cfg),
+  Cfg#node_config{nodes = maps:remove(NodeName, Nodes)}.
 
 -spec isolate([node()], atom()) -> ok.
 isolate(Nodes, Id) ->
