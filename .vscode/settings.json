@@ -13,6 +13,7 @@
     "nomatch",
     "orelse",
     "pointsto",
+    "preds",
     "priv",
     "PROB",
     "sfulldb",
