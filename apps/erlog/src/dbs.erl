@@ -1,18 +1,15 @@
 -module(dbs).
 
 -export([project/2, join/5, get_rel_by_pred/2, get_rel_by_pred_and_rest/2,
-  rename_pred/2]).
--export([new/0, is_empty/1, diff/2, filteri/2, foreach/2, split_args/2, equal/2,
-  union/2, from_list/1, flatten/1, size/1]).
+         rename_pred/2]).
+-export([new/0, singleton/1, fold/3, map/2, is_empty/1, subtract/2, filteri/2, foreach/2,
+         split_args/2, equal/2, union/2, from_list/1, flatten/1, size/1]).
 -export([to_string/1]).
 -export([read_db/1, read_db/2, write_db/2, write_db/3]).
 
 -import(dl_repr, [cons_const/1, cons_atom/2]).
 
-
 -include("../include/data_repr.hrl").
-
-
 
 %%----------------------------------------------------------------------
 %% IO operations of db
@@ -31,7 +28,6 @@ read_db(FileName) ->
   file:close(Stream),
   dbs:from_list(F).
 
-
 %%----------------------------------------------------------------------
 %% @doc
 %% Read from a file of atoms without predicate symbols, and construct the
@@ -45,7 +41,6 @@ read_db(FileName) ->
 read_db(FileName, QryName) ->
   {ok, Stream} = file:open(FileName, [read]),
   cons_db_from_data(read_data(Stream), QryName).
-
 
 read_data(S) ->
   case io:get_line(S, '') of
@@ -74,7 +69,6 @@ write_db(FileName, DB, Modes) ->
   {ok, Stream} = file:open(FileName, Modes),
   io:format(Stream, "~s~n", [to_string(DB)]),
   file:close(Stream).
-
 
 %%----------------------------------------------------------------------
 %% RA operations
@@ -183,8 +177,8 @@ is_empty(DB) ->
 %% Returns:
 %%
 %%----------------------------------------------------------------------
--spec diff(dl_db_instance(), dl_db_instance()) -> dl_db_instance().
-diff(DB1, DB2) ->
+-spec subtract(dl_db_instance(), dl_db_instance()) -> dl_db_instance().
+subtract(DB1, DB2) ->
   gb_sets:subtract(DB1, DB2).
 
 -spec filteri(fun((dl_atom(), integer()) -> boolean()), dl_db_instance()) ->
@@ -199,6 +193,10 @@ map(Fun, Set) ->
   L = gb_sets:to_list(Set),
   L2 = lists:map(Fun, L),
   gb_sets:from_list(L2).
+
+-spec fold(fun((term(), term()) -> term()), term(), gb_sets:set()) -> term().
+fold(Fun, Acc, Set) ->
+  gb_sets:fold(Fun, Acc, Set).
 
 %% input Set would be a set of gb_sets
 -spec flatmap(fun((term()) -> term()), gb_sets:set()) -> gb_sets:set().
@@ -242,6 +240,9 @@ flatten(L) ->
 size(DB) ->
   gb_sets:size(DB).
 
+-spec singleton(dl_atom()) -> dl_db_instance().
+singleton(Key) ->
+  gb_sets:singleton(Key).
 
 -spec to_string(dl_db_instance()) -> string().
 to_string(DB) ->

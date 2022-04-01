@@ -56,7 +56,7 @@ eval_tests(Config, ProgName, QryNames) when is_list(hd(QryNames)) ->
          [lists:map(fun dbs:to_string/1, ResQL), lists:map(fun dbs:to_string/1, AnsL)]),
 
   ct:pal("ResQ - Ans ~n~s~n, Ans-ResQ ~n~s~n",
-         [dbs:to_string(dbs:diff(hd(ResQL), hd(AnsL))), dbs:to_string(dbs:diff(hd(AnsL), hd(ResQL)))]),
+         [dbs:to_string(dbs:subtract(hd(ResQL), hd(AnsL))), dbs:to_string(dbs:subtract(hd(AnsL), hd(ResQL)))]),
 
   true = lists:all(fun({ResQ, Ans}) -> dbs:equal(ResQ, Ans) end, lists:zip(ResQL, AnsL));
 eval_tests(Config, ProgName, QryName) ->
