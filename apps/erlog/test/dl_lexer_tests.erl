@@ -60,14 +60,14 @@ read_and_lex(S) ->
   end.
 
 tc1_tks(Sym1, Sym2, LineNo) ->
-  [{dl_const, LineNo, reachable},
+  [{dl_const, LineNo, "reachable"},
    {'(', LineNo},
    {dl_var, LineNo, Sym1},
    {',', LineNo},
    {dl_var, LineNo, Sym2},
    {')', LineNo},
    {':-', LineNo},
-   {dl_const, LineNo, link},
+   {dl_const, LineNo, "link"},
    {'(', LineNo},
    {dl_var, LineNo, Sym1},
    {',', LineNo},
@@ -76,21 +76,21 @@ tc1_tks(Sym1, Sym2, LineNo) ->
    {'.', LineNo}].
 
 tc2_tks(Sym1, Sym2, Sym3, LineNo) ->
-  [{dl_const, LineNo, reachable},
+  [{dl_const, LineNo, "reachable"},
    {'(', LineNo},
    {dl_var, LineNo, Sym1},
    {',', LineNo},
    {dl_var, LineNo, Sym2},
    {')', LineNo},
    {':-', LineNo},
-   {dl_const, LineNo, link},
+   {dl_const, LineNo, "link"},
    {'(', LineNo},
    {dl_var, LineNo, Sym1},
    {',', LineNo},
    {dl_var, LineNo, Sym3},
    {')', LineNo},
    {',', LineNo},
-   {dl_const, LineNo, reachable},
+   {dl_const, LineNo, "reachable"},
    {'(', LineNo},
    {dl_var, LineNo, Sym3},
    {',', LineNo},
@@ -99,10 +99,10 @@ tc2_tks(Sym1, Sym2, Sym3, LineNo) ->
    {'.', LineNo}].
 
 tc_facts_tks() ->
-  [{dl_const, 1, link}, {'(', 1}, {dl_const, 1, a}, {',', 1}, {dl_const, 1, b}, {')', 1},
-   {'.', 1}, {dl_const, 1, link}, {'(', 1}, {dl_const, 1, b}, {',', 1}, {dl_const, 1, c},
-   {')', 1}, {'.', 1}, {dl_const, 1, link}, {'(', 1}, {dl_const, 1, c}, {',', 1},
-   {dl_const, 1, c}, {')', 1}, {'.', 1}, {dl_const, 1, link}, {'(', 1}, {dl_const, 1, c},
-   {',', 1}, {dl_const, 1, d}, {')', 1}, {'.', 1}, {dl_const, 1, link}, {'(', 1},
-   {dl_const, 1, d}, {',', 1}, {dl_const, 1, e}, {')', 1}, {'.', 1}, {dl_const, 1, link},
-   {'(', 1}, {dl_const, 1, e}, {',', 1}, {dl_const, 1, f}, {')', 1}, {'.', 1}].
+  [{dl_const, 1, "link"}, {'(', 1}, {dl_const, 1, "a"}, {',', 1}, {dl_const, 1, "b"}, {')', 1},
+   {'.', 1}, {dl_const, 1, "link"}, {'(', 1}, {dl_const, 1, "b"}, {',', 1}, {dl_const, 1, "c"},
+   {')', 1}, {'.', 1}, {dl_const, 1, "link"}, {'(', 1}, {dl_const, 1, "c"}, {',', 1},
+   {dl_const, 1, "c"}, {')', 1}, {'.', 1}, {dl_const, 1, "link"}, {'(', 1}, {dl_const, 1, "c"},
+   {',', 1}, {dl_const, 1, "d"}, {')', 1}, {'.', 1}, {dl_const, 1, "link"}, {'(', 1},
+   {dl_const, 1, "d"}, {',', 1}, {dl_const, 1, "e"}, {')', 1}, {'.', 1}, {dl_const, 1, "link"},
+   {'(', 1}, {dl_const, 1, "e"}, {',', 1}, {dl_const, 1, "f"}, {')', 1}, {'.', 1}].

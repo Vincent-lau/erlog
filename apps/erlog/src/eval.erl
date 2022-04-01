@@ -14,7 +14,7 @@
 -endif.
 
 -import(dl_repr,
-        [get_rule_head/1, get_rule_body/1, get_atom_name/1, get_rule_headname/1]).
+        [get_rule_head/1, get_rule_body_atoms/1, get_atom_name/1, get_rule_headname/1]).
 
 %%----------------------------------------------------------------------
 %% @doc
@@ -153,13 +153,15 @@ join_with_delta(Atom1, Atom2, L1, L2, Rule, Rules, FullDB, DeltaDB) ->
 %%----------------------------------------------------------------------
 -spec eval_one_rule(dl_rule(), dl_program(), dl_db_instance(), dl_db_instance()) ->
                      dl_db_instance().
-eval_one_rule(Rule = #dl_rule{head = Head, body = [B1 = #dl_atom{}]},
+eval_one_rule(Rule = #dl_rule{body = Body},
               Rules,
               FullDB,
-              DeltaDB) ->
+              DeltaDB) when length(Body) == 1->
   % PROJECTION
   % first find all relations with the same pred as the rule in IDB
   % then need to find columns that needs to be projected
+  Head = dl_repr:get_rule_head(Rule),
+  [B1] = dl_repr:get_rule_body_atoms(Rule),
   Atoms =
     case is_idb_pred(B1, Rules) of
       true ->
@@ -172,11 +174,13 @@ eval_one_rule(Rule = #dl_rule{head = Head, body = [B1 = #dl_atom{}]},
                rule_is_projection => true,
                atoms_to_be_projected => dbs:to_string(Atoms)}),
   project_onto_head(Atoms, Cols, Head#dl_atom.pred_sym);
-eval_one_rule(Rule = #dl_rule{head = Head, body = [A1 = #dl_atom{}, A2 = #dl_atom{}]},
+eval_one_rule(Rule = #dl_rule{body = Body},
               Rules,
               FullDB,
-              DeltaDB) ->
+              DeltaDB) when length(Body) == 2->
   % PRODUCT and JOIN
+  Head = dl_repr:get_rule_head(Rule),
+  [A1, A2] = dl_repr:get_rule_body_atoms(Rule),
   {L1, L2} = get_overlap_cols(A1#dl_atom.args, A2#dl_atom.args),
   % JOIN
   % e.g. J(A, B, C, D) :- R(A, B, C), S(B, C, D).
@@ -276,14 +280,15 @@ eval_naive(Program, EDB) ->
 -spec get_edb_program(dl_program()) -> dl_program().
 get_edb_program(Program) ->
   lists:filter(fun(Rule) ->
-                  lists:all(fun(A) -> not is_idb_pred(A, Program) end, get_rule_body(Rule))
+                  lists:all(fun(A) -> not is_idb_pred(A, Program) end,
+                            dl_repr:get_rule_body_atoms(Rule))
                end,
                Program).
 
 -spec get_idb_program(dl_program()) -> dl_program().
 get_idb_program(Program) ->
   lists:filter(fun(Rule) ->
-                  lists:any(fun(A) -> is_idb_pred(A, Program) end, get_rule_body(Rule))
+                  lists:any(fun(A) -> is_idb_pred(A, Program) end, get_rule_body_atoms(Rule))
                end,
                Program).
 
@@ -303,7 +308,7 @@ eval_seminaive_one(Program, FullDB, DeltaDB) ->
   NewFullDB = dbs:union(FullDB, DeltaDB),
   % delta_s^{i+1} = T_p() - S^i
   GeneratedDB = imm_conseq(Program, NewFullDB, DeltaDB),
-  NewDeltaDB = dbs:diff(GeneratedDB, NewFullDB),
+  NewDeltaDB = dbs:subtract(GeneratedDB, NewFullDB),
   {NewFullDB, NewDeltaDB}.
 
 -spec eval_seminaive(dl_program(), dl_db_instance(), dl_db_instance()) ->

@@ -141,12 +141,14 @@ process_rules(Prog) ->
 %% @end
 %%----------------------------------------------------------------------
 -spec rule_part(dl_rule()) -> [dl_rule()].
-rule_part(R = #dl_rule{body = Body}) ->
-  case Body of
+rule_part(R = #dl_rule{}) ->
+  case dl_repr:get_rule_body_atoms(R) of
     [H1, H2, H3 | T] ->
       % 1. generate a list of args that contain all terms in the rest of the atoms
       RuleRest = combine_atoms([H2, H3 | T]),
-      R1 = #dl_rule{head = R#dl_rule.head, body = [H1, RuleRest#dl_rule.head]},
+      R1 =
+        dl_repr:cons_rule(
+          dl_repr:get_rule_head(R), [H1, dl_repr:get_rule_head(RuleRest)]),
       [R1 | rule_part(RuleRest)];
     _ ->
       [R]

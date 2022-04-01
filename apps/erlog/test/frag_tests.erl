@@ -94,18 +94,21 @@ basic_part_with_tc_rules(Stream) ->
   Num = erlang:phash2(get_atom_args_by_index([2], A), ?num_tasks) + 1,
   frag:part_by_rules(Facts, Rules, Num, ?num_tasks, Stream),
   file:position(Stream, bof),
-  Line1 = io:get_line(Stream, ''),
-  Line2 = io:get_line(Stream, ''),
-  Line3 = io:get_line(Stream, ''),
-  Line4 = io:get_line(Stream, ''),
-  S1 = sets:from_list([Line1, Line2, Line3, Line4]),
-  SExp = sets:from_list([
+  S1 = gb_sets:from_list(read_all_lines(Stream)),
+  SExp = gb_sets:from_list([
     "link(\"b\", \"c\").\n",
     "link(\"c\", \"c\").\n",
+    "reachable(\"a\", \"b\").\n",
     "reachable(\"c\", \"d\").\n",
     "reachable(\"c\", \"c\").\n"
   ]),
   ?_assertEqual(SExp, S1).
+
+read_all_lines(Stream) ->
+  case io:get_line(Stream, '') of
+    eof -> [];
+    Data -> [Data | read_all_lines(Stream)]
+  end.
 
 
 write_one_atom_correctly(Stream) ->

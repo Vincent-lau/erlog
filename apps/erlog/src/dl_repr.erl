@@ -1,10 +1,11 @@
 -module(dl_repr).
 
--export([cons_const/1, cons_atom/2, cons_rule/2, cons_term/1, cons_args_from_list/1]).
--export([get_atom_args/1, get_atom_name/1, get_rule_head/1, get_rule_headname/1,
-         get_rule_body/1, get_atom_args_by_index/2]).
+-export([cons_const/1, cons_atom/2, cons_pred/2, cons_rule/2, cons_term/1,
+         cons_args_from_list/1]).
+-export([get_atom_args/1, get_atom_arity/1, get_atom_name/1, get_rule_head/1, get_rule_headname/1,
+         get_rule_body/1, get_rule_body_atoms/1, get_atom_args_by_index/2]).
 -export([const_to_string/1, var_to_string/1, atoms_to_string/1, atom_to_string/1,
-        rule_to_string/1, rules_to_string/1, program_to_string/1]).
+         rule_to_string/1, rules_to_string/1, program_to_string/1]).
 -export([is_dl_atom/1, is_dl_rule/1, is_dl_const/1, is_dl_var/1]).
 
 -include("../include/data_repr.hrl").
@@ -22,7 +23,7 @@ is_dl_rule(_) ->
   false.
 
 -spec cons_const(string() | atom()) -> dl_const().
-cons_const(S) when is_list(S)->
+cons_const(S) when is_list(S) ->
   S;
 cons_const(A) when is_atom(A) ->
   atom_to_list(A).
@@ -30,10 +31,24 @@ cons_const(A) when is_atom(A) ->
 -spec cons_atom(string(), [dl_term() | string()]) -> dl_atom().
 cons_atom(PredSym, TermsStr) when is_list(hd(TermsStr)) ->
   #dl_atom{pred_sym = cons_const(PredSym), args = cons_args_from_list(TermsStr)};
-cons_atom(PredSym, Terms) ->
+cons_atom(PredSym, TermsAtom) when is_atom(hd(TermsAtom))->
+  #dl_atom{pred_sym = cons_const(PredSym), args = lists:map(fun atom_to_list/1, TermsAtom)};
+cons_atom(PredSym, Terms)  ->
   #dl_atom{pred_sym = cons_const(PredSym), args = Terms}.
 
--spec cons_rule(dl_atom(), [dl_atom()]) -> dl_rule().
+-spec cons_pred(dl_atom()) -> dl_pred().
+cons_pred(Atom = #dl_atom{}) ->
+  cons_pred(false, Atom).
+
+-spec cons_pred(boolean(), dl_atom()) -> dl_pred().
+cons_pred(Neg, Atom = #dl_atom{}) ->
+  #dl_pred{neg = Neg, atom = Atom}.
+
+-spec cons_rule(dl_atom(), [dl_pred() | dl_atom()]) -> dl_rule().
+cons_rule(Head,
+          Body = [#dl_atom{} | _T]) -> % backwards compat
+  NewBody = lists:map(fun cons_pred/1, Body),
+  cons_rule(Head, NewBody);
 cons_rule(Head, Body) ->
   #dl_rule{head = Head, body = Body}.
 
@@ -46,7 +61,7 @@ cons_term(T) when is_list(T) ->
       cons_const(T)
   end.
 
--spec cons_args_from_list([string() | atom()]) -> [dl_term()].
+-spec cons_args_from_list([string()]) -> [dl_term()].
 cons_args_from_list(L) ->
   lists:map(fun cons_term/1, L).
 
@@ -60,24 +75,30 @@ atom_to_string(A = #dl_atom{pred_sym = Sym}) ->
   io_lib:format("~s(~s)", [Sym, args_to_string(dl_repr:get_atom_args(A))]).
 
 -spec program_to_string(dl_program()) -> string().
-program_to_string(P) -> rules_to_string(P).
+program_to_string(P) ->
+  rules_to_string(P).
 
 -spec rules_to_string([dl_rule()]) -> string().
 rules_to_string(P = [#dl_rule{} | _]) ->
   Rules = lists:map(fun rule_to_string/1, P),
   lists:join("\n", Rules).
 
-
 -spec rule_to_string(dl_rule()) -> string().
 rule_to_string(#dl_rule{head = Head, body = Body}) ->
-  Atoms = lists:map(fun atom_to_string/1, Body),
+  Atoms =
+    lists:map(fun(#dl_pred{neg = Neg, atom = Atom}) ->
+                 case Neg of
+                   true -> "!";
+                   false -> ""
+                 end
+                 ++ atom_to_string(Atom)
+              end,
+              Body),
   atom_to_string(Head) ++ " :- " ++ lists:join(", ", Atoms) ++ ".".
-
 
 -spec args_to_string([string()]) -> string().
 args_to_string(Args) ->
   lists:join(", ", lists:map(fun(A) -> "\"" ++ A ++ "\"" end, Args)).
-
 
 var_to_string(Var) ->
   Var.
@@ -86,6 +107,11 @@ const_to_string(C) when is_atom(C) ->
   atom_to_list(C);
 const_to_string(C) when is_list(C) ->
   C.
+
+-spec get_atom_arity(dl_atom()) -> pos_integer().
+get_atom_arity(Atom = #dl_atom{}) ->
+  length(get_atom_args(Atom)).
+
 
 %% from the outside world, should only see strings
 -spec get_atom_args(dl_atom()) -> [string()].
@@ -114,18 +140,24 @@ get_rule_head(#dl_rule{head = Head}) ->
 get_rule_headname(#dl_rule{head = Head}) ->
   get_atom_name(Head).
 
+-spec get_rule_body(dl_rule()) -> [dl_pred()].
 get_rule_body(#dl_rule{body = Body}) ->
   Body.
 
+-spec get_rule_body_atoms(dl_rule()) -> [dl_atom()].
+get_rule_body_atoms(#dl_rule{body = Body}) ->
+  lists:map(fun(#dl_pred{atom = Atom}) -> Atom end, Body).
+
 -spec is_dl_var(dl_term()) -> boolean().
-is_dl_var(T) when is_list(T)->
+is_dl_var(T) when is_list(T) ->
   case string:trim(T, both, "\"") of
-    [H|_Tl] when (H >= $a) and (H =< $z) ->
+    [H | _Tl] when (H >= $a) and (H =< $z) ->
       false;
-    [H|_Tl] when (H >= $A) and (H =< $Z) ->
+    [H | _Tl] when (H >= $A) and (H =< $Z) ->
       true
   end;
-is_dl_var(_T) -> false.
+is_dl_var(_T) ->
+  false.
 
 -spec is_dl_const(dl_term()) -> boolean().
 is_dl_const(T) ->

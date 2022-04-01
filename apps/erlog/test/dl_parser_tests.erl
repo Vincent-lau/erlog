@@ -30,16 +30,16 @@ start_multi() ->
 
 parse_one_rule(R) ->
   {ok, A} = dl_parser:parse(R),
-  [?_assertEqual([#dl_rule{head = #dl_atom{pred_sym = "reachable", args = ["X", "Y"]},
-                           body = [#dl_atom{pred_sym = "link", args = ["X", "Y"]}]}],
-                 A)].
+  Ans =
+    dl_repr:cons_rule(
+      dl_repr:cons_atom("reachable", ["X", "Y"]), [dl_repr:cons_atom("link", ["X", "Y"])]),
+  ?_assertEqual([Ans], A).
 
 parse_multiple_rules(R) ->
   {ok, P1} = dl_parser:parse(R),
-  R1 = #dl_rule{head = reachable_atom("X", "Y"), body = [link_atom("X", "Y")]},
+  R1 = dl_repr:cons_rule(reachable_atom("X", "Y"), [link_atom("X", "Y")]),
   R2 =
-    #dl_rule{head = reachable_atom("X", "Y"),
-             body = [link_atom("X", "Z"), reachable_atom("Z", "Y")]},
+    dl_repr:cons_rule(reachable_atom("X", "Y"), [link_atom("X", "Z"), reachable_atom("Z", "Y")]),
   P2 = [R1, R2],
   [?_assertEqual(lists:nth(1, P1), R1),
    ?_assertEqual(lists:nth(2, P1), R2),
@@ -50,10 +50,10 @@ parse_multiple_rules(R) ->
 %%%%%%%%%%%%%%%%%%%%%%%%
 
 reachable_atom(Arg1, Arg2) ->
-  #dl_atom{pred_sym = "reachable", args = [Arg1, Arg2]}.
+  dl_repr:cons_atom("reachable", [Arg1, Arg2]).
 
 link_atom(Arg1, Arg2) ->
-  #dl_atom{pred_sym = "link", args = [Arg1, Arg2]}.
+  dl_repr:cons_atom("link", [Arg1, Arg2]).
 
 tc1_tks(Sym1, Sym2, LineNo) ->
   [{dl_const, LineNo, "reachable"},
