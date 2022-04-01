@@ -3,9 +3,9 @@ Header "%% Copyright (C)"
 "%% @author Vincent".
 
 
-Nonterminals dl_prog dl_atoms dl_atom dl_rule dl_fact dl_rule_head dl_rule_body 
-  dl_term dl_terms.
-Terminals dl_const dl_var '(' ')' ':-' ',' '.'.
+Nonterminals dl_prog dl_atom dl_rule dl_fact dl_rule_head dl_rule_body 
+  dl_pred dl_preds dl_term dl_terms.
+Terminals dl_const dl_var '(' ')' ':-' ',' '.' '!'.
 Rootsymbol dl_prog.
 Endsymbol '$end'.
 
@@ -37,14 +37,18 @@ dl_rule -> dl_rule_head ':-' dl_rule_body '.' :
 
 dl_rule_head -> dl_atom : 
   '$1'.
-dl_rule_body -> dl_atoms :
+dl_rule_body -> dl_preds :
   '$1'.
-dl_atoms -> dl_atom ','  dl_atoms : 
-  [ '$1' | '$3' ].
-dl_atoms -> dl_atom dl_atoms:
+dl_preds -> dl_pred dl_preds :
   [ '$1' | '$2' ].
-dl_atoms -> dl_atom : 
-  ['$1'].
+dl_preds -> dl_pred ',' dl_preds:
+  [ '$1' | '$3' ].
+dl_preds -> dl_pred :
+  [ '$1' ].
+dl_pred -> dl_atom:
+  dl_repr:cons_pred(false, '$1').
+dl_pred -> '!' dl_atom:
+  dl_repr:cons_pred(true, '$2').
 dl_atom -> dl_const '(' dl_terms ')' : 
   cons_dl_atom('$1', '$3').
 dl_terms -> dl_term : 

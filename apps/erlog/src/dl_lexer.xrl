@@ -9,6 +9,7 @@ EOL = \n|\r\n|\r
 BRAC = \(|\)
 TERMINATOR = \.
 CONNECT = :-
+NEG = !
 COMMENT = (//)
 QUOTE = "
 
@@ -32,9 +33,9 @@ Rules.
 {WHITESPACE} : skip_token.
 {EOL} : skip_token. 
 {Const} :
-  {token, {dl_const, TokenLine, list_to_atom(TokenChars)}}.
+  {token, {dl_const, TokenLine, TokenChars}}.
 {QUOTE}{Const}{QUOTE} : 
-  {token, {dl_const, TokenLine, list_to_atom(string:trim(TokenChars, both, "\""))}}.
+  {token, {dl_const, TokenLine, string:trim(TokenChars, both, "\"")}}.
 {Var} :
   {token, {dl_var, TokenLine, TokenChars}}.
 {COMMA} : {token, {list_to_atom(TokenChars), TokenLine}}.
@@ -42,5 +43,6 @@ Rules.
 {CONNECT} : {token, {list_to_atom(TokenChars), TokenLine}}.
 {TERMINATOR} : {token, {list_to_atom(TokenChars), TokenLine}}.
 {CONNECT} : {token, {list_to_atom(TokenChars), TokenLine}}.
+{NEG} : {token, {list_to_atom(TokenChars), TokenLine}}.
 
 Erlang code.
