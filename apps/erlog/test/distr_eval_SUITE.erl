@@ -155,7 +155,7 @@ dist_eval_tests(Config, QryNames) when is_list(hd(QryNames)) ->
   ok = coordinator:wait_for_finish(5000),
   Res = dbs:read_db(?config(tmp_dir, Config) ++ "final_db"),
   ct:pal("Total result db is~n~s~n", [dbs:to_string(Res)]),
-  ResQL = lists:map(fun(QryName) -> dbs:get_rel_by_pred(QryName, Res) end, QryNames),
+  ResQL = lists:map(fun(QryName) -> dbs:get_rel_by_name(QryName, Res) end, QryNames),
   lists:foreach(fun({QryName, ResQ}) ->
                    ct:pal("getting the query of ~s the result db: ~n~s~n",
                           [QryName, dbs:to_string(ResQ)])

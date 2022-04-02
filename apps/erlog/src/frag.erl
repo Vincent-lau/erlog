@@ -66,8 +66,8 @@ part_by_rule(DB, Rule, TaskNum, TotTasks, Stream) ->
   case dl_repr:get_rule_body_atoms(Rule) of
     [A1 = #dl_atom{}, A2 = #dl_atom{}] ->
       {C1, C2} = eval:get_overlap_cols(A1#dl_atom.args, A2#dl_atom.args),
-      {Atoms1, DBRest1} = dbs:get_rel_by_pred_and_rest(get_atom_name(A1), DB),
-      {Atoms2, DBRest2} = dbs:get_rel_by_pred_and_rest(get_atom_name(A2), DBRest1),
+      {Atoms1, DBRest1} = dbs:get_rel_by_name_and_rest(get_atom_name(A1), DB),
+      {Atoms2, DBRest2} = dbs:get_rel_by_name_and_rest(get_atom_name(A2), DBRest1),
       hash_and_write(Atoms1, C1, TaskNum, TotTasks, Stream),
       hash_and_write(Atoms2, C2, TaskNum, TotTasks, Stream),
       DBRest2;

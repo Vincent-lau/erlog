@@ -94,8 +94,8 @@ project_onto_head(Atoms, Cols, Name) ->
 %% @end
 %%----------------------------------------------------------------------
 
--spec join_with_delta(dl_atom(),
-                      dl_atom(),
+-spec join_with_delta(dl_pred(),
+                      dl_pred(),
                       [integer()],
                       [integer()],
                       dl_rule(),
@@ -103,29 +103,30 @@ project_onto_head(Atoms, Cols, Name) ->
                       dl_db_instance(),
                       dl_db_instance()) ->
                        dl_db_instance().
-join_with_delta(Atom1, Atom2, L1, L2, Rule, Rules, FullDB, DeltaDB) ->
-  PredSym1 = get_atom_name(Atom1),
-  PredSym2 = get_atom_name(Atom2),
+join_with_delta(Pred1, Pred2, L1, L2, Rule, Rules, FullDB, DeltaDB) ->
+  Atom1 = dl_repr:get_pred_atom(Pred1),
+  Atom2 = dl_repr:get_pred_atom(Pred2),
   case {is_idb_pred(Atom1, Rules), is_idb_pred(Atom2, Rules)} of
     {true, true} ->
-      DB1 = dbs:get_rel_by_pred(PredSym1, DeltaDB),
-      DB2 = dbs:get_rel_by_pred(PredSym2, FullDB),
+      DB1 = dbs:get_rel_by_pred(Pred1, DeltaDB),
+      DB2 = dbs:get_rel_by_pred(Pred2, FullDB),
       R1 = dbs:join(DB1, DB2, L1, L2, get_rule_headname(Rule)),
-      DB3 = dbs:get_rel_by_pred(PredSym1, FullDB),
-      DB4 = dbs:get_rel_by_pred(PredSym2, DeltaDB),
+      DB3 = dbs:get_rel_by_pred(Pred1, FullDB),
+      DB4 = dbs:get_rel_by_pred(Pred2, DeltaDB),
       R2 = dbs:join(DB3, DB4, L1, L2, get_rule_headname(Rule)),
       dbs:union(R1, R2);
     {true, false} ->
-      DB1 = dbs:get_rel_by_pred(PredSym1, DeltaDB),
-      DB2 = dbs:get_rel_by_pred(PredSym2, FullDB),
-      dbs:join(DB1, DB2, L1, L2, get_rule_headname(Rule));
+      DB1 = dbs:get_rel_by_pred(Pred1, DeltaDB),
+      DB2 = dbs:get_rel_by_pred(Pred2, FullDB),
+      Res = dbs:join(DB1, DB2, L1, L2, get_rule_headname(Rule)),
+      Res;
     {false, true} ->
-      DB1 = dbs:get_rel_by_pred(PredSym1, FullDB),
-      DB2 = dbs:get_rel_by_pred(PredSym2, DeltaDB),
+      DB1 = dbs:get_rel_by_pred(Pred1, FullDB),
+      DB2 = dbs:get_rel_by_pred(Pred2, DeltaDB),
       dbs:join(DB1, DB2, L1, L2, get_rule_headname(Rule));
     {false, false} ->
-      DB1 = dbs:get_rel_by_pred(PredSym1, FullDB),
-      DB2 = dbs:get_rel_by_pred(PredSym2, FullDB),
+      DB1 = dbs:get_rel_by_pred(Pred1, FullDB),
+      DB2 = dbs:get_rel_by_pred(Pred2, FullDB),
       dbs:join(DB1, DB2, L1, L2, get_rule_headname(Rule))
   end.
 
@@ -161,13 +162,14 @@ eval_one_rule(Rule = #dl_rule{body = Body},
   % first find all relations with the same pred as the rule in IDB
   % then need to find columns that needs to be projected
   Head = dl_repr:get_rule_head(Rule),
+  [P1] = dl_repr:get_rule_body(Rule),
   [B1] = dl_repr:get_rule_body_atoms(Rule),
   Atoms =
     case is_idb_pred(B1, Rules) of
       true ->
-        dbs:get_rel_by_pred(get_atom_name(B1), DeltaDB);
+        dbs:get_rel_by_pred(P1, DeltaDB);
       false ->
-        dbs:get_rel_by_pred(get_atom_name(B1), FullDB)
+        dbs:get_rel_by_pred(P1, FullDB)
     end,
   Cols = get_proj_cols(dl_repr:get_atom_args(Head), dl_repr:get_atom_args(B1)),
   ?LOG_DEBUG(#{rule => dl_repr:rule_to_string(Rule),
@@ -180,17 +182,21 @@ eval_one_rule(Rule = #dl_rule{body = Body},
               DeltaDB) when length(Body) == 2->
   % PRODUCT and JOIN
   Head = dl_repr:get_rule_head(Rule),
+  [P1, P2] = dl_repr:get_rule_body(Rule),
   [A1, A2] = dl_repr:get_rule_body_atoms(Rule),
   {L1, L2} = get_overlap_cols(A1#dl_atom.args, A2#dl_atom.args),
   % JOIN
   % e.g. J(A, B, C, D) :- R(A, B, C), S(B, C, D).
-  NewAtoms = join_with_delta(A1, A2, L1, L2, Rule, Rules, FullDB, DeltaDB),
 
   ?LOG_DEBUG(#{rule => dl_repr:rule_to_string(Rule),
                full_db => dbs:to_string(FullDB),
                delta => dbs:to_string(DeltaDB),
+               pred1 => P1,
+               pred2 => P2,
                c1 => L1,
                c2 => L2}),
+  NewAtoms = join_with_delta(P1, P2, L1, L2, Rule, Rules, FullDB, DeltaDB),
+
   ?LOG_DEBUG(#{joined_atoms => dbs:to_string(NewAtoms)}),
   Cols =
     get_proj_cols(dl_repr:get_atom_args(Head),
@@ -237,15 +243,20 @@ is_fixpoint(NewDB) ->
 %%
 %% @end
 %%----------------------------------------------------------------------
--spec is_idb_pred(dl_atom(), dl_program()) -> boolean().
-is_idb_pred(Atom, Rules) ->
+-spec is_idb_pred(dl_atom() | dl_pred(), dl_program()) -> boolean().
+is_idb_pred(Atom=#dl_atom{}, Rules) ->
   Name = get_atom_name(Atom),
-  lists:any(fun(R) -> get_rule_headname(R) =:= Name end, Rules).
+  lists:any(fun(R) -> get_rule_headname(R) =:= Name end, Rules);
+is_idb_pred(Pred=#dl_pred{}, Rules) ->
+  is_idb_pred(dl_repr:get_pred_atom(Pred), Rules).
+
 
 -spec is_edb_pred(dl_atom(), dl_program()) -> boolean().
-is_edb_pred(Atom, Rules) ->
+is_edb_pred(Atom=#dl_atom{}, Rules) ->
   Name = get_atom_name(Atom),
-  lists:all(fun(R) -> get_rule_headname(R) =/= Name end, Rules).
+  lists:all(fun(R) -> get_rule_headname(R) =/= Name end, Rules);
+is_edb_pred(Pred=#dl_pred{}, Rules) ->
+  is_edb_pred(dl_repr:get_pred_atom(Pred), Rules).
 
 %% calls eval one until a fixpoint is reached
 %% returns the final db instance

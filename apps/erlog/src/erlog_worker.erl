@@ -23,7 +23,7 @@ run_program(single, ProgName, QryName) ->
   % create EDB from input relations
   EDB = dbs:from_list(Facts),
   Res = eval:eval_all(Prog2, EDB),
-  ResQ = dbs:get_rel_by_pred(QryName, Res),
+  ResQ = dbs:get_rel_by_name(QryName, Res),
   ResQ,
   ?LOG_DEBUG(#{eval_mode => single, result_db => dbs:to_string(ResQ)});
 run_program(distr, ProgName, QryName) ->
@@ -81,5 +81,5 @@ distr_run(Cfg, QryName, TmpPath) ->
   coordinator:wait_for_finish(?WAIT_TIME),
   NumTasks = coordinator:get_num_tasks(),
   FinalDB = coordinator:collect_results(1, TmpPath, NumTasks),
-  FinalDBQ = dbs:get_rel_by_pred(QryName, FinalDB),
+  FinalDBQ = dbs:get_rel_by_name(QryName, FinalDB),
   ?LOG_DEBUG(#{eval_mode => distributed, result_db => dbs:to_string(FinalDBQ)}).

@@ -1,7 +1,7 @@
 -module(dbs).
 
--export([project/2, join/5, get_rel_by_pred/2, get_rel_by_pred_and_rest/2,
-         rename_pred/2]).
+-export([project/2, join/5, get_rel_by_name/2, get_rel_by_name_and_rest/2, rename_pred/2,
+         get_rel_by_pred/2]).
 -export([new/0, singleton/1, fold/3, map/2, is_empty/1, subtract/2, filteri/2, foreach/2,
          split_args/2, equal/2, union/2, from_list/1, flatten/1, size/1]).
 -export([to_string/1]).
@@ -126,7 +126,7 @@ join(DB1, DB2, C1, C2, ResName) ->
 join_one(DlAtoms, #dl_atom{args = Args1}, C1, C2, ResName) ->
   SelectedAtoms =
     filter(fun(#dl_atom{args = Args2}) ->
-              lists:sort(nth_args(C2, Args2)) =:= lists:sort(nth_args(C1, Args1))
+              nth_args(lists:sort(C2), Args2) =:= nth_args(lists:sort(C1), Args1)
            end,
            DlAtoms),
   RemoveJoinColArgs =
@@ -143,16 +143,26 @@ join_one(DlAtoms, #dl_atom{args = Args1}, C1, C2, ResName) ->
 %% operations on atoms in the db
 %%----------------------------------------------------------------------
 
--spec get_rel_by_pred(string(), dl_db_instance()) -> dl_db_instance().
-get_rel_by_pred(Name, DBInstance) ->
+-spec get_rel_by_name(string(), dl_db_instance()) -> dl_db_instance().
+get_rel_by_name(Name, DBInstance) ->
   filter(fun(Atom) -> Name =:= dl_repr:get_atom_name(Atom) end, DBInstance).
 
--spec get_rel_by_pred_and_rest(string(), dl_db_instance()) ->
+-spec get_rel_by_name_and_rest(string(), dl_db_instance()) ->
                                 {dl_db_instance(), dl_db_instance()}.
-get_rel_by_pred_and_rest(Name, DBInstance) ->
-  Rel = get_rel_by_pred(Name, DBInstance),
+get_rel_by_name_and_rest(Name, DBInstance) ->
+  Rel = get_rel_by_name(Name, DBInstance),
   NonRel = filter(fun(Atom) -> Name =/= dl_repr:get_atom_name(Atom) end, DBInstance),
   {Rel, NonRel}.
+
+-spec get_rel_by_pred(dl_pred(), dl_db_instance()) -> dl_db_instance().
+get_rel_by_pred(Pred = #dl_pred{}, DBInstance) ->
+  case dl_repr:is_neg_pred(Pred) of
+    false ->
+      get_rel_by_name(dl_repr:get_pred_name(Pred), DBInstance);
+    true ->
+      neg:neg_pred(
+        dl_repr:get_pred_atom(Pred), DBInstance)
+  end.
 
 -spec rename_pred(dl_const(), dl_db_instance()) -> dl_db_instance().
 rename_pred(NewPred, DB) ->
