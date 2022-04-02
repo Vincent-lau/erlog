@@ -2,7 +2,6 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
--include("../include/data_repr.hrl").
 
 -import(dl_repr, [cons_atom/2, cons_const/1]).
 -import(dbs, [from_list/1]).
@@ -17,7 +16,8 @@ join_test_() ->
     {setup, fun start/0, fun join_singleton_list/1}},
    {"Joining two lists of atoms", {setup, fun start/0, fun join_two_lists/1}},
    {"Joining relations with three args", {setup, fun start/0, fun join_3_tuples/1}},
-   {"Joining on other columns", {setup, fun start/0, fun join_on_inner_cols/1}}].
+   {"Joining on other columns", {setup, fun start/0, fun join_on_inner_cols/1}},
+   {"Joining acting as AND", {setup, fun start/0, fun join_as_and/1}}].
 
 project_test_() ->
   [{"Basic projection test", {setup, fun start/0, fun project_2tuples/1}},
@@ -37,20 +37,20 @@ start() ->
 
 project_multiple(_) ->
   DB =
-    dbs:from_list([#dl_atom{pred_sym = t1, args = [a, b, c, d]},
-                   #dl_atom{pred_sym = t2, args = [a, d, e, f]}]),
+    dbs:from_list([cons_atom("t1", ["a", "b", "c", "d"]),
+                   cons_atom("t2", ["a", "d", "e", "f"])]),
   R = dbs:project(DB, [2, 4]),
-  [?_assertEqual(dbs:from_list([#dl_atom{pred_sym = t1, args = [b, d]},
-                                #dl_atom{pred_sym = t2, args = [d, f]}]),
+  [?_assertEqual(dbs:from_list([cons_atom("t1", ["b", "d"]),
+                                cons_atom("t2", ["d", "f"])]),
                  R)].
 
 project_2tuples(_) ->
   DB =
-    dbs:from_list([#dl_atom{pred_sym = t1, args = [b, c]},
-                   #dl_atom{pred_sym = t2, args = [a, d]}]),
+    dbs:from_list([cons_atom("t1", ["b", "c"]),
+                   cons_atom("t2", ["a", "d"])]),
   R = dbs:project(DB, [2]),
-  [?_assertEqual(dbs:from_list([#dl_atom{pred_sym = t1, args = [c]},
-                                #dl_atom{pred_sym = t2, args = [d]}]),
+  [?_assertEqual(dbs:from_list([cons_atom("t1", ["c"]),
+                                cons_atom("t2", ["d"])]),
                  R)].
 
 ordered_projection(_) ->
@@ -101,3 +101,30 @@ join_on_inner_cols(_) ->
   Delta = dbs:join(DB2, DB1, [2], [3], cons_const("reachable")),
   [?_assertEqual(dbs:from_list([cons_atom("reachable", ["a", "d", "f", "b", "c"])]),
                  Delta)].
+
+join_as_and(_) ->
+  Links = [
+    dl_repr:cons_atom("link", ["a", "a"]),
+    dl_repr:cons_atom("link", ["a", "c"]),
+    dl_repr:cons_atom("link", ["a", "d"]),
+    dl_repr:cons_atom("link", ["b", "a"]),
+    dl_repr:cons_atom("link", ["b", "b"]),
+    dl_repr:cons_atom("link", ["b", "d"]),
+    dl_repr:cons_atom("link", ["c", "a"]),
+    dl_repr:cons_atom("link", ["c", "b"]),
+    dl_repr:cons_atom("link", ["d", "a"]),
+    dl_repr:cons_atom("link", ["d", "b"]),
+    dl_repr:cons_atom("link", ["d", "c"]),
+    dl_repr:cons_atom("link", ["d", "d"])
+  ],
+
+  Reachables = [
+    dl_repr:cons_atom("reachable", ["a", "b"]),
+    dl_repr:cons_atom("reachable", ["b", "c"]),
+    dl_repr:cons_atom("reachable", ["c", "c"]),
+    dl_repr:cons_atom("reachable", ["c", "d"])
+  ],
+  DB1 = dbs:from_list(Links),
+  DB2 = dbs:from_list(Reachables),
+  Joined = dbs:join(DB2, DB1, [1, 2], [1, 2], cons_const("both")),
+  ?_assertEqual(dbs:from_list([]),Joined).
