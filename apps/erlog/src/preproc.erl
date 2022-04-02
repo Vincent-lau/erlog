@@ -1,11 +1,16 @@
 -module(preproc).
 
 -export([lex_and_parse/2, process_rules/1, combine_args/1, combine_atoms/1, rule_part/1,
-         get_output_name/2]).
+         get_output_name/2, get_output_name/1]).
 
 -include("../include/data_repr.hrl").
 
 -include_lib("kernel/include/logger.hrl").
+
+
+-spec get_output_name(file:filename()) -> [string()]  | no_output.
+get_output_name(Input) ->
+  get_output_name(file, Input).
 
 -spec get_output_name(InputType, Input) -> [string()] | no_output
   when InputType :: file | stream | str,
@@ -18,13 +23,13 @@ get_output_name(file, FName) ->
 get_output_name(stream, S) ->
   case io:get_line(S, "") of
     eof ->
-      no_output;
+      [];
     L ->
       case get_output_name(str, L) of
         no_output ->
           get_output_name(stream, S);
         OutName ->
-          OutName
+          [OutName | get_output_name(stream, S)]
       end
   end;
 get_output_name(str, Str) ->
@@ -36,7 +41,7 @@ get_output_name(str, Str) ->
     [] ->
       no_output;
     _Other ->
-      error
+      exit(invalid_lexeme)
   end.
 
 is_output_line(S) ->
