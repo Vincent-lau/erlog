@@ -1,12 +1,8 @@
 -module(dl_repr).
 
--export([cons_const/1, cons_atom/2, cons_pred/2, cons_rule/2, cons_term/1,
-         cons_args_from_list/1]).
--export([get_atom_args/1, get_atom_arity/1, get_atom_name/1, get_rule_head/1, get_rule_headname/1,
-         get_rule_body/1, get_rule_body_atoms/1, get_atom_args_by_index/2]).
--export([const_to_string/1, var_to_string/1, atoms_to_string/1, atom_to_string/1,
-         rule_to_string/1, rules_to_string/1, program_to_string/1]).
--export([is_dl_atom/1, is_dl_rule/1, is_dl_const/1, is_dl_var/1]).
+-compile(export_all).
+
+-compile(nowarn_export_all).
 
 -include("../include/data_repr.hrl").
 
@@ -31,9 +27,9 @@ cons_const(A) when is_atom(A) ->
 -spec cons_atom(string(), [dl_term() | string()]) -> dl_atom().
 cons_atom(PredSym, TermsStr) when is_list(hd(TermsStr)) ->
   #dl_atom{pred_sym = cons_const(PredSym), args = cons_args_from_list(TermsStr)};
-cons_atom(PredSym, TermsAtom) when is_atom(hd(TermsAtom))->
+cons_atom(PredSym, TermsAtom) when is_atom(hd(TermsAtom)) ->
   #dl_atom{pred_sym = cons_const(PredSym), args = lists:map(fun atom_to_list/1, TermsAtom)};
-cons_atom(PredSym, Terms)  ->
+cons_atom(PredSym, Terms) ->
   #dl_atom{pred_sym = cons_const(PredSym), args = Terms}.
 
 -spec cons_pred(dl_atom()) -> dl_pred().
@@ -43,6 +39,14 @@ cons_pred(Atom = #dl_atom{}) ->
 -spec cons_pred(boolean(), dl_atom()) -> dl_pred().
 cons_pred(Neg, Atom = #dl_atom{}) ->
   #dl_pred{neg = Neg, atom = Atom}.
+
+-spec is_neg_pred(dl_pred()) -> boolean().
+is_neg_pred(#dl_pred{neg = Neg}) ->
+  Neg.
+
+-spec is_neg_rule(dl_rule()) -> boolean().
+is_neg_rule(#dl_rule{body = Body}) ->
+  lists:any(fun is_neg_pred/1, Body).
 
 -spec cons_rule(dl_atom(), [dl_pred() | dl_atom()]) -> dl_rule().
 cons_rule(Head,
@@ -112,7 +116,6 @@ const_to_string(C) when is_list(C) ->
 get_atom_arity(Atom = #dl_atom{}) ->
   length(get_atom_args(Atom)).
 
-
 %% from the outside world, should only see strings
 -spec get_atom_args(dl_atom()) -> [string()].
 get_atom_args(#dl_atom{args = Args}) ->
@@ -132,6 +135,13 @@ get_atom_args_by_index(Cols, #dl_atom{args = Args}) ->
 -spec get_atom_name(dl_atom()) -> string().
 get_atom_name(#dl_atom{pred_sym = S}) ->
   const_to_string(S).
+
+-spec get_pred_name(dl_pred()) -> string().
+get_pred_name(#dl_pred{atom = Atom}) ->
+  get_atom_name(Atom).
+
+get_pred_atom(#dl_pred{atom = Atom}) ->
+  Atom.
 
 get_rule_head(#dl_rule{head = Head}) ->
   Head.
