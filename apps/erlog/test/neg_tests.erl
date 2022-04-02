@@ -56,5 +56,4 @@ neg_link({Atom, EDB}) ->
     dl_repr:cons_atom("link", ["d", "c"]),
     dl_repr:cons_atom("link", ["d", "d"])
   ]),
-  ?debugFmt("Negated ~n~s~n Ans ~n~s~n", [dbs:to_string(Negated), dbs:to_string(Ans)]),
   ?_assert(dbs:equal(Negated, Ans)).

@@ -1,0 +1,15 @@
+.decl link(a: symbol, b:symbol)
+
+
+link("a", "b").
+link("b", "c").
+link("c", "c").
+link("c", "d").
+
+.decl reachable(a: symbol, b:symbol)
+.decl indirect(a: symbol, b:symbol)
+.output indirect
+
+reachable(X, Y) :- link(X, Y).
+reachable(X, Y) :- link(X, Z), reachable(Z, Y).
+indirect(X, Y) :- reachable(X,Y), !link(X, Y).
