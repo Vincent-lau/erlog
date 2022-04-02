@@ -114,9 +114,9 @@ new_task(StageNum, TaskNum) ->
   new_task(StageNum, TaskNum, idle, evaluate, 0).
 
 -spec new_task(integer(), integer(), integer() | file:filename()) -> mr_task().
-new_task(StageNum, TaskNum, Size) ->
+new_task(StageNum, TaskNum, Size) when is_integer(Size) ->
   new_task(StageNum, TaskNum, idle, evaluate, Size);
-new_task(StageNum, TaskNum, TaskPath) ->
+new_task(StageNum, TaskNum, TaskPath) when is_list(TaskPath) ->
   new_task(StageNum, TaskNum, idle, evaluate, TaskPath).
 
 -spec new_task(integer(),
