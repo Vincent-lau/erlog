@@ -1,7 +1,8 @@
 -module(eval).
 
--export([eval_seminaive/2, eval_seminaive_one/3, eval_all/2, get_overlap_cols/2,
-         eval_one_rule/3, get_proj_cols/2, get_edb_program/1, imm_conseq/3, imm_conseq/2]).
+-export([eval_stratified/2, eval_seminaive/2, eval_seminaive_one/3, eval_all/2,
+         get_overlap_cols/2, eval_one_rule/3, get_proj_cols/2, get_edb_program/1, imm_conseq/3,
+         imm_conseq/2, is_idb_pred/2]).
 
 -include("../include/data_repr.hrl").
 
@@ -154,10 +155,8 @@ join_with_delta(Pred1, Pred2, L1, L2, Rule, Rules, FullDB, DeltaDB) ->
 %%----------------------------------------------------------------------
 -spec eval_one_rule(dl_rule(), dl_program(), dl_db_instance(), dl_db_instance()) ->
                      dl_db_instance().
-eval_one_rule(Rule = #dl_rule{body = Body},
-              Rules,
-              FullDB,
-              DeltaDB) when length(Body) == 1->
+eval_one_rule(Rule = #dl_rule{body = Body}, Rules, FullDB, DeltaDB)
+  when length(Body) == 1 ->
   % PROJECTION
   % first find all relations with the same pred as the rule in IDB
   % then need to find columns that needs to be projected
@@ -176,10 +175,8 @@ eval_one_rule(Rule = #dl_rule{body = Body},
                rule_is_projection => true,
                atoms_to_be_projected => dbs:to_string(Atoms)}),
   project_onto_head(Atoms, Cols, Head#dl_atom.pred_sym);
-eval_one_rule(Rule = #dl_rule{body = Body},
-              Rules,
-              FullDB,
-              DeltaDB) when length(Body) == 2->
+eval_one_rule(Rule = #dl_rule{body = Body}, Rules, FullDB, DeltaDB)
+  when length(Body) == 2 ->
   % PRODUCT and JOIN
   Head = dl_repr:get_rule_head(Rule),
   [P1, P2] = dl_repr:get_rule_body(Rule),
@@ -187,7 +184,6 @@ eval_one_rule(Rule = #dl_rule{body = Body},
   {L1, L2} = get_overlap_cols(A1#dl_atom.args, A2#dl_atom.args),
   % JOIN
   % e.g. J(A, B, C, D) :- R(A, B, C), S(B, C, D).
-
   ?LOG_DEBUG(#{rule => dl_repr:rule_to_string(Rule),
                full_db => dbs:to_string(FullDB),
                delta => dbs:to_string(DeltaDB),
@@ -244,18 +240,17 @@ is_fixpoint(NewDB) ->
 %% @end
 %%----------------------------------------------------------------------
 -spec is_idb_pred(dl_atom() | dl_pred(), dl_program()) -> boolean().
-is_idb_pred(Atom=#dl_atom{}, Rules) ->
+is_idb_pred(Atom = #dl_atom{}, Rules) ->
   Name = get_atom_name(Atom),
   lists:any(fun(R) -> get_rule_headname(R) =:= Name end, Rules);
-is_idb_pred(Pred=#dl_pred{}, Rules) ->
+is_idb_pred(Pred = #dl_pred{}, Rules) ->
   is_idb_pred(dl_repr:get_pred_atom(Pred), Rules).
 
-
 -spec is_edb_pred(dl_atom(), dl_program()) -> boolean().
-is_edb_pred(Atom=#dl_atom{}, Rules) ->
+is_edb_pred(Atom = #dl_atom{}, Rules) ->
   Name = get_atom_name(Atom),
   lists:all(fun(R) -> get_rule_headname(R) =/= Name end, Rules);
-is_edb_pred(Pred=#dl_pred{}, Rules) ->
+is_edb_pred(Pred = #dl_pred{}, Rules) ->
   is_edb_pred(dl_repr:get_pred_atom(Pred), Rules).
 
 %% calls eval one until a fixpoint is reached
@@ -263,7 +258,12 @@ is_edb_pred(Pred=#dl_pred{}, Rules) ->
 -spec eval_all(dl_program(), dl_db_instance()) -> dl_db_instance().
 eval_all(Program, EDB) ->
   ?LOG_DEBUG(#{initial_db => dbs:to_string(EDB), program => Program}),
-  eval_seminaive(Program, EDB).
+  % case neg:has_neg_rule(Program) of
+  %   false ->
+  %     eval_seminaive(Program, EDB);
+  %   true ->
+  eval_stratified(Program, EDB).
+  % end.
 
 -spec eval_naive(dl_program(), dl_db_instance()) -> dl_db_instance().
 eval_naive(Program, EDB) ->
@@ -369,3 +369,19 @@ eval_seminaive(Program, EDB) ->
   % put all EDB into DeltaDB as well in case predicates in EDB occur in the head
   % of rules, cf. marrying-a-widower
   eval_seminaive(get_idb_program(Program), EDB, dbs:union(DeltaDB, EDB)).
+
+-spec eval_stratified(dl_program(), dl_db_instance()) -> dl_db_instance().
+eval_stratified(Program, EDB) ->
+  case neg:is_stratifiable(Program) of
+    false ->
+      exit(not_stratifiable);
+    true ->
+      Strata = neg:compute_stratification(Program),
+      lager:debug("stratification ~p~n", [Strata]),
+      lists:foldl(fun(P, PrevEDB) ->
+                     IDB = eval_seminaive(P, PrevEDB),
+                     dbs:union(IDB, PrevEDB)
+                  end,
+                  EDB,
+                  Strata)
+  end.
