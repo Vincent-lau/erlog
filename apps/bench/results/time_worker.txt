@@ -1,3 +1,62 @@
+
+1000 nodes
+
+times for 5 runs in this round is [2476490515,2380364744,2318651808, 2416587388,2355847319]
+
+[{[2030027.428,1934609.381,1882308.266,1887702.119,1999376.023], 16},
+
+
+ {[1989257188,2264864341,2284074388,2276363040,2271413641],
+  18},
+ {[2476490515,2380364744,2318651808,2416587388,2355847319],
+  20}]
+
+time used in millisecond is 981683.483
+time used in millisecond is 924164.635
+time used in millisecond is 1096319.724
+time used in millisecond is 999730.308
+time used in millisecond is 985753.617
+
+
+2000 nodes
+
+time used in millisecond is 8202526.055
+time used in millisecond is 8547508.768
+time used in millisecond is 9174541.207
+time used in millisecond is 8521315.233
+time used in millisecond is 8863537.103
+
+eval finished at stage 7
+time used in millisecond is 10744950.012
+set up complete
+eval finished at stage 7
+time used in millisecond is 10678793.836
+set up complete
+eval finished at stage 7
+time used in millisecond is 10650090.143
+
+
+3000 nodes
+
+1> timing:start(single).
+time used in millisecond is 25952409.009
+time used in millisecond is 25974526.102
+time used in millisecond is 35867935.8
+
+
+
+1> time:start().
+set up complete
+eval finished at stage 7
+time used in millisecond is 22470972.965
+eval finished at stage 7
+time used in millisecond is 26593363.154
+set up complete
+eval finished at stage 7
+time used in millisecond is 25980677.265
+set up complete
+
+
 ----------new experiment-----------
 {{2022,2,19},{17,52,27}}
 worker spec, {failure,0.0}
