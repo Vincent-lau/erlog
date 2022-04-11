@@ -10,8 +10,11 @@
 
 -import(dl_repr, [cons_atom/2]).
 
+-define(TEST_TIMEOUT, 1000 * 60).
+
 all() ->
-  [tc4workers,
+  [{group, tc_many_workers},
+   tclarge4workers,
    rsg4workers,
    nonlinear4workers,
    scc4workers,
@@ -20,15 +23,27 @@ all() ->
    pointsto4workers].
 
 groups() ->
-  [{tc_many_workers, [], [tc4workers, tc3workers, tc6workers]}].
+  [{tc_many_workers, [shuffle], [tc4workers, tc3workers, tc6workers]}].
+
+ets_owner() ->
+  receive
+    stop ->
+      exit(normal);
+    _Other ->
+      ets_owner()
+  end.
+
 
 init_per_suite(Config) ->
   application:start(erlog),
   net_kernel:start(['coor@127.0.0.1', longnames]),
+  Pid = spawn(fun ets_owner/0),
+  TabId = ets:new(dl_atom_names, [named_table, public, {heir, Pid, []}]),
   ProgramDir = ?config(data_dir, Config) ++ "../test_program/",
-  [{program_dir, ProgramDir} | Config].
+  [{table, TabId}, {table_owner, Pid}, {program_dir, ProgramDir} | Config].
 
-end_per_suite(_Config) ->
+end_per_suite(Config) ->
+  ?config(table_owner, Config) ! stop,
   net_kernel:stop(),
   application:stop(erlog).
 
@@ -152,7 +167,7 @@ dist_eval_tests(Config, QryNames) when is_list(hd(QryNames)) ->
   WorkerCfg = ?config(worker_cfg, Config),
   dconfig:all_work(WorkerCfg),
 
-  ok = coordinator:wait_for_finish(5000),
+  ok = coordinator:wait_for_finish(?TEST_TIMEOUT),
   Res = dbs:read_db(?config(tmp_dir, Config) ++ "final_db"),
   ct:pal("Total result db is~n~s~n", [dbs:to_string(Res)]),
   ResQL = lists:map(fun(QryName) -> dbs:get_rel_by_name(QryName, Res) end, QryNames),

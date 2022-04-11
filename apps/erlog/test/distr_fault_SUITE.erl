@@ -29,13 +29,25 @@ all_tests() ->
    tc2_4workers,
    pointsto4workers].
 
+
+ets_owner() ->
+  receive
+    stop ->
+      exit(normal);
+    _Other ->
+      ets_owner()
+  end.
+
 init_per_suite(Config) ->
   application:start(erlog),
   net_kernel:start(['coor@127.0.0.1', longnames]),
+  Pid = spawn(fun ets_owner/0),
+  TabId = ets:new(dl_atom_names, [named_table, public, {heir, Pid, []}]),
   ProgramDir = ?config(data_dir, Config) ++ "../test_program/",
-  [{program_dir, ProgramDir} | Config].
+  [{table, TabId}, {table_owner, Pid}, {program_dir, ProgramDir} | Config].
 
-end_per_suite(_Config) ->
+end_per_suite(Config) ->
+  ?config(table_owner, Config) ! stop,
   net_kernel:stop(),
   application:stop(erlog).
 
