@@ -5,6 +5,8 @@
 
 -export([add_node/1, remove_node/2]).
 
+-compile(nowarn_unused_function).
+
 -include_lib("kernel/include/logger.hrl").
 
 -record(node_config, {nodes :: #{node() => port()}, max_node_no :: integer()}).
