@@ -247,7 +247,7 @@ timed_out_task(_T,
                _TimeOut) -> % if the task is not in progress, then it has not timed out
   false.
 
-%% @edoc this function will find an idle task, and if found, set its state appropriately
+%% @doc this function will find an idle task, and if found, set its state appropriately
 -spec find_set_idle_task([mr_task()], node()) -> {mr_task(), [mr_task()]} | none.
 find_set_idle_task(Tasks, WorkerNode) ->
   case lists:splitwith(fun(T) -> not tasks:is_idle(T) end, Tasks) of
@@ -293,7 +293,7 @@ possibly_faster(_T, _A, _N) ->
 -spec find_set_speculative_task([mr_task()], node(), #{node() => number()}) ->
                                  {mr_task(), [mr_task()]} | none.
 find_set_speculative_task(Tasks, WorkerNode, NodesRate) ->
-  % for each task, calcuate the estimated time, compare with estimated remaining time
+  % for each task, calculate the estimated time, compare with estimated remaining time
   case lists:splitwith(fun(T) ->
                           not
                             possibly_faster(T,

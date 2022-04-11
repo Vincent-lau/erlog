@@ -5,7 +5,8 @@
   {mod, {erlog_app, []}},
   {applications,
    [kernel,
-    stdlib
+    stdlib,
+    lager
    ]},
   {env,[{num_tasks, 4}, {inter_dir, "apps/erlog/test/tmp/"}, {coor_name, coor}]},
   {modules, []},

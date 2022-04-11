@@ -53,7 +53,7 @@ cons_rule(Head,
           Body = [#dl_atom{} | _T]) -> % backwards compat
   NewBody = lists:map(fun cons_pred/1, Body),
   cons_rule(Head, NewBody);
-cons_rule(Head, Body) ->
+cons_rule(Head, Body = [#dl_pred{} | _T]) ->
   #dl_rule{head = Head, body = Body}.
 
 -spec cons_term(string()) -> dl_term().

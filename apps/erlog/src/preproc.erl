@@ -1,14 +1,19 @@
 -module(preproc).
 
--export([lex_and_parse/2, process_rules/1, combine_args/1, combine_atoms/1, rule_part/1,
-         get_output_name/2, get_output_name/1]).
+-export([lex_and_parse/2, process_rules/1, combine_args/1, rule_part/1, get_output_name/2,
+         get_output_name/1]).
 
 -include("../include/data_repr.hrl").
 
+-ifdef(TEST).
+
+-compile(export_all).
+
+-endif.
+
 -include_lib("kernel/include/logger.hrl").
 
-
--spec get_output_name(file:filename()) -> [string()]  | no_output.
+-spec get_output_name(file:filename()) -> [string()] | no_output.
 get_output_name(Input) ->
   get_output_name(file, Input).
 
@@ -147,17 +152,31 @@ process_rules(Prog) ->
 %%----------------------------------------------------------------------
 -spec rule_part(dl_rule()) -> [dl_rule()].
 rule_part(R = #dl_rule{}) ->
-  case dl_repr:get_rule_body_atoms(R) of
+  case dl_repr:get_rule_body(R) of
     [H1, H2, H3 | T] ->
       % 1. generate a list of args that contain all terms in the rest of the atoms
-      RuleRest = combine_atoms([H2, H3 | T]),
+      RuleRest = combine_preds([H2, H3 | T]),
       R1 =
         dl_repr:cons_rule(
-          dl_repr:get_rule_head(R), [H1, dl_repr:get_rule_head(RuleRest)]),
+          dl_repr:get_rule_head(R),
+          [H1,
+           dl_repr:cons_pred(
+             dl_repr:get_rule_head(RuleRest))]),
       [R1 | rule_part(RuleRest)];
     _ ->
       [R]
   end.
+
+-spec combine_preds([dl_pred()]) -> dl_rule().
+combine_preds(Preds) ->
+  HeadName = random_name(),
+  combine_preds(HeadName, Preds).
+
+combine_preds(HeadName, Preds) ->
+  Atoms = lists:map(fun(Pred) -> dl_repr:get_pred_atom(Pred) end, Preds),
+  Args = combine_args(lists:map(fun dl_repr:get_atom_args/1, Atoms)),
+  HeadAtom = dl_repr:cons_atom(HeadName, Args),
+  dl_repr:cons_rule(HeadAtom, Preds).
 
 %%----------------------------------------------------------------------
 %% @doc
