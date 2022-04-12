@@ -69,7 +69,7 @@ hash_frag_of_tc(_S) ->
   ",
   {F, Rules} = preproc:lex_and_parse(str, Input),
   Facts = dbs:from_list(F),
-  frag:hash_frag(Facts, Rules, ?num_tasks, 1, ?inter_dir),
+  frag:hash_frag(Facts, Rules, 1, ?num_tasks, 1, ?inter_dir),
   
   ?_assert(true).
 

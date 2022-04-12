@@ -87,11 +87,11 @@ check_neg_cycle(PdGraph) ->
                                   gb_sets:from_list(
                                     digraph:in_edges(PdGraph, V)),
                                 Edges =
-                                  gb_sets:to_list(
-                                    gb_sets:intersection(Out, In)),
+                                  lists:map(fun(E) -> digraph:edge(PdGraph, E) end,
+                                            gb_sets:to_list(
+                                              gb_sets:intersection(Out, In))),
                                 AnyNegEdge =
-                                  lists:any(fun({_E, _U, _V, NegEdge}) -> NegEdge end,
-                                            digraph:edges(PdGraph, Edges)),
+                                  lists:any(fun({_E, _U, _V, NegEdge}) -> NegEdge end, Edges),
                                 {V, HasNeg or AnyNegEdge}
                              end,
                              {lists:last(Cycle), false},
