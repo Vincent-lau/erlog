@@ -3,7 +3,7 @@
 -export([set_finished/1, set_idle/1, set_in_prog/1, set_worker/2, reset_time/1,
          set_size/2]).
 -export([is_idle/1, is_finished/1, is_in_progress/1, is_eval/1, is_assigned/1, equals/2]).
--export([new_task/0, new_task/2, new_task/3, new_task/5, new_wait_task/0,
+-export([new_dummy_task/0, new_task/4, new_task/5, new_task/7, new_wait_task/0,
          new_terminate_task/0, reset_task/1]).
 -export([get_start_time/1]).
 
@@ -94,47 +94,60 @@ reset_task(T = #task{}) ->
   set_worker(reset_time(set_idle(T)), none).
 
 %% @doc generate a dummy task
--spec new_task() -> mr_task().
-new_task() ->
-  new_task(0, 0, idle, evaluate, 0).
+-spec new_dummy_task() -> mr_task().
+new_dummy_task() ->
+  new_task([], 0, 0, 0, idle, evaluate, 0).
 
 -spec new_wait_task() -> mr_task().
 new_wait_task() ->
-  T = new_task(),
+  T = new_dummy_task(),
   T#task{type = wait}.
 
 -spec new_terminate_task() -> mr_task().
 new_terminate_task() ->
-  T = new_task(),
+  T = new_dummy_task(),
   T#task{type = terminate}.
 
 %% @doc generate a new eval idle task
--spec new_task(integer(), integer()) -> mr_task().
-new_task(StageNum, TaskNum) ->
-  new_task(StageNum, TaskNum, idle, evaluate, 0).
+-spec new_task(dl_program(), integer(), integer(), integer()) -> mr_task().
+new_task(Program, ProgNum, StageNum, TaskNum) ->
+  new_task(Program, ProgNum, StageNum, TaskNum, idle, evaluate, 0).
 
--spec new_task(integer(), integer(), integer() | file:filename()) -> mr_task().
-new_task(StageNum, TaskNum, Size) when is_integer(Size) ->
-  new_task(StageNum, TaskNum, idle, evaluate, Size);
-new_task(StageNum, TaskNum, TaskPath) when is_list(TaskPath) ->
-  new_task(StageNum, TaskNum, idle, evaluate, TaskPath).
+-spec new_task(dl_program(),
+               integer(),
+               integer(),
+               integer(),
+               integer() | file:filename()) ->
+                mr_task().
+new_task(Program, ProgNum, StageNum, TaskNum, Size) when is_integer(Size) ->
+  new_task(Program, ProgNum, StageNum, TaskNum, idle, evaluate, Size);
+new_task(Program, ProgNum, StageNum, TaskNum, TaskPath) when is_list(TaskPath) ->
+  new_task(Program, ProgNum, StageNum, TaskNum, idle, evaluate, TaskPath).
 
--spec new_task(integer(),
+-spec new_task(dl_program(),
+               integer(),
+               integer(),
                integer(),
                task_state(),
                task_category(),
                number() | file:filename()) ->
                 mr_task().
-new_task(StageNum, TaskNum, TaskState, TaskType, Size) when is_number(Size) ->
-  #task{task_num = TaskNum,
+new_task(Program, ProgNum, StageNum, TaskNum, TaskState, TaskType, Size)
+  when is_number(Size) ->
+  #task{prog = Program,
+        prog_num = ProgNum,
+        task_num = TaskNum,
         stage_num = StageNum,
         state = TaskState,
         type = TaskType,
         start_time = erlang:monotonic_time(millisecond),
         assigned_worker = none,
         size = Size};
-new_task(StageNum, TaskNum, TaskState, TaskType, TaskPath) when is_list(TaskPath) ->
-  #task{task_num = TaskNum,
+new_task(Program, ProgNum, StageNum, TaskNum, TaskState, TaskType, TaskPath)
+  when is_list(TaskPath) ->
+  #task{prog = Program,
+        prog_num = ProgNum,
+        task_num = TaskNum,
         stage_num = StageNum,
         state = TaskState,
         type = TaskType,
