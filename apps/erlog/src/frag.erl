@@ -8,7 +8,7 @@
 
 -endif.
 
--export([hash_and_write/5, hash_frag/5, part_by_rules/5]).
+-export([hash_and_write/5, hash_frag/6, part_by_rules/5]).
 
 -import(dl_repr, [get_atom_name/1]).
 
@@ -103,18 +103,20 @@ part_by_rules(DB, [RH | RT], CurTaskNum, TotTasks, Stream) ->
                     [dl_rule()],
                     integer(),
                     integer(),
+                    integer(),
                     pos_integer(),
                     file:filename()) ->
                      ok.
-hash_frag_rec(_DB, _Rules, _StageNum, CurTaskNum, TotNum, _DirPath) when CurTaskNum > TotNum ->
+hash_frag_rec(_DB, _Rules, _ProgNum, _StageNum, CurTaskNum, TotNum, _DirPath)
+  when CurTaskNum > TotNum ->
   ok;
-hash_frag_rec(DB, Rules, StageNum, CurTaskNum, TotNum, DirPath) ->
-  % filename convention task-stage#-task#
-  FileName = io_lib:format("~s-~w-~w", [DirPath, StageNum, CurTaskNum]),
+hash_frag_rec(DB, Rules, ProgNum, StageNum, CurTaskNum, TotNum, DirPath) ->
+  % filename convention task-prog#-stage#-task#
+  FileName = io_lib:format("~s-~w-~w-~w", [DirPath, ProgNum, StageNum, CurTaskNum]),
   {ok, Stream} = file:open(FileName, [append]),
   part_by_rules(DB, Rules, CurTaskNum, TotNum, Stream),
   file:close(Stream),
-  hash_frag_rec(DB, Rules, StageNum, CurTaskNum + 1, TotNum, DirPath).
+  hash_frag_rec(DB, Rules, ProgNum, StageNum, CurTaskNum + 1, TotNum, DirPath).
 
 %%----------------------------------------------------------------------
 %% @doc
@@ -126,8 +128,9 @@ hash_frag_rec(DB, Rules, StageNum, CurTaskNum, TotNum, DirPath) ->
 -spec hash_frag(dl_db_instance(),
                 [dl_rule()],
                 integer(),
+                integer(),
                 pos_integer(),
                 file:filename()) ->
                  ok.
-hash_frag(DB, Rules, StageNum, TotTaskNum, DirPath) ->
-  hash_frag_rec(DB, Rules, StageNum, 1, TotTaskNum, DirPath).
+hash_frag(DB, Rules, ProgNum, StageNum, TotTaskNum, DirPath) ->
+  hash_frag_rec(DB, Rules, ProgNum, StageNum, 1, TotTaskNum, DirPath).

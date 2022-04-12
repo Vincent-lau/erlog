@@ -3,26 +3,25 @@
 -behaviour(gen_server).
 
 -include("../include/task_repr.hrl").
--include("../include/data_repr.hrl").
 
 -include_lib("kernel/include/logger.hrl").
 
 -import(dl_repr, [get_rule_headname/1]).
 
--export([start_link/3, start_link/2, start_link/1, get_tmp_path/0, get_prog/0,
-         get_num_tasks/0, get_current_stage_num/0, assign_task/1, finish_task/2, done/0, stop/0,
-         reg_worker/1]).
+-export([start_link/3, start_link/2, start_link/1, get_tmp_path/0, get_num_tasks/0,
+         get_current_stage_num/0, assign_task/1, finish_task/2, done/0, stop/0, reg_worker/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
--export([collect_results/3, wait_for_finish/1]).
+-export([collect_results/4, wait_for_finish/1]).
 
 -record(coor_state,
         {tasks :: [mr_task()],
          num_tasks :: non_neg_integer(),
-         prog :: dl_program(),
+         programs :: [dl_program()],
+         prog_num :: integer(),
          stage_num :: integer(),
          tmp_path :: file:filename(),
-         task_timeout :: erlang:timeout(),
+         task_timeout :: timeout(),
          nodes_rate :: #{node() => number()},
          nodes_tasks :: #{node() => mr_task()}}).
 
@@ -42,6 +41,7 @@
 % higher alpha discounts older observations faster
 -define(TIMEOUT_ALPHA, 0.5).
 -define(COMPLETION_THRESHOLD, 0.9).
+-define(INITIAL_RATE, 0.001).
 
 -spec avg_timeout(timer:time(), timer:time()) -> timer:time().
 avg_timeout(_TimeTaken, infinity) ->
@@ -91,9 +91,6 @@ get_tmp_path() ->
 get_num_tasks() ->
   gen_server:call({global, name()}, num_tasks).
 
-get_prog() ->
-  gen_server:call({global, name()}, prog).
-
 assign_task(WorkerNode) ->
   gen_server:call({global, name()}, {assign, WorkerNode}).
 
@@ -116,26 +113,18 @@ init([ProgName, TmpPath, NumTasks]) ->
   {Facts, Rules} = preproc:lex_and_parse(file, ProgName),
   % preprocess rules
   Program = preproc:process_rules(Rules),
+  Programs = neg:compute_stratification(allorder, Program),
   ?LOG_DEBUG(#{input_prog => dl_repr:program_to_string(Program)}),
   ?LOG_DEBUG(#{input_data => Facts}),
   % create EDB from input relations
   EDB = dbs:from_list(Facts),
+  Tasks = programs_to_tasks(EDB, hd(Programs), 1, NumTasks, TmpPath),
 
-  % the coordinator would do a first round of evaluation to find all deltas for
-  % first stage of seminaive eval
-  EDBProg = eval:get_edb_program(Program),
-  DeltaDB = eval:imm_conseq(EDBProg, EDB, dbs:new()),
-  FullDB = dbs:union(DeltaDB, EDB),
-  frag:hash_frag(FullDB, Program, 1, NumTasks, TmpPath ++ "fulldb"),
-  % similar to what I did in eval_seminaive, we put DeltaDB union EDB as the
-  % DeltaDB in case the input contain "idb" predicates
-  frag:hash_frag(FullDB, Program, 1, NumTasks, TmpPath ++ "task"),
-  Tasks = generate_one_stage_tasks(1, TmpPath, NumTasks),
-  ?LOG_DEBUG(#{tasks_after_coor_initialisation => Tasks}),
   {ok,
    #coor_state{tasks = Tasks,
                num_tasks = NumTasks,
-               prog = Program,
+               programs = Programs,
+               prog_num = 1,
                stage_num = 1,
                tmp_path = TmpPath,
                task_timeout = ?INITIAL_TIMEOUT,
@@ -146,9 +135,6 @@ handle_call(stage_num, _From, State = #coor_state{stage_num = StageNum}) ->
   {reply, StageNum, State};
 handle_call(tmp_path, _From, State = #coor_state{tmp_path = TmpPath}) ->
   {reply, TmpPath, State};
-handle_call(prog, _From, State = #coor_state{prog = Prog}) ->
-  ?LOG_DEBUG(#{assigned_prog_to_worker => dl_repr:program_to_string(Prog)}),
-  {reply, Prog, State};
 handle_call(num_tasks, _From, State = #coor_state{num_tasks = NumTasks}) ->
   {reply, NumTasks, State};
 handle_call({assign, WorkerNode},
@@ -184,7 +170,7 @@ handle_call(terminate, _From, State) ->
 
 handle_cast({reg, WorkerNode},
             State = #coor_state{nodes_rate = NodesRate, nodes_tasks = NodesTasks}) ->
-  NewNodesRate = NodesRate#{WorkerNode => 0.001}, % to avoid division by zero
+  NewNodesRate = NodesRate#{WorkerNode => ?INITIAL_RATE}, % to avoid division by zero
   NewNodesTasks = NodesTasks#{WorkerNode => tasks:new_wait_task()},
   {noreply, State#coor_state{nodes_rate = NewNodesRate, nodes_tasks = NewNodesTasks}}.
 
@@ -211,38 +197,9 @@ clean_tmp(TmpPath) ->
       ok
   end.
 
-%%----------------------------------------------------------------------
-%% @doc
-%% A task is assignable if
-%% <ol>
-%%  <li> it is idle </li>
-%%  <li> it is in the state in_progress and has timed out </li>
-%% </ol>
-%% @end
-%%----------------------------------------------------------------------
--spec assignable(mr_task(), integer()) -> boolean().
-assignable(#task{state = idle}, _TimeOut) ->
-  true;
-assignable(T = #task{state = in_progress, start_time = StartTime}, TimeOut) ->
-  case erlang:monotonic_time(millisecond) - StartTime > TimeOut of
-    true ->
-      io:format("found time out task: ~p~n", [T]),
-      true;
-    false ->
-      false
-  end;
-assignable(#task{}, _TimeOut) ->
-  false.
-
 -spec timed_out_task(mr_task(), timeout()) -> boolean().
-timed_out_task(T = #task{state = in_progress, start_time = StartTime}, TimeOut) ->
-  case erlang:monotonic_time(millisecond) - StartTime > TimeOut of
-    true ->
-      io:format("found time out task: ~p~n", [T]),
-      true;
-    false ->
-      false
-  end;
+timed_out_task(#task{state = in_progress, start_time = StartTime}, TimeOut) ->
+  erlang:monotonic_time(millisecond) - StartTime > TimeOut;
 timed_out_task(_T,
                _TimeOut) -> % if the task is not in progress, then it has not timed out
   false.
@@ -335,7 +292,6 @@ near_completion(Tasks) ->
 -spec find_next_task(state(), node()) -> {mr_task(), state()}.
 find_next_task(State =
                  #coor_state{tasks = Tasks1,
-                             task_timeout = TimeOut,
                              nodes_rate = NodesRate,
                              nodes_tasks = NodesTasks},
                WorkerNode) ->
@@ -407,9 +363,6 @@ find_next_task(State =
 update_finished_task(Task = #task{assigned_worker = WorkerNode},
                      State =
                        #coor_state{tasks = Tasks,
-                                   stage_num = SN,
-                                   tmp_path = TmpPath,
-                                   num_tasks = NumTasks,
                                    task_timeout = TimeOut,
                                    nodes_rate = NodesRate}) ->
   ?LOG_DEBUG(#{task_finished => Task}),
@@ -424,38 +377,127 @@ update_finished_task(Task = #task{assigned_worker = WorkerNode},
       NewTimeOut = avg_timeout(TimeTaken, TimeOut),
       ProgRate = L2H#task.size / (TimeTaken + 2000),
       NewProgRate = exp_avg(ProgRate, maps:get(WorkerNode, NodesRate)),
-      % io:format("new progress rate ~p~n", [NewProgRate]),
-      % io:format("new time out is ~p~n", [NewTimeOut]),
-      % io:format("new time for worker ~p is ~p~n", [WorkerNode, NewTime]),
       NewTasks = L1 ++ [L2H2 | L2T],
-      case check_all_finished(NewTasks) of
-        true ->
-          ?LOG_DEBUG(#{finished_stage => SN}),
-          case generate_one_stage_tasks(SN + 1, TmpPath, NumTasks) of
-            [] -> % nothing to generate, we are done
-              ?LOG_DEBUG(#{evaluation_finished_at_stage => SN}),
-              io:format("eval finished at stage ~p~n", [SN]),
-              FinalDB = collect_results(1, TmpPath, NumTasks),
-              % io:format("final db is ~n~s~n", [dbs:to_string(FinalDB)]),
-              dbs:write_db(TmpPath ++ "final_db", FinalDB),
-              done_checker ! {self(), task_done},
-              State#coor_state{tasks = [tasks:new_terminate_task()],
-                               stage_num = SN + 1,
-                               task_timeout = NewTimeOut,
-                               nodes_rate = NodesRate#{WorkerNode := NewProgRate}};
-            Ts -> % we enter the next round
-              ?LOG_DEBUG(#{new_tasks_for_round => SN + 1, tasks => Ts}),
-              State#coor_state{tasks = Ts,
-                               stage_num = SN + 1,
-                               task_timeout = NewTimeOut,
-                               nodes_rate = NodesRate#{WorkerNode := NewProgRate}}
-          end;
-        false ->
-          State#coor_state{tasks = NewTasks,
-                           stage_num = SN,
+      gen_new_state_when_task_done(NewTasks, NewProgRate, NewTimeOut, WorkerNode, State)
+  end.
+
+-spec programs_to_tasks(dl_db_instance(),
+                        [dl_program()],
+                        integer(),
+                        integer(),
+                        file:filename()) ->
+                         [mr_task()].
+programs_to_tasks(EDB, Programs, ProgNum, NumTasks, TmpPath) ->
+  lists:flatmap(fun(Program) -> program_to_tasks(EDB, Program, ProgNum, NumTasks, TmpPath)
+                end,
+                Programs).
+
+%% @doc Given a program, hash frag it to disk and generate corresponding tasks.
+-spec program_to_tasks(dl_db_instance(),
+                       dl_program(),
+                       integer(),
+                       integer(),
+                       file:filename()) ->
+                        [mr_task()].
+program_to_tasks(EDB, Program, ProgNum, NumTasks, TmpPath) ->
+  % the coordinator would do a first round of evaluation to find all deltas for
+  % first stage of seminaive eval
+  EDBProg = eval:get_edb_program(Program),
+  DeltaDB = eval:imm_conseq(EDBProg, EDB, dbs:new()),
+  FullDB = dbs:union(DeltaDB, EDB),
+  frag:hash_frag(FullDB, Program, ProgNum, 1, NumTasks, TmpPath ++ "fulldb"),
+  % similar to what I did in eval_seminaive, we put DeltaDB union EDB as the
+  % DeltaDB in case the input contain "idb" predicates
+  frag:hash_frag(FullDB, Program, ProgNum, 1, NumTasks, TmpPath ++ "task"),
+  Tasks = generate_one_stage_tasks(ProgNum, [Program], 1, TmpPath, NumTasks),
+  ?LOG_DEBUG(#{tasks_after_coor_initialisation => Tasks}),
+  Tasks.
+
+%% @doc Given the current task, generate a new state with the new program.
+-spec new_program_state(state()) -> state().
+new_program_state(State =
+                    #coor_state{prog_num = ProgNum,
+                                programs = Programs,
+                                num_tasks = NumTasks,
+                                nodes_rate = NodesRate,
+                                nodes_tasks = NodesTasks,
+                                tmp_path = TmpPath}) ->
+  FinalDB = collect_results(ProgNum, 1, TmpPath, NumTasks),
+  NewProgNum = ProgNum + 1,
+  Tasks =
+    programs_to_tasks(FinalDB,
+                      lists:nth(NewProgNum, Programs),
+                      NewProgNum,
+                      NumTasks,
+                      TmpPath),
+  State#coor_state{tasks = Tasks,
+                   prog_num = NewProgNum,
+                   stage_num = 1,
+                   task_timeout = ?INITIAL_TIMEOUT,
+                   nodes_rate =
+                     maps:from_keys(
+                       maps:keys(NodesRate), ?INITIAL_RATE),
+                   nodes_tasks =
+                     maps:from_keys(
+                       maps:keys(NodesTasks), tasks:new_wait_task())}.
+
+%% @doc we generate a new state when a task has finished
+-spec gen_new_state_when_task_done([mr_task()], number(), timeout(), node(), state()) ->
+                                    state().
+gen_new_state_when_task_done(NewTasks,
+                             NewProgRate,
+                             NewTimeOut,
+                             WorkerNode,
+                             State =
+                               #coor_state{stage_num = SN,
+                                           tmp_path = TmpPath,
+                                           num_tasks = NumTasks,
+                                           prog_num = ProgNum,
+                                           programs = Programs,
+                                           nodes_rate = NodesRate}) ->
+  case check_all_finished(NewTasks) of
+    true ->
+      ?LOG_DEBUG(#{finished_stage => SN}),
+      case generate_one_stage_tasks(ProgNum,
+                                    lists:nth(ProgNum, Programs),
+                                    SN + 1,
+                                    TmpPath,
+                                    NumTasks)
+      of
+        [] when ProgNum == length(Programs) ->
+          % nothing to generate, and we have evaluted all programs
+          ?LOG_DEBUG(#{evaluation_finished_at_stage => SN}),
+          io:format("eval finished at stage ~p~n", [SN]),
+          FinalDB = collect_results(ProgNum, 1, TmpPath, NumTasks),
+          io:format("final db is ~n~s~n", [dbs:to_string(FinalDB)]),
+          dbs:write_db(TmpPath ++ "final_db", FinalDB),
+          send_done_msg(),
+          State#coor_state{tasks = [tasks:new_terminate_task()],
+                           stage_num = SN + 1,
+                           task_timeout = NewTimeOut,
+                           nodes_rate = NodesRate#{WorkerNode := NewProgRate}};
+        [] -> % we should go to the next program and start again
+          new_program_state(State);
+        Ts -> % we enter the next round
+          ?LOG_DEBUG(#{new_tasks_for_round => SN + 1, tasks => Ts}),
+          State#coor_state{tasks = Ts,
+                           stage_num = SN + 1,
                            task_timeout = NewTimeOut,
                            nodes_rate = NodesRate#{WorkerNode := NewProgRate}}
-      end
+      end;
+    false ->
+      State#coor_state{tasks = NewTasks,
+                       stage_num = SN,
+                       task_timeout = NewTimeOut,
+                       nodes_rate = NodesRate#{WorkerNode := NewProgRate}}
+  end.
+
+send_done_msg() ->
+  case whereis(done_checker) of
+    undefined ->
+      ok;
+    _Pid ->
+      done_checker ! {self(), task_done}
   end.
 
 %%----------------------------------------------------------------------
@@ -466,15 +508,16 @@ update_finished_task(Task = #task{assigned_worker = WorkerNode},
 %%
 %% @end
 %%----------------------------------------------------------------------
--spec collect_results(integer(), file:filename(), integer()) -> dl_db_instance().
-collect_results(TaskNum, TmpPath, NumTasks) ->
+-spec collect_results(integer(), integer(), file:filename(), integer()) ->
+                       dl_db_instance().
+collect_results(ProgNum, TaskNum, TmpPath, NumTasks) ->
   case TaskNum > NumTasks of
     true ->
       dbs:new();
     false ->
-      FileName = io_lib:format("~s-1-~w", [TmpPath ++ "fulldb", TaskNum]),
+      FileName = io_lib:format("~s-~w-1-~w", [TmpPath ++ "fulldb", ProgNum, TaskNum]),
       DB = dbs:read_db(FileName),
-      dbs:union(DB, collect_results(TaskNum + 1, TmpPath, NumTasks))
+      dbs:union(DB, collect_results(ProgNum, TaskNum + 1, TmpPath, NumTasks))
   end.
 
 %%----------------------------------------------------------------------
@@ -511,17 +554,37 @@ check_all_finished(Tasks) ->
 %%
 %% @end
 %%----------------------------------------------------------------------
--spec generate_one_stage_tasks(integer(), file:filename(), integer()) -> [mr_task()].
-generate_one_stage_tasks(StageNum, TmpPath, NumTasks) when StageNum > 1 ->
-  lists:filtermap(fun(TaskNum) ->
-                     case check_fixpoint(StageNum, TaskNum, TmpPath) of
-                       true -> false; % if empty then do not generate anything
-                       false -> {true, tasks:new_task(StageNum, TaskNum, TmpPath)}
-                     end
-                  end,
-                  lists:seq(1, NumTasks));
-generate_one_stage_tasks(StageNum, TmpPath, NumTasks) when StageNum == 1 ->
-  [tasks:new_task(StageNum, TaskNum, TmpPath) || TaskNum <- lists:seq(1, NumTasks)].
+-spec generate_one_stage_tasks(integer(),
+                               [dl_program()],
+                               integer(),
+                               file:filename(),
+                               integer()) ->
+                                [mr_task()].
+generate_one_stage_tasks(ProgNum, Programs, StageNum, TmpPath, NumTasks)
+  when StageNum > 1 ->
+  lists:flatmap(fun(Program) ->
+                   lists:filtermap(fun(TaskNum) ->
+                                      case check_fixpoint(ProgNum, StageNum, TaskNum, TmpPath) of
+                                        true -> false; % if empty then do not generate anything
+                                        false ->
+                                          {true,
+                                           tasks:new_task(Program,
+                                                          ProgNum,
+                                                          StageNum,
+                                                          TaskNum,
+                                                          TmpPath)}
+                                      end
+                                   end,
+                                   lists:seq(1, NumTasks))
+                end,
+                Programs);
+generate_one_stage_tasks(ProgNum, Programs, StageNum, TmpPath, NumTasks)
+  when StageNum == 1 ->
+  lists:flatmap(fun(Program) ->
+                   [tasks:new_task(Program, ProgNum, StageNum, TaskNum, TmpPath)
+                    || TaskNum <- lists:seq(1, NumTasks)]
+                end,
+                Programs).
 
 %%----------------------------------------------------------------------
 %% @doc
@@ -529,10 +592,11 @@ generate_one_stage_tasks(StageNum, TmpPath, NumTasks) when StageNum == 1 ->
 %% between the result of this stage and the previous stage.
 %% @end
 %%----------------------------------------------------------------------
--spec check_fixpoint(integer(), integer(), file:filename()) -> boolean().
-check_fixpoint(StageNum, TaskNum, TmpPath) ->
-  FName1 = io_lib:format("~s-~w-~w", [TmpPath ++ "task", StageNum - 1, TaskNum]),
-  FName2 = io_lib:format("~s-~w-~w", [TmpPath ++ "task", StageNum, TaskNum]),
+-spec check_fixpoint(integer(), integer(), integer(), file:filename()) -> boolean().
+check_fixpoint(ProgNum, StageNum, TaskNum, TmpPath) ->
+  FName1 =
+    io_lib:format("~s-~w-~w-~w", [TmpPath ++ "task", ProgNum, StageNum - 1, TaskNum]),
+  FName2 = io_lib:format("~s-~w-~w-~w", [TmpPath ++ "task", ProgNum, StageNum, TaskNum]),
   DB1 = dbs:read_db(FName1),
   DB2 = dbs:read_db(FName2),
   ?LOG_DEBUG(#{stage => StageNum,
@@ -541,7 +605,6 @@ check_fixpoint(StageNum, TaskNum, TmpPath) ->
                db2 => dbs:to_string(DB2),
                db_equal => dbs:equal(DB1, DB2)}),
   dbs:equal(DB1, DB2).
-
 
 %%----------------------------------------------------------------------
 %% @doc
