@@ -14,7 +14,7 @@ all() ->
 
 groups() ->
   [{positive_datalog,
-    [shuffle],
+    [shuffle, parallel],
     [tc_tests,
      tc2_tests,
      rsg_tests,
@@ -23,7 +23,7 @@ groups() ->
      scc_tests,
      nonlinear_ancestor_tests,
      pointsto_tests]},
-   {negative_datalog, [shuffle], [indirect_tests, unreachable_tests]}].
+   {negative_datalog, [shuffle, parallel], [indirect_tests, unreachable_tests]}].
 
 ets_owner() ->
   receive

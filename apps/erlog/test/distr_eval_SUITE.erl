@@ -2,28 +2,32 @@
 
 -include_lib("common_test/include/ct.hrl").
 
--export([all/0, groups/0, init_per_group/2, end_per_group/2, init_per_testcase/2,
-         end_per_testcase/2, init_per_suite/1, end_per_suite/1]).
+-export([all/0, groups/0, init_per_testcase/2, end_per_testcase/2, init_per_suite/1,
+         end_per_suite/1]).
 -export([tc3workers/1, tc4workers/1, tc6workers/1, tclarge4workers/1, tc2_4workers/1,
          scc4workers/1, rsg4workers/1, marrying4workers/1, nonlinear4workers/1,
-         pointsto4workers/1]).
+         pointsto4workers/1, indirect4workers/1, unreachable4workers/1]).
 
 -import(dl_repr, [cons_atom/2]).
 
 -define(TEST_TIMEOUT, 1000 * 60).
 
 all() ->
-  [{group, tc_many_workers},
-   tclarge4workers,
-   rsg4workers,
-   nonlinear4workers,
-   scc4workers,
-   marrying4workers,
-   tc2_4workers,
-   pointsto4workers].
+  [{group, negative_dl}, {group, positive_dl}].
 
 groups() ->
-  [{tc_many_workers, [shuffle], [tc4workers, tc3workers, tc6workers]}].
+  [{tc_many_workers, [shuffle], [tc4workers, tc3workers, tc6workers]},
+   {positive_dl,
+    [shuffle],
+    [{group, tc_many_workers},
+     tclarge4workers,
+     rsg4workers,
+     nonlinear4workers,
+     scc4workers,
+     marrying4workers,
+     tc2_4workers,
+     pointsto4workers]},
+   {negative_dl, [], [indirect4workers, unreachable4workers]}].
 
 ets_owner() ->
   receive
@@ -32,7 +36,6 @@ ets_owner() ->
     _Other ->
       ets_owner()
   end.
-
 
 init_per_suite(Config) ->
   application:start(erlog),
@@ -66,7 +69,11 @@ init_per_testcase(tc4workers, Config) ->
 init_per_testcase(tc6workers, Config) ->
   multi_worker_init(6, "tc.dl", Config);
 init_per_testcase(pointsto4workers, Config) ->
-  multi_worker_init(4, "pointsto.dl", Config).
+  multi_worker_init(4, "pointsto.dl", Config);
+init_per_testcase(indirect4workers, Config) ->
+  multi_worker_init(4, "indirect.dl", Config);
+init_per_testcase(unreachable4workers, Config) ->
+  multi_worker_init(4, "unreachable.dl", Config).
 
 end_per_testcase(nonlinear4workers, Config) ->
   multi_worker_stop(Config);
@@ -87,43 +94,47 @@ end_per_testcase(tc4workers, Config) ->
 end_per_testcase(tc6workers, Config) ->
   multi_worker_stop(Config);
 end_per_testcase(pointsto4workers, Config) ->
+  multi_worker_stop(Config);
+end_per_testcase(indirect4workers, Config) ->
+  multi_worker_stop(Config);
+end_per_testcase(unreachable4workers, Config) ->
   multi_worker_stop(Config).
 
-init_per_group(tc_many_workers, Config) ->
-  [{query_name, "reachable"} | Config].
-
-end_per_group(tc_many_workers, _Config) ->
-  ok.
-
 nonlinear4workers(Config) ->
-  dist_eval_tests(Config, "ancestor").
+  dist_eval_tests(Config).
 
 marrying4workers(Config) ->
-  dist_eval_tests(Config, "grandfather").
+  dist_eval_tests(Config).
 
 rsg4workers(Config) ->
-  dist_eval_tests(Config, "rsg").
+  dist_eval_tests(Config).
 
 tclarge4workers(Config) ->
-  dist_eval_tests(Config, "tc_large").
+  dist_eval_tests(Config).
 
 tc2_4workers(Config) ->
-  dist_eval_tests(Config, "reachable").
+  dist_eval_tests(Config).
 
 tc3workers(Config) ->
-  dist_eval_tests(Config, "reachable").
+  dist_eval_tests(Config).
 
 tc4workers(Config) ->
-  dist_eval_tests(Config, "reachable").
+  dist_eval_tests(Config).
 
 tc6workers(Config) ->
-  dist_eval_tests(Config, "reachable").
+  dist_eval_tests(Config).
 
 scc4workers(Config) ->
-  dist_eval_tests(Config, "scc").
+  dist_eval_tests(Config).
 
 pointsto4workers(Config) ->
-  dist_eval_tests(Config, ["alias", "assign"]).
+  dist_eval_tests(Config).
+
+indirect4workers(Config) ->
+  dist_eval_tests(Config).
+
+unreachable4workers(Config) ->
+  dist_eval_tests(Config).
 
 multi_worker_init(NumWorkers, ProgName, Config) ->
   TmpDir = get_tmp_dir(ProgName, NumWorkers, Config),
@@ -163,8 +174,10 @@ stop_workers(Config) ->
   R = dconfig:stop_cluster(?config(worker_cfg, Config)),
   ct:pal("results of stopping workers ~p~n", [R]).
 
-dist_eval_tests(Config, QryNames) when is_list(hd(QryNames)) ->
+dist_eval_tests(Config) ->
   WorkerCfg = ?config(worker_cfg, Config),
+  QryNames =
+    preproc:get_output_name(?config(program_dir, Config) ++ ?config(prog_name, Config)),
   dconfig:all_work(WorkerCfg),
 
   ok = coordinator:wait_for_finish(?TEST_TIMEOUT),
@@ -184,6 +197,4 @@ dist_eval_tests(Config, QryNames) when is_list(hd(QryNames)) ->
 
   ct:pal("Ans db is ~n~s~n", [lists:map(fun dbs:to_string/1, AnsL)]),
 
-  true = lists:all(fun({ResQ, Ans}) -> dbs:equal(Ans, ResQ) end, lists:zip(ResQL, AnsL));
-dist_eval_tests(Config, QryName) ->
-  dist_eval_tests(Config, [QryName]).
+  true = lists:all(fun({ResQ, Ans}) -> dbs:equal(Ans, ResQ) end, lists:zip(ResQL, AnsL)).
