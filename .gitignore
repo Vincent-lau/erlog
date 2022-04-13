@@ -31,3 +31,8 @@ timing_res.txt
 bench/tmp
 
 apps/bench/results/fprof.trace
+apps/bench/bench_program/tc_bench.dl
+apps/bench/bench_program/rsg_bench.dl
+apps/bench/bench_program/pointsto_bench.dl
+apps/bench/bench_program/scc_bench.dl
+apps/bench/bench_program/unreachable_bench.dl
