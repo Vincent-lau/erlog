@@ -263,6 +263,7 @@ eval_all(Program, EDB) ->
   %     eval_seminaive(Program, EDB);
   %   true ->
   eval_stratified(Program, EDB).
+
   % end.
 
 -spec eval_naive(dl_program(), dl_db_instance()) -> dl_db_instance().
@@ -372,16 +373,11 @@ eval_seminaive(Program, EDB) ->
 
 -spec eval_stratified(dl_program(), dl_db_instance()) -> dl_db_instance().
 eval_stratified(Program, EDB) ->
-  case neg:is_stratifiable(Program) of
-    false ->
-      exit(not_stratifiable);
-    true ->
-      Strata = neg:compute_stratification(Program),
-      lager:debug("stratification ~p~n", [Strata]),
-      lists:foldl(fun(P, PrevEDB) ->
-                     IDB = eval_seminaive(P, PrevEDB),
-                     dbs:union(IDB, PrevEDB)
-                  end,
-                  EDB,
-                  Strata)
-  end.
+  Strata = neg:compute_stratification(Program),
+  lager:debug("stratification ~p~n", [Strata]),
+  lists:foldl(fun(P, PrevEDB) ->
+                 IDB = eval_seminaive(P, PrevEDB),
+                 dbs:union(IDB, PrevEDB)
+              end,
+              EDB,
+              Strata).

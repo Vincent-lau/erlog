@@ -2,7 +2,8 @@
 
 -include("../include/data_repr.hrl").
 
--compile(export_all).
+-export([has_neg_rule/1, neg_pred/2, active_domain/2, is_stratifiable/1, compute_stratification/1,
+  compute_stratification/2, topsort_all_programs/2, expansion/2]).
 
 -type domain() :: gb_sets:set(dl_const()).
 
