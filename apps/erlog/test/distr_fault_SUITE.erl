@@ -12,6 +12,8 @@
 
 -import(dl_repr, [cons_atom/2]).
 
+-define(TEST_TIMEOUT, 1000 * 60 * 2).
+
 all() ->
   [{group, worker_straggle}, {group, worker_fail}].
 
@@ -192,7 +194,7 @@ stop_workers(Config) ->
 dist_eval_tests(Config, QryNames) when is_list(hd(QryNames)) ->
   WorkerCfg = ?config(worker_cfg, Config),
   dconfig:all_work(WorkerCfg),
-  ok = coordinator:wait_for_finish(1000 * 120),
+  ok = coordinator:wait_for_finish(?TEST_TIMEOUT),
   Res = dbs:read_db(?config(tmp_dir, Config) ++ "final_db"),
   ct:pal("Total result db is~n~s~n", [dbs:to_string(Res)]),
   ResQL = lists:map(fun(QryName) -> dbs:get_rel_by_name(QryName, Res) end, QryNames),

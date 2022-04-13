@@ -199,9 +199,8 @@ eval_one_rule(Rule = #dl_rule{body = Body}, Rules, FullDB, DeltaDB)
                   preproc:combine_args([A1#dl_atom.args, A2#dl_atom.args])),
   project_onto_head(NewAtoms, Cols, Head#dl_atom.pred_sym).
 
-%% @doc
-%% @equiv eval_one_rule(Rule, Program, DB, DB)
-%% @end
+%% @doc @equiv eval_one_rule(Rule, Program, DB, DB)
+-spec eval_one_rule(dl_rule(), dl_program(), dl_db_instance()) -> dl_db_instance().
 eval_one_rule(Rule, Program, DB) ->
   eval_one_rule(Rule, Program, DB, DB).
 
