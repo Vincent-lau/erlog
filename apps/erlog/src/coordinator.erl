@@ -12,7 +12,7 @@
          get_current_stage_num/0, assign_task/1, finish_task/2, done/0, stop/0, reg_worker/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
--export([collect_results/4, wait_for_finish/1]).
+-export([collect_results/3, collect_results/4, wait_for_finish/1]).
 
 -record(coor_state,
         {tasks :: [mr_task()],
@@ -85,11 +85,15 @@ reg_worker(WorkerNode) ->
 get_current_stage_num() ->
   gen_server:call({global, name()}, stage_num).
 
+get_prog_num() ->
+  gen_server:call({global, name()}, prog_num).
+
 get_tmp_path() ->
   gen_server:call({global, name()}, tmp_path).
 
 get_num_tasks() ->
   gen_server:call({global, name()}, num_tasks).
+
 
 assign_task(WorkerNode) ->
   gen_server:call({global, name()}, {assign, WorkerNode}).
@@ -135,6 +139,8 @@ handle_call(stage_num, _From, State = #coor_state{stage_num = StageNum}) ->
   {reply, StageNum, State};
 handle_call(tmp_path, _From, State = #coor_state{tmp_path = TmpPath}) ->
   {reply, TmpPath, State};
+handle_call(prog_num, _From, State = #coor_state{prog_num = ProgNum}) ->
+  {reply, ProgNum, State};
 handle_call(num_tasks, _From, State = #coor_state{num_tasks = NumTasks}) ->
   {reply, NumTasks, State};
 handle_call({assign, WorkerNode},
@@ -499,6 +505,11 @@ send_done_msg() ->
     _Pid ->
       done_checker ! {self(), task_done}
   end.
+
+
+collect_results(TaskNum, TmpPath, NumTasks) ->
+  collect_results(get_prog_num(), TaskNum, TmpPath, NumTasks).
+
 
 %%----------------------------------------------------------------------
 %% @doc
