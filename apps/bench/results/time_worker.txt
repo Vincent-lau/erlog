@@ -41,8 +41,9 @@ time used in millisecond is 10650090.143
 1> timing:start(single).
 time used in millisecond is 25952409.009
 time used in millisecond is 25974526.102
+time used in millisecond is 26152862.011
+time used in millisecond is 26045359.595
 time used in millisecond is 35867935.8
-
 
 
 1> time:start().
@@ -53,9 +54,55 @@ eval finished at stage 7
 time used in millisecond is 26593363.154
 set up complete
 eval finished at stage 7
+time used in millisecond is 26077252.532
+set up complete
+eval finished at stage 7
 time used in millisecond is 25980677.265
 set up complete
+eval finished at stage 7
+time used in millisecond is 30517534.14
+set up complete
+eval finished at stage 7
+time used in millisecond is 24939219.456
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+pointsto 1000
+
+times for 5 runs in this round is [1528402.344,1600273233,1595962453,
+                                   1534682850,1509026741]
+                                   
+------------------------------------------------------------------
+tc 1000
+distributed engine
+times for 5 runs in this round is [2660897.704,2642269.111,2693093.683,
+                                   2642703.437,2649209.215]
+
+serial engine 
+
+time used in millisecond is 4194951.361
+time used in millisecond is 4435391.013
+time used in millisecond is 4740460.029
+time used in millisecond is 4393343.68
+time used in millisecond is 4282179.779
+time used in millisecond is 4469502.55
+time used in millisecond is 3579232.654
 
 ----------new experiment-----------
 {{2022,2,19},{17,52,27}}
