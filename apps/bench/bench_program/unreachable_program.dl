@@ -1,0 +1,14 @@
+.decl link(a: symbol, b:symbol)
+.decl reachable(a: symbol, b:symbol)
+.decl node(a: symbol)
+.decl unreachable(a: symbol, b:symbol)
+.output unreachable
+
+reachable(X,Y) :- link(X,Y).
+reachable(X,Y) :- link(X,Z), reachable(Z,Y).
+node(X) :- link(X,Y).
+node(Y) :- link(X,Y).
+unreachable(X,Y) :- node(X), node(Y), !reachable(X,Y).
+
+
+

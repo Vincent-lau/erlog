@@ -97,28 +97,37 @@ Gen_cite() {
 
 }
 
+Gen_unreachable() {
+    echo "generating unreachable program"
+    echo "current size of graph, i.e. value of N is $N"
+
+    C=$N
+    SIZE=$N
+    E=`expr $C \* 10`    # each node has on average 10 neighbors
+
+    # create fact files as needed
+    #             | name | |entries| |       ranges        |
+    gen_fact_file   base      $E    $C $C
+
+    cp ./unreachable_program.dl ./unreachable_bench.dl
+    ./to_atoms.py tc >> ./unreachable_bench.dl
+    echo "graph generated into unreachable_bench.dl"
+
+
+}
+
 echo "=====================starting new iterations===================" >> $RES_FILE
 N=$1
 
 cd apps/bench/bench_program
 . ./utils.sh
 
-Gen_cite
+Gen_unreachable
 echo "\n==============new timings===================" >> ../results/timing_res.txt
 echo "graph size $N" >> ../results/timing_res.txt
 
 cd ../../../../
 echo "going back to `pwd`"
 rebar3 compile
-
-# echo "now running program"
-# erl -pa "_build/default/lib/erlog/ebin" \
-#     -pa "_build/default/lib/erlog/bench" \
-#     -config "config/sys.config" \
-#     -noshell -noinput \
-#     -eval 'application:start(erlog), timing:start(), application:stop(erlog), erlang:halt()' \
-#     &
-# wait $!
-
 
 # echo "=========================done===============================" >> $RES_FILE
