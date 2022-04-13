@@ -10,7 +10,7 @@
 
 -import(dl_repr, [cons_atom/2]).
 
--define(TEST_TIMEOUT, 1000 * 60).
+-define(TEST_TIMEOUT, 1000 * 60 * 2).
 
 all() ->
   [{group, negative_dl}, {group, positive_dl}].
