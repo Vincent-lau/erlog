@@ -16,7 +16,7 @@ init([]) ->
     false ->
       ok
   end,
-  io:format("Hello, heavy world!~n"),
+  lager:notice("Application Erlog started!"),
 
   {ok, []}.
 

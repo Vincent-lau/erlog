@@ -8,6 +8,7 @@
          stage_num :: integer(),
          prog :: dl_program(),
          prog_num :: integer(),
+         delta_db :: dl_db_instance(),
          state :: task_state(),
          type :: task_category(),
          start_time :: integer(),

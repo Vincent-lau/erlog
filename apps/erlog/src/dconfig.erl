@@ -1,9 +1,8 @@
 -module(dconfig).
 
 -export([start_cluster/2, start_cluster/3, all_start/1, stop_cluster/1, all_work/1,
-         fail_start/2, slow_start/2]).
-
--export([add_node/1, remove_node/2]).
+         fail_start/2, slow_start/2, get_code_path/0]).
+-export([add_node/1, remove_node/2, start_node/2]).
 
 -compile(nowarn_unused_function).
 
@@ -68,7 +67,10 @@ get_name_cmd(NodeName) ->
 -spec start_node(node(), string()) -> port().
 start_node(Name, PA) ->
   NameCmd = get_name_cmd(Name),
-  Cmd = io_lib:format("erl -noshell -noinput ~s -pa ~s", [NameCmd, PA]),
+  lager:debug("code path is ~s", [PA]),
+  Cmd =
+    io_lib:format("erl -noshell -noinput ~s -config ~s -pa ~s",
+                  [NameCmd, "../../extras/config/sys.config", PA]),
   erlang:open_port({spawn, Cmd}, []).
 
 -spec stop_node(node(), config()) -> true.
@@ -115,7 +117,10 @@ pick_n(M, N, Acc) ->
 %% @end
 %%----------------------------------------------------------------------
 all_start(Cfg) ->
-  multicall(worker, start, [], Cfg).
+  R1 = multicall(lager, start, [], Cfg),
+  R2 = multicall(worker, start, [], Cfg),
+  R1 ++ R2.
+ 
 
 -spec slow_start(config(), integer()) -> ok.
 slow_start(Cfg, FailNum) ->
@@ -160,7 +165,8 @@ call(Node, Module, Function, Args) ->
 
 get_code_path() ->
   CodePath = code:get_path(),
-  lists:concat(lists:join(" ", CodePath)).
+  lists:concat(
+    lists:join(" ", CodePath)).
 
 start_cluster([BaseName], Num) ->
   start_cluster([BaseName], Num, get_code_path()).

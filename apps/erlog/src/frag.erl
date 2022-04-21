@@ -8,7 +8,7 @@
 
 -endif.
 
--export([hash_and_write/5, hash_frag/6, part_by_rules/5]).
+-export([hash_frag/3]).
 
 -import(dl_repr, [get_atom_name/1]).
 
@@ -134,3 +134,41 @@ hash_frag_rec(DB, Rules, ProgNum, StageNum, CurTaskNum, TotNum, DirPath) ->
                  ok.
 hash_frag(DB, Rules, ProgNum, StageNum, TotTaskNum, DirPath) ->
   hash_frag_rec(DB, Rules, ProgNum, StageNum, 1, TotTaskNum, DirPath).
+
+-spec get_part_cols_one_rule(dl_rule()) -> #{dl_atom() => [integer()]}.
+get_part_cols_one_rule(Rule) ->
+  case dl_repr:get_rule_body_atoms(Rule) of
+    [A1 = #dl_atom{}, A2 = #dl_atom{}] ->
+      {C1, C2} = eval:get_overlap_cols(A1#dl_atom.args, A2#dl_atom.args),
+      #{dl_repr:get_atom_name(A1) => C1, dl_repr:get_atom_name(A2) => C2};
+    [A] -> % when it is not a join rule, we partition on arbitrary col
+      #{dl_repr:get_atom_name(A) => [1]}
+  end.
+
+-spec get_part_cols([dl_rule()]) -> #{dl_atom() => [integer()]}.
+get_part_cols(Rules) ->
+  lists:foldl(fun(Rule, AccIn) ->
+                 NewCols = get_part_cols_one_rule(Rule),
+                 maps:merge(AccIn, NewCols)
+              end,
+              #{},
+              Rules).
+
+%% @doc @returns a list of db_instances, each one of them representing the partitioned
+%% instance that correspond to a particular task
+%% len(return_list) == TotTaskNum
+% TODO combine this with the other side effect frag
+-spec hash_frag(dl_db_instance(), [dl_rule()], integer()) -> [dl_db_instance()].
+hash_frag(DB, Rules, TotTasks) ->
+  PartCols = get_part_cols(Rules),
+  lists:map(fun(N) ->
+             dbs:filter(fun(Atom) ->
+                           Cols =
+                             maps:get(
+                               dl_repr:get_atom_name(Atom), PartCols, [1]),
+                           ToHash = dl_repr:get_atom_args_by_index(Cols, Atom),
+                           N == erlang:phash2(ToHash, TotTasks) + 1
+                        end,
+                        DB)
+          end,
+          lists:seq(1, TotTasks)).

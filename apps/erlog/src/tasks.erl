@@ -3,7 +3,7 @@
 -export([set_finished/1, set_idle/1, set_in_prog/1, set_worker/2, reset_time/1,
          set_size/2]).
 -export([is_idle/1, is_finished/1, is_in_progress/1, is_eval/1, is_assigned/1, equals/2]).
--export([new_dummy_task/0, new_task/4, new_task/5, new_task/7, new_wait_task/0,
+-export([new_dummy_task/0, new_task/5, new_task/7, new_wait_task/0,
          new_terminate_task/0, reset_task/1]).
 -export([get_start_time/1]).
 
@@ -77,6 +77,10 @@ find_task_size(StageNum, TaskNum, FilePath) ->
   TaskFile = io_lib:format("~stask-~w-~w", [FilePath, StageNum, TaskNum]),
   filelib:file_size(TaskFile).
 
+-spec find_task_size(dl_db_instance()) -> integer().
+find_task_size(DeltaDB) ->
+  dbs:size(DeltaDB).
+
 -spec set_size(mr_task(), number() | file:filename()) -> mr_task().
 set_size(T = #task{}, Size) when is_float(Size) ->
   T#task{size = Size};
@@ -96,7 +100,7 @@ reset_task(T = #task{}) ->
 %% @doc generate a dummy task
 -spec new_dummy_task() -> mr_task().
 new_dummy_task() ->
-  new_task([], 0, 0, 0, idle, evaluate, 0).
+  new_task([], 0, 0, 0, idle, evaluate, dbs:new()).
 
 -spec new_wait_task() -> mr_task().
 new_wait_task() ->
@@ -109,20 +113,16 @@ new_terminate_task() ->
   T#task{type = terminate}.
 
 %% @doc generate a new eval idle task
--spec new_task(dl_program(), integer(), integer(), integer()) -> mr_task().
-new_task(Program, ProgNum, StageNum, TaskNum) ->
-  new_task(Program, ProgNum, StageNum, TaskNum, idle, evaluate, 0).
-
 -spec new_task(dl_program(),
                integer(),
                integer(),
                integer(),
-               integer() | file:filename()) ->
+               dl_db_instance()) ->
                 mr_task().
-new_task(Program, ProgNum, StageNum, TaskNum, Size) when is_integer(Size) ->
-  new_task(Program, ProgNum, StageNum, TaskNum, idle, evaluate, Size);
-new_task(Program, ProgNum, StageNum, TaskNum, TaskPath) when is_list(TaskPath) ->
-  new_task(Program, ProgNum, StageNum, TaskNum, idle, evaluate, TaskPath).
+new_task(Program, ProgNum, StageNum, TaskNum, DeltaDB) ->
+  new_task(Program, ProgNum, StageNum, TaskNum, idle, evaluate, DeltaDB).
+
+
 
 -spec new_task(dl_program(),
                integer(),
@@ -130,27 +130,16 @@ new_task(Program, ProgNum, StageNum, TaskNum, TaskPath) when is_list(TaskPath) -
                integer(),
                task_state(),
                task_category(),
-               number() | file:filename()) ->
+               dl_db_instance()) ->
                 mr_task().
-new_task(Program, ProgNum, StageNum, TaskNum, TaskState, TaskType, Size)
-  when is_number(Size) ->
+new_task(Program, ProgNum, StageNum, TaskNum, TaskState, TaskType, DeltaDB) ->
   #task{prog = Program,
         prog_num = ProgNum,
+        delta_db = DeltaDB,
         task_num = TaskNum,
         stage_num = StageNum,
         state = TaskState,
         type = TaskType,
         start_time = erlang:monotonic_time(millisecond),
         assigned_worker = none,
-        size = Size};
-new_task(Program, ProgNum, StageNum, TaskNum, TaskState, TaskType, TaskPath)
-  when is_list(TaskPath) ->
-  #task{prog = Program,
-        prog_num = ProgNum,
-        task_num = TaskNum,
-        stage_num = StageNum,
-        state = TaskState,
-        type = TaskType,
-        start_time = erlang:monotonic_time(millisecond),
-        assigned_worker = none,
-        size = find_task_size(StageNum, TaskNum, TaskPath)}.
+        size = find_task_size(DeltaDB)}.

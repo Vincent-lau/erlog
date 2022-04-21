@@ -2,7 +2,7 @@
 
 -export([eval_stratified/2, eval_seminaive/2, eval_seminaive_one/3, eval_all/2,
          get_overlap_cols/2, eval_one_rule/3, get_proj_cols/2, get_edb_program/1, imm_conseq/3,
-         imm_conseq/2, is_idb_pred/2]).
+         imm_conseq/2, is_idb_pred/2, is_fixpoint/1]).
 
 -include("../include/data_repr.hrl").
 

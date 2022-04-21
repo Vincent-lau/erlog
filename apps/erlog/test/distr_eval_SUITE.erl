@@ -13,21 +13,21 @@
 -define(TEST_TIMEOUT, 1000 * 60 * 2).
 
 all() ->
-  [{group, negative_dl}, {group, positive_dl}].
+  [{group, positive_dl}].
 
 groups() ->
-  [{tc_many_workers, [shuffle], [tc4workers, tc3workers, tc6workers]},
+  [{tc_many_workers, [sequence], [tc4workers, tc3workers, tc6workers]},
    {positive_dl,
-    [shuffle],
+    [sequence],
     [{group, tc_many_workers},
      tclarge4workers,
      rsg4workers,
      nonlinear4workers,
      scc4workers,
-     marrying4workers,
      tc2_4workers,
-     pointsto4workers]},
-   {negative_dl, [], [indirect4workers, unreachable4workers]}].
+     pointsto4workers,
+     marrying4workers]},
+   {negative_dl, [sequence], [indirect4workers, unreachable4workers]}].
 
 ets_owner() ->
   receive
@@ -38,15 +38,15 @@ ets_owner() ->
   end.
 
 init_per_suite(Config) ->
-  application:start(erlog),
+  application:ensure_all_started(erlog),
   net_kernel:start(['coor@127.0.0.1', longnames]),
-  Pid = spawn(fun ets_owner/0),
-  TabId = ets:new(dl_atom_names, [named_table, public, {heir, Pid, []}]),
+  % Pid = spawn(fun ets_owner/0),
+  % TabId = ets:new(dl_atom_names, [named_table, public, {heir, Pid, []}]),
   ProgramDir = ?config(data_dir, Config) ++ "../test_program/",
-  [{table, TabId}, {table_owner, Pid}, {program_dir, ProgramDir} | Config].
+  [{program_dir, ProgramDir} | Config].
 
-end_per_suite(Config) ->
-  ?config(table_owner, Config) ! stop,
+end_per_suite(_Config) ->
+  % ?config(table_owner, Config) ! stop,
   net_kernel:stop(),
   application:stop(erlog).
 
@@ -164,7 +164,7 @@ clean_tmp(TmpPath) ->
   ok = file:make_dir(TmpPath).
 
 start_workers(NumWorkers) ->
-  Cfg = dconfig:start_cluster([worker], NumWorkers, "../../lib/erlog/ebin"),
+  Cfg = dconfig:start_cluster([worker], NumWorkers),
   ct:pal("result of starting workers ~p~n", [Cfg]),
   R = dconfig:all_start(Cfg),
   ct:pal("results of all_start ~p~n", [R]),
