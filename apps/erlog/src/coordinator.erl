@@ -17,7 +17,9 @@
 
 -record(coor_state,
         {tasks :: [mr_task()],
+         init_num_tasks :: integer(),
          num_tasks :: integer(),
+         num_finished :: integer(),
          programs :: [dl_program()],
          prog_num :: integer(),
          stage_num :: integer(),
@@ -116,6 +118,8 @@ done() ->
 
 -spec init([string()]) -> {ok, state()}.
 init([ProgName, TmpPath, NumTasks]) ->
+  clean_tmp(TmpPath),
+  ok = file:make_dir(TmpPath),
   % we check the freshness of tmp just in case
   {Facts, Rules} = preproc:lex_and_parse(file, ProgName),
   % preprocess rules
@@ -132,7 +136,9 @@ init([ProgName, TmpPath, NumTasks]) ->
 
   {ok,
    #coor_state{tasks = Tasks,
+               init_num_tasks = NumTasks,
                num_tasks = NumTasks,
+               num_finished = 0,
                programs = Programs,
                tmp_path = TmpPath,
                prog_num = 1,
@@ -283,13 +289,13 @@ find_set_speculative_task(Tasks, WorkerNode, NodesRate) ->
       none
   end.
 
--spec finished_percent([mr_task()]) -> float().
-finished_percent(Tasks) ->
-  length(lists:filter(fun tasks:is_finished/1, Tasks)) / length(Tasks).
+-spec finished_percent(integer(), integer()) -> float().
+finished_percent(NumFinished, NumTasks) ->
+  NumFinished / NumTasks.
 
--spec near_completion([mr_task()]) -> boolean().
-near_completion(Tasks) ->
-  finished_percent(Tasks) > ?COMPLETION_THRESHOLD.
+-spec near_completion(integer(), integer()) -> boolean().
+near_completion(NumFinished, NumTasks) ->
+  finished_percent(NumFinished, NumTasks) > ?COMPLETION_THRESHOLD.
 
 %%----------------------------------------------------------------------
 %% @doc
@@ -310,6 +316,8 @@ find_next_task(WorkerNode,
                State =
                  #coor_state{tasks = Tasks1,
                              nodes_rate = NodesRate,
+                             num_finished = NumFinished,
+                             num_tasks = NumTasks,
                              nodes_tasks = NodesTasks}) ->
   % We reset the task here instead of spawn a new process and periodically
   % ping the worker because in that way, we would have to use msg passing
@@ -334,7 +342,7 @@ find_next_task(WorkerNode,
           %   {AssignedTask, NewTasks} ->
           %     {AssignedTask,
           %      State#coor_state{tasks = NewTasks, task_timeout = backoff_timeout(TimeOut)}};
-          case near_completion(Tasks) of
+          case near_completion(NumFinished, NumTasks) of
             true ->
               case find_set_speculative_task(Tasks,
                                              WorkerNode,
@@ -375,10 +383,16 @@ find_next_task(WorkerNode,
 %%----------------------------------------------------------------------
 -spec update_finished_task(mr_task(), {dl_db_instance(), dl_db_instance()}, state()) ->
                             state().
+update_finished_task(_Task,
+                     _DBs,
+                     State = #coor_state{num_finished = NumFinished, num_tasks = NumTasks})
+  when NumFinished >= NumTasks ->
+  State;
 update_finished_task(Task = #task{assigned_worker = WorkerNode},
                      {WorkerFullDB, WorkerDeltaDB},
                      State =
                        #coor_state{tasks = Tasks,
+                                   num_finished = NumFinished,
                                    task_timeout = TimeOut,
                                    nodes_rate = NodesRate}) ->
   lager:debug("task_finished ~p", [Task]),
@@ -393,7 +407,7 @@ update_finished_task(Task = #task{assigned_worker = WorkerNode},
       NewTimeOut = avg_timeout(TimeTaken, TimeOut),
       ProgRate = L2H#task.size / (TimeTaken + 2000),
       NewProgRate = exp_avg(ProgRate, maps:get(WorkerNode, NodesRate)),
-      NewTasks = L1 ++ [L2H2 | L2T],
+      NewTasks = L1 ++ L2T,
 
       {UpdatedFullPair, UpdatedDeltaPair} =
         update_state_dbs({WorkerFullDB, WorkerDeltaDB}, State),
@@ -403,10 +417,11 @@ update_finished_task(Task = #task{assigned_worker = WorkerNode},
                                                     nodes_rate =
                                                       NodesRate#{WorkerNode := NewProgRate},
                                                     full_pair = UpdatedFullPair,
+                                                    num_finished = NumFinished + 1,
                                                     delta_pair = UpdatedDeltaPair})
   end.
 
-  -spec update_state_dbs({dl_db_instance(), dl_db_instance()}, state()) ->
+-spec update_state_dbs({dl_db_instance(), dl_db_instance()}, state()) ->
                         {{dl_db_instance(), dl_db_instance()},
                          {dl_db_instance(), dl_db_instance()}}.
 update_state_dbs({WorkerFullDB, WorkerDeltaDB},
@@ -456,15 +471,17 @@ next_program_state(State =
                      #coor_state{prog_num = ProgNum,
                                  programs = Programs,
                                  full_pair = {CurFull, NextFull},
-                                 num_tasks = NumTasks,
+                                 init_num_tasks = InitNumTasks,
                                  nodes_rate = NodesRate,
                                  nodes_tasks = NodesTasks}) ->
   FinalDB = dbs:union(CurFull, NextFull),
   NewProgNum = ProgNum + 1,
   CurProgram = lists:nth(NewProgNum, Programs),
-  Tasks = program_to_tasks(FinalDB, CurProgram, NewProgNum, NumTasks),
+  Tasks = program_to_tasks(FinalDB, CurProgram, NewProgNum, InitNumTasks),
   {NewFullDB, NewDeltaDB} = program_to_dbs(FinalDB, CurProgram),
   State#coor_state{tasks = Tasks,
+                   num_tasks = InitNumTasks,
+                   num_finished = 0,
                    prog_num = NewProgNum,
                    full_pair = {NewFullDB, dbs:new()},
                    delta_pair = {NewDeltaDB, dbs:new()},
@@ -482,10 +499,12 @@ next_stage_state(Ts,
                    #coor_state{stage_num = SN,
                                full_pair = {CurFull, NextFull},
                                delta_pair = {CurDelta, NextDelta}}) ->
-  lager:debug("new_tasks_for_round ~p tasks ~p", [SN + 1, Ts]),
+  lager:info("new tasks for stage ~p", [SN + 1]),
   State#coor_state{tasks = Ts,
                    full_pair = {dbs:union(CurFull, NextFull), dbs:new()},
                    delta_pair = {dbs:union(CurDelta, NextDelta), dbs:new()},
+                   num_tasks = length(Ts),
+                   num_finished = 0,
                    stage_num = SN + 1}.
 
 final_state(State =
@@ -495,39 +514,45 @@ final_state(State =
   % nothing to generate, and we have evaluted all programs
   io:format("eval finished at stage ~p~n", [SN]),
   FinalDB = dbs:union(CurFull, NextFull),
-  io:format("final db is ~n~s~n", [dbs:to_string(FinalDB)]),
+  % io:format("final db is ~n~s~n", [dbs:to_string(FinalDB)]),
   dbs:write_db(TmpPath ++ "final_db", FinalDB),
   send_done_msg(),
-  State#coor_state{tasks = [tasks:new_terminate_task()], stage_num = SN + 1}.
+  State#coor_state{tasks = [tasks:new_terminate_task()],
+                   num_finished = 0,
+                   stage_num = SN + 1}.
 
 %% @doc we generate a new state when a task has finished
 -spec gen_new_state_when_task_done([mr_task()], state()) -> state().
+gen_new_state_when_task_done(_NewTasks,
+                             State =
+                               #coor_state{stage_num = SN,
+                                           num_tasks = NumTasks,
+                                           num_finished = NumFinished,
+                                           prog_num = ProgNum,
+                                           programs = Programs,
+                                           delta_pair = {_CurDelta, NextDelta}})
+  when NumFinished == NumTasks ->
+  lager:debug("finished_stage ~p", [SN]),
+  case generate_one_stage_tasks(ProgNum,
+                                [lists:nth(ProgNum, Programs)],
+                                SN + 1,
+                                NumTasks,
+                                NextDelta)
+  of
+    [] when ProgNum == length(Programs) ->
+      final_state(State);
+    [] -> % we should go to the next program and start again
+      next_program_state(State);
+    Ts -> % we enter the next round
+      next_stage_state(Ts, State)
+  end;
 gen_new_state_when_task_done(NewTasks,
                              State =
                                #coor_state{stage_num = SN,
                                            num_tasks = NumTasks,
-                                           prog_num = ProgNum,
-                                           programs = Programs,
-                                           delta_pair = {_CurDelta, NextDelta}}) ->
-  case check_all_finished(NewTasks) of
-    true ->
-      ?LOG_DEBUG(#{finished_stage => SN}),
-      case generate_one_stage_tasks(ProgNum,
-                                    [lists:nth(ProgNum, Programs)],
-                                    SN + 1,
-                                    NumTasks,
-                                    NextDelta)
-      of
-        [] when ProgNum == length(Programs) ->
-          final_state(State);
-        [] -> % we should go to the next program and start again
-          next_program_state(State);
-        Ts -> % we enter the next round
-          next_stage_state(Ts, State)
-      end;
-    false ->
-      State#coor_state{tasks = NewTasks, stage_num = SN}
-  end.
+                                           num_finished = NumFinished})
+  when NumFinished < NumTasks ->
+  State#coor_state{tasks = NewTasks, stage_num = SN}.
 
 send_done_msg() ->
   case whereis(done_checker) of

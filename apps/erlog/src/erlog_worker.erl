@@ -78,8 +78,7 @@ distr_clean(Cfg) ->
 
 distr_run(Cfg, QryName, TmpPath) ->
   dconfig:all_work(Cfg),
-  coordinator:wait_for_finish(?WAIT_TIME),
-  NumTasks = coordinator:get_num_tasks(),
-  FinalDB = coordinator:collect_results(1, TmpPath, NumTasks),
+  ok = coordinator:wait_for_finish(?WAIT_TIME),
+  FinalDB = dbs:read_db(TmpPath ++ "final_db"),
   FinalDBQ = dbs:get_rel_by_name(QryName, FinalDB),
   ?LOG_DEBUG(#{eval_mode => distributed, result_db => dbs:to_string(FinalDBQ)}).

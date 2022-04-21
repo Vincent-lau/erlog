@@ -16,7 +16,7 @@ init([]) ->
     false ->
       ok
   end,
-  lager:notice("Application Erlog started!"),
+  lager:debug("Application Erlog started!"),
 
   {ok, []}.
 

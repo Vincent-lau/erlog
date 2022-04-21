@@ -117,7 +117,7 @@ pick_n(M, N, Acc) ->
 %% @end
 %%----------------------------------------------------------------------
 all_start(Cfg) ->
-  R1 = multicall(lager, start, [], Cfg),
+  R1 = multicall(application, ensure_all_started, [erlog], Cfg),
   R2 = multicall(worker, start, [], Cfg),
   R1 ++ R2.
  
