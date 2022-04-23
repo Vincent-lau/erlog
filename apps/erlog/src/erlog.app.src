@@ -2,13 +2,13 @@
  [{description, "A distributed Datalog engine"},
   {vsn, "0.1.0"},
   {registered, [coor]},
-  {mod, {erlog_app, []}},
+  {mod, {erlog_app, ["apps/bench/bench_program/tc_bench.dl"]}},
   {applications,
    [kernel,
     stdlib,
     lager
    ]},
-  {env,[{colored, true}, {num_tasks, 4}, {inter_dir, "apps/erlog/test/tmp/"}, {coor_name, coor}]},
+  {env,[{colored, true}, {num_tasks, 6}, {inter_dir, "apps/erlog/test/tmp/"}, {coor_name, coor}]},
   {modules, []},
 
   {licenses, ["Apache 2.0"]},
