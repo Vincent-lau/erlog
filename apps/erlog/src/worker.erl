@@ -1,10 +1,10 @@
 -module(worker).
 
--export([start_link/0, start/0, start/1, start_link/1, start_working/0, stop/0]).
--export([init/1, handle_cast/2, handle_call/3, terminate/2]).
+-export([start_link/0, start/0, start/1, start_link/1, start_working/0, reset_state/0,
+         stop/0]).
+-export([init/1, handle_call/3, handle_cast/2, terminate/2]).
 
 -include("../include/task_repr.hrl").
-
 
 -define(coor_node, 'coor@host.com').
 -define(SLEEP_TIME, 300).
@@ -17,8 +17,7 @@
 -export_type([worker_spec/0]).
 
 -record(worker_state,
-        {coor_pid :: pid(),
-         num_tasks :: integer(),
+        {num_tasks :: integer(),
          task_num :: integer(),
          stage_num :: integer(),
          full_db :: dl_db_instance(),
@@ -42,7 +41,10 @@ start_link(Mode) ->
   gen_server:start_link({local, name()}, ?MODULE, [Mode], []).
 
 start_working() ->
-  gen_server:cast(name(), work).
+  gen_server:call(name(), work).
+
+reset_state() ->
+  gen_server:cast(name(), reset).
 
 stop() ->
   gen_server:call(name(), terminate).
@@ -51,22 +53,19 @@ stop() ->
 
 init([Mode]) ->
   ok = attempt_connect_coor(),
-  CoorPid = global:whereis_name(coor),
   erpc:cast(?coor_node, coordinator, reg_worker, [node()]),
   NumTasks = call_coor(get_num_tasks, []),
   spawn(fun check_coor/0),
   {ok,
-   #worker_state{coor_pid = CoorPid,
-                 num_tasks = NumTasks,
+   #worker_state{num_tasks = NumTasks,
                  full_db = dbs:new(),
                  task_num = 0,
                  stage_num = 0,
                  mode = Mode}}.
 
 handle_call(terminate, _From, State) ->
-  {stop, normal, ok, State}.
-
-handle_cast(work, State = #worker_state{mode = Mode}) ->
+  {stop, normal, ok, State};
+handle_call(work, _From, State = #worker_state{mode = Mode}) ->
   case Mode of
     failure ->
       spawn_link(fun abnormal_worker:crasher/0);
@@ -74,15 +73,22 @@ handle_cast(work, State = #worker_state{mode = Mode}) ->
       ok
   end,
   % TODO better use a supervisor approach
-  spawn(fun() -> work(State) end),
-  {noreply, State}.
+  Pid = spawn(fun() -> work(State) end),
+  {reply, Pid, State}.
+
+handle_cast(reset, State = #worker_state{}) ->
+  {noreply,
+   State#worker_state{full_db = dbs:new(),
+                      task_num = 0,
+                      stage_num = 0}}.
 
 terminate(normal, _State) ->
-  net_kernel:stop(),
-  init:stop();
-terminate(coor_down, State) ->
+  lager:debug("worker termianted"),
+  ok;
+terminate(coor_down, _State) ->
   io:format("coordinator is down, terminate as well~n"),
-  terminate(normal, State).
+  net_kernel:stop(),
+  init:stop().
 
 %%% Private functions
 
@@ -125,11 +131,15 @@ work(State =
       % hash the new DB locally and write to disk
       % with only tuples that have not been generated before
       finish_task(T, {NewFullDB, NewDeltaDB}),
-      lager:debug("~p rpc results for finish at stage ~p task ~p", [node(), TaskStageNum, TaskNum]),
+      lager:debug("~p rpc results for finish at stage ~p task ~p",
+                  [node(), TaskStageNum, TaskNum]),
       % request new tasks
       lager:debug("~p stage-~w task-~w finished, requesting new task",
                   [node(), TaskStageNum, TaskNum]),
-      NewState = State#worker_state{task_num = TaskNum, stage_num = TaskStageNum, full_db = CurFullDB},
+      NewState =
+        State#worker_state{task_num = TaskNum,
+                           stage_num = TaskStageNum,
+                           full_db = CurFullDB},
       lager:debug("worker_node ~p, new_state ~p", [node(), NewState]),
       work(NewState);
     #task{type = wait} ->
@@ -138,13 +148,14 @@ work(State =
       timer:sleep(?SLEEP_TIME),
       work(State);
     #task{type = terminate} ->
-      lager:debug("~p all done, time to relax~n", [node()]);
+      lager:debug("~p all done, time to relax~n", [node()]),
+      State;
     Other ->
-      lager:info("~p some other stuff ~p~n", [node(), Other])
+      lager:info("~p some other stuff ~p~n", [node(), Other]),
+      State
   end.
 
 %%% Private functions
-
 
 call_coor(Function, Args) ->
   call_coor(Function, Args, 1000).
@@ -179,7 +190,7 @@ check_coor() ->
   ok = net_kernel:monitor_nodes(true),
   receive
     {nodedown, ?coor_node} ->
-      stop()
+      terminate(coor_down, dummy_state)
   end.
 
 attempt_connect_coor() ->
@@ -187,7 +198,7 @@ attempt_connect_coor() ->
     pang ->
       timer:sleep(2000),
       attempt_connect_coor();
-    pong -> 
+    pong ->
       global:sync(),
       case global:whereis_name(coor) of
         undefined ->

@@ -514,7 +514,7 @@ final_state(State =
   % nothing to generate, and we have evaluted all programs
   io:format("eval finished at stage ~p~n", [SN]),
   FinalDB = dbs:union(CurFull, NextFull),
-  % io:format("final db is ~n~s~n", [dbs:to_string(FinalDB)]),
+  lager:info("final db is ~n~s~n", [dbs:to_string(FinalDB)]),
   dbs:write_db(TmpPath ++ "final_db", FinalDB),
   send_done_msg(),
   State#coor_state{tasks = [tasks:new_terminate_task()],
