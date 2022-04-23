@@ -18,6 +18,14 @@ worker_nodes() ->
 
 start() ->
   R1 = erpc:multicall(worker_nodes(), worker, start_working, []),
-  io:format("worker start_working rpc results ~p~n", [R1]),
+  lager:info("worker start_working rpc results ~p~n", [R1]),
   Time = timer:tc(coordinator, wait_for_finish, [1000 * 60]),
-  io:format("time is ~p~n", [Time]).
+  lager:notice("time is ~p~n", [Time]).
+
+
+reset() ->
+  supervisor:terminate_child(coor_sup, main),
+  R1 = erpc:multicall(worker_nodes(), supervisor, terminate_child, [worker_sup, main]),
+  supervisor:restart_child(coor_sup, main),
+  R2 = erpc:multicall(worker_nodes(), supervisor, restart_child, [worker_sup, main]),
+  lager:notice("results of reset rpc calls ~p", [R1 ++ R2]).
