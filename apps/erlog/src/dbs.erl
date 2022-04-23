@@ -207,7 +207,7 @@ fold(Fun, Acc, Set) ->
   gb_sets:fold(Fun, Acc, Set).
 
 %% input Set would be a set of gb_sets
--spec flatmap(fun((term()) -> term()), gb_sets:set(gb_sets:set())) -> gb_sets:set().
+-spec flatmap(fun((term()) -> term()), gb_sets:set()) -> gb_sets:set().
 flatmap(Fun, Set) ->
   S2 = map(Fun, Set),
   gb_sets:fold(fun (Ele, AccIn) -> gb_sets:union(Ele, AccIn) end, gb_sets:new(), S2).
