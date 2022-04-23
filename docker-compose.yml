@@ -1,0 +1,43 @@
+version: "3.7"
+services:
+  coor:
+    image: erlog
+    command: rebar3 shell --name 'coor@host.com' --setcookie erlog_cookie
+    container_name: host.com
+    working_dir: /app
+    volumes: 
+      - ./:/app
+    tty: true
+    networks:
+      - net1
+
+  w1:
+    image: erlog
+    command: rebar3 shell --name 'worker1@host1.com' --setcookie erlog_cookie
+    container_name: host1.com
+    working_dir: /app
+    volumes: 
+      - ./:/app
+    depends_on:
+      - coor
+    tty: true
+    networks:
+      - net1
+
+  w2:
+    image: erlog
+    command: rebar3 shell --name 'worker2@host2.com' --setcookie erlog_cookie
+    container_name: host2.com
+    working_dir: /app
+    volumes: 
+      - ./:/app
+    depends_on:
+      - coor
+    tty: true
+    networks:
+      - net1
+
+networks:
+  net1:
+    driver: bridge
+

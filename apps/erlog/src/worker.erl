@@ -5,9 +5,8 @@
 
 -include("../include/task_repr.hrl").
 
--include_lib("kernel/include/logger.hrl").
 
--define(coor_node, 'coor@127.0.0.1').
+-define(coor_node, 'coor@host.com').
 -define(SLEEP_TIME, 300).
 
 -behaviour(gen_server).
@@ -51,8 +50,7 @@ stop() ->
 %%% Server functions
 
 init([Mode]) ->
-  true = net_kernel:connect_node(?coor_node),
-  global:sync(), % make sure that worker sees the registered name
+  ok = attempt_connect_coor(),
   CoorPid = global:whereis_name(coor),
   erpc:cast(?coor_node, coordinator, reg_worker, [node()]),
   NumTasks = call_coor(get_num_tasks, []),
@@ -182,4 +180,20 @@ check_coor() ->
   receive
     {nodedown, ?coor_node} ->
       stop()
+  end.
+
+attempt_connect_coor() ->
+  case net_adm:ping(?coor_node) of
+    pang ->
+      timer:sleep(2000),
+      attempt_connect_coor();
+    pong -> 
+      global:sync(),
+      case global:whereis_name(coor) of
+        undefined ->
+          timer:sleep(2000),
+          attempt_connect_coor();
+        _Pid ->
+          ok
+      end
   end.
