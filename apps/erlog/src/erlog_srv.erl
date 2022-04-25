@@ -23,7 +23,7 @@ init([ProgName]) ->
       lager:info("started in coordinator mode"),
       coor_sup:start_link(ProgName);
     "nono" ->
-      lager:info("no node name given, do nothing", [node()]);
+      lager:info("no node name given, do nothing");
     _Other ->
       lager:info("some strange node name ~p", [node()])
   end,

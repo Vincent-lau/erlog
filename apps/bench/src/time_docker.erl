@@ -20,7 +20,8 @@ start() ->
   R1 = erpc:multicall(worker_nodes(), worker, start_working, []),
   lager:info("worker start_working rpc results ~p~n", [R1]),
   Time = timer:tc(coordinator, wait_for_finish, [1000 * 60]),
-  lager:notice("time is ~p~n", [Time]).
+  io:format("time is ~p~n", [Time]),
+  lager:info("time is ~p~n", [Time]).
 
 
 reset() ->
