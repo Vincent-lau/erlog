@@ -676,7 +676,7 @@ wait_for_finish_rec(Timeout) ->
     {_Pid, task_done} ->
       ok;
     {PortId, {data, DataMsg}} ->
-      lager:info("received data from ~p, msg is ~s", [PortId, DataMsg]),
+      lager:debug("received data from ~p, msg is ~s", [PortId, DataMsg]),
       wait_for_finish_rec(Timeout);
     X ->
       exit(X)

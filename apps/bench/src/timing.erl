@@ -101,7 +101,7 @@ repeat_times(single, _TimeType, Repeats) ->
 time_single_node() ->
   QryName = preproc:get_output_name(file, ?PROG),
   {Time, _R} = timer:tc(erlog_worker, run_program, [single, ?PROG, QryName]),
-  io:format("time used in millisecond is ~p~n", [Time / 1000]),
+  lager:notice("time used in millisecond is ~p~n", [Time / 1000]),
   Time.
 
 -spec time_distr_nodes(TimeType, integer(), integer()) -> integer()
@@ -118,7 +118,7 @@ time_distr_nodes(wallclock, WorkerSpec, NumWorkers, NumTasks) ->
   {Time, _R} = timer:tc(erlog_worker, distr_run, [Cfg, QryName, ?tmp_path]),
   ?LOG_DEBUG("ready to clean up~n"),
   erlog_worker:distr_clean(Cfg),
-  io:format("time used in millisecond is ~p~n", [Time / 1000]),
+  lager:notice("time used in millisecond is ~p~n", [Time / 1000]),
   Time;
 time_distr_nodes(cpu, WorkerSpec, NumWorkers, NumTasks) ->
   Cfg = erlog_worker:distr_setup(?PROG, NumWorkers, NumTasks, ?tmp_path, WorkerSpec),
@@ -130,5 +130,5 @@ time_distr_nodes(cpu, WorkerSpec, NumWorkers, NumTasks) ->
   {_TotTime, TimeSince} = statistics(runtime),
   ?LOG_DEBUG("ready to clean up~n"),
   erlog_worker:distr_clean(Cfg),
-  io:format("time used in millisecond is ~p~n", [TimeSince]),
+  lager:notice("time used in millisecond is ~p~n", [TimeSince]),
   TimeSince.
