@@ -32,24 +32,13 @@ all_tests() ->
    pointsto4workers].
 
 
-ets_owner() ->
-  receive
-    stop ->
-      exit(normal);
-    _Other ->
-      ets_owner()
-  end.
-
 init_per_suite(Config) ->
-  application:start(erlog),
+  application:ensure_all_started(erlog),
   net_kernel:start(['coor@127.0.0.1', longnames]),
-  Pid = spawn(fun ets_owner/0),
-  TabId = ets:new(dl_atom_names, [named_table, public, {heir, Pid, []}]),
   ProgramDir = ?config(data_dir, Config) ++ "../test_program/",
-  [{table, TabId}, {table_owner, Pid}, {program_dir, ProgramDir} | Config].
+  [{program_dir, ProgramDir} | Config].
 
-end_per_suite(Config) ->
-  ?config(table_owner, Config) ! stop,
+end_per_suite(_Config) ->
   net_kernel:stop(),
   application:stop(erlog).
 
@@ -139,7 +128,7 @@ multi_worker_init(NumWorkers, ProgName, Config) ->
   TmpDir = get_tmp_dir(ProgName, NumWorkers, Config),
   clean_tmp(TmpDir),
   ct:pal("program name ~p~n", [ProgName]),
-  {ok, Pid} = coordinator:start_link(?config(program_dir, Config) ++ ProgName, TmpDir),
+  {ok, Pid} = coordinator:start_link(?config(program_dir, Config) ++ ProgName),
   Cfg =
     case ?config(mode, Config) of
       straggle ->
