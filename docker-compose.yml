@@ -2,6 +2,11 @@ version: "3.7"
 services:
   coor:
     image: erlog
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
     command: rebar3 shell --name 'coor@host.com' --setcookie erlog_cookie
     container_name: host.com
     working_dir: /app
@@ -13,6 +18,11 @@ services:
 
   w1:
     image: erlog
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
     command: rebar3 shell --name 'worker1@host1.com' --setcookie erlog_cookie
     container_name: host1.com
     working_dir: /app
@@ -26,6 +36,11 @@ services:
 
   w2:
     image: erlog
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
     command: rebar3 shell --name 'worker2@host2.com' --setcookie erlog_cookie
     container_name: host2.com
     working_dir: /app
@@ -36,6 +51,86 @@ services:
     tty: true
     networks:
       - net1
+
+
+  w3:
+    image: erlog
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    command: rebar3 shell --name 'worker3@host3.com' --setcookie erlog_cookie
+    container_name: host3.com
+    working_dir: /app
+    volumes: 
+      - ./:/app
+    depends_on:
+      - coor
+    tty: true
+    networks:
+      - net1
+
+
+  w4:
+    image: erlog
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    command: rebar3 shell --name 'worker4@host4.com' --setcookie erlog_cookie
+    container_name: host4.com
+    working_dir: /app
+    volumes: 
+      - ./:/app
+    depends_on:
+      - coor
+    tty: true
+    networks:
+      - net1
+
+  
+  w5:
+    image: erlog
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    command: rebar3 shell --name 'worker5@host5.com' --setcookie erlog_cookie
+    container_name: host5.com
+    working_dir: /app
+    volumes: 
+      - ./:/app
+    depends_on:
+      - coor
+    tty: true
+    networks:
+      - net1
+
+
+  w6:
+    image: erlog
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    command: rebar3 shell --name 'worker6@host6.com' --setcookie erlog_cookie
+    container_name: host6.com
+    working_dir: /app
+    volumes: 
+      - ./:/app
+    depends_on:
+      - coor
+    tty: true
+    networks:
+      - net1
+
+
+
+
 
 networks:
   net1:
