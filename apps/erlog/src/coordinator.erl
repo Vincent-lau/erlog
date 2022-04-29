@@ -699,7 +699,7 @@ reset_dead_tasks(Tasks) ->
                              orelse not sets:is_element(Worker, Alive))
                of
                  true ->
-                   io:format(standard_error, "found dead task ~p~n", [T]),
+                   lager:info("found dead task ~p~n", [T]),
                    tasks:reset_task(T);
                  false -> T
                end
