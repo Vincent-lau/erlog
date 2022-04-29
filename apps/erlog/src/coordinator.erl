@@ -17,7 +17,7 @@
 -record(coor_state,
         {tasks :: [mr_task()],
          num_tasks :: non_neg_integer(),
-         programs :: [dl_program()],
+         programs :: [[dl_program()]],
          prog_num :: integer(),
          stage_num :: integer(),
          tmp_path :: file:filename(),
