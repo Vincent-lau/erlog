@@ -1,6 +1,6 @@
 -module(timing).
 
--export([start/0, start/1]).
+-export([start/0, start/1, time_souffle/0]).
 
 -define(PROG, "apps/bench/bench_program/tc_bench.dl").
 -define(tmp_path, "apps/bench/tmp/").
@@ -11,12 +11,21 @@
 start() ->
   start(success).
 
+start(single) ->
+  repeat_times(single, foo, 5);
 start(WorkerSpec) ->
+  io:format("the start time is ~p~n", [calendar:local_time()]),
   io:format("current timing program ~p~n", [?PROG]),
-  time_against_workers(wallclock, WorkerSpec, 5, 8, 2).
+  time_against_workers(wallclock, WorkerSpec, 16, 20, 5).
 
-% start(single) ->
-%   repeat_times(single, foo, 3).
+
+time_souffle() ->
+  T1 = erlang:monotonic_time(millisecond),
+  Cmd = io_lib:format("souffle -D. ~s", [?PROG]),
+  io:format("~s~n", [Cmd]),
+  os:cmd(Cmd),
+  T2 = erlang:monotonic_time(millisecond),
+  T2 - T1.
 
 -spec time_against_workers(TimeType, integer()) -> list()
   when TimeType :: cpu | wallclock.
@@ -101,7 +110,7 @@ repeat_times(single, _TimeType, Repeats) ->
 time_single_node() ->
   QryName = preproc:get_output_name(file, ?PROG),
   {Time, _R} = timer:tc(erlog_worker, run_program, [single, ?PROG, QryName]),
-  io:format("time used in millisecond is ~p~n", [Time / 1000]),
+  lager:notice("time used in millisecond is ~p~n", [Time / 1000]),
   Time.
 
 -spec time_distr_nodes(TimeType, integer(), integer()) -> integer()
@@ -118,7 +127,7 @@ time_distr_nodes(wallclock, WorkerSpec, NumWorkers, NumTasks) ->
   {Time, _R} = timer:tc(erlog_worker, distr_run, [Cfg, QryName, ?tmp_path]),
   ?LOG_DEBUG("ready to clean up~n"),
   erlog_worker:distr_clean(Cfg),
-  io:format("time used in millisecond is ~p~n", [Time / 1000]),
+  lager:notice("time used in millisecond is ~p~n", [Time / 1000]),
   Time;
 time_distr_nodes(cpu, WorkerSpec, NumWorkers, NumTasks) ->
   Cfg = erlog_worker:distr_setup(?PROG, NumWorkers, NumTasks, ?tmp_path, WorkerSpec),
@@ -130,5 +139,5 @@ time_distr_nodes(cpu, WorkerSpec, NumWorkers, NumTasks) ->
   {_TotTime, TimeSince} = statistics(runtime),
   ?LOG_DEBUG("ready to clean up~n"),
   erlog_worker:distr_clean(Cfg),
-  io:format("time used in millisecond is ~p~n", [TimeSince]),
+  lager:notice("time used in millisecond is ~p~n", [TimeSince]),
   TimeSince.
