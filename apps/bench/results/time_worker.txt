@@ -1,9 +1,170 @@
 
+Accepted connection from 172.17.0.1, port 51914
+[  5] local 172.17.0.2 port 5204 connected to 172.17.0.1 port 51916
+[ ID] Interval           Transfer     Bitrate
+[  5]   0.00-1.00   sec  1.67 GBytes  14.3 Gbits/sec
+[  5]   1.00-2.00   sec  1.72 GBytes  14.8 Gbits/sec
+[  5]   2.00-3.00   sec  1.53 GBytes  13.2 Gbits/sec
+[  5]   3.00-4.00   sec  1.72 GBytes  14.8 Gbits/sec
+[  5]   4.00-5.00   sec  1.83 GBytes  15.7 Gbits/sec
+[  5]   5.00-6.00   sec  1.64 GBytes  14.1 Gbits/sec
+[  5]   6.00-7.00   sec  1.72 GBytes  14.8 Gbits/sec
+[  5]   7.00-8.00   sec  1.60 GBytes  13.7 Gbits/sec
+[  5]   8.00-9.00   sec  1.83 GBytes  15.7 Gbits/sec
+[  5]   9.00-10.00  sec  1.76 GBytes  15.1 Gbits/sec
+[  5]  10.00-10.01  sec  23.5 MBytes  18.6 Gbits/sec
+- - - - - - - - - - - - - - - - - - - - - - - - -
+[ ID] Interval           Transfer     Bitrate
+[  5]   0.00-10.01  sec  17.0 GBytes  14.6 Gbits/sec         
+
+
+Server listening on 5204
+-----------------------------------------------------------
+Accepted connection from 172.31.10.39, port 45722
+[  5] local 172.31.12.188 port 5204 connected to 172.31.10.39 port 45724
+[ ID] Interval           Transfer     Bitrate
+[  5]   0.00-1.00   sec   119 MBytes   995 Mbits/sec
+[  5]   1.00-2.00   sec   120 MBytes  1.01 Gbits/sec
+[  5]   2.00-3.00   sec   109 MBytes   919 Mbits/sec
+[  5]   3.00-4.00   sec   120 MBytes  1.01 Gbits/sec
+[  5]   4.00-5.00   sec   119 MBytes  1.00 Gbits/sec
+[  5]   5.00-6.00   sec   120 MBytes  1.00 Gbits/sec
+[  5]   6.00-7.00   sec   119 MBytes  1.00 Gbits/sec
+[  5]   7.00-8.00   sec   119 MBytes   998 Mbits/sec
+[  5]   8.00-9.00   sec   119 MBytes  1.00 Gbits/sec
+[  5]   9.00-10.00  sec   119 MBytes  1.00 Gbits/sec
+[  5]  10.00-10.00  sec   524 KBytes   986 Mbits/sec
+- - - - - - - - - - - - - - - - - - - - - - - - -
+[ ID] Interval           Transfer     Bitrate
+[  5]   0.00-10.00  sec  1.16 GBytes   994 Mbits/sec                  receiver
+
+coordinator:start_link("apps/bench/bench_program/tc_bench.dl").
+worker:start_link().
+time_aws:start().
+
+
+==================CONTAINER====================
+
+graph size 150
+
+2 workers
+
+time is {5266476,ok}
+time is {5137644,ok}
+time is {5157419,ok}
+
+
+4 workers
+
+time is {3753316,ok}
+time is {3808110,ok}
+time is {3950223,ok}
+
+6 workers
+
+time is {2953722,ok}
+time is {2865040,ok}
+time is {2988098,ok}
+
+
+=====================AWS=======================
+
+graph size 100
+
+2 workers
+time is {4028604,ok}
+
+4 workers
+20:39:00.796 [info] time is {3113544,ok}
+
+6 workers
+21:06:58.358 [info] time is {3337522,ok}
+
+
+graph size 150
+
+2 workers
+14:44:29.306 [info] time is {12326549,ok}
+14:45:16.300 [info] time is {12585455,ok}
+14:45:57.118 [info] time is {11912530,ok}
+
+4 workers
+
+14:34:36.747 [info] time is {10351394,ok}
+14:39:37.249 [info] time is {10539947,ok}
+14:41:04.646 [info] time is {11041840,ok}
+
+13:59:06.013 [info] time is {8391074,ok}
+14:00:22.398 [info] time is {7200065,ok}
+
+6 workers
+
+14:36:38.608 [info] time is {7418178,ok}
+14:38:35.838 [info] time is {7943928,ok}
+14:43:36.913 [info] time is {7466887,ok}
+
+
+(coor@54.75.174.108)3> 21:20:52.836 [info] time is {8392288,ok}
+21:11:39.537 [info] time is {8266120,ok}
+(coor@54.75.174.108)3> 14:01:43.852 [info] time is {8318714,ok}
+
+graph size 200
+
+2 workers
+20:28:59.513 [info] time is {28576036,ok}
+
+4 workers
+21:15:44.509 [info] time is {19955346,ok}
+14:04:11.886 [info] time is {19947883,ok}
+14:29:32.816 [info] time is {20172740,ok}
+
+6 workers
+21:13:33.550 [info] time is {23586307,ok}
+14:08:54.317 [info] time is {21707179,ok}
+21:19:00.179 [info] time is {16312284,ok}
+
+
+time is {13546961,ok}
+time is {11021114,ok}
+time is {10769482,ok}
+
+
+
+
+graph size 200
+worker spec, success
+results of timing measurement: {5*times, #workers} 
+[{[501783453,497833783,500259817,498577432,500579375],1},
+ {[261018427,263398059,261357587,261325481,261811346],3},
+ {[215529582,216332330,214186513,210343482,215392581],5},
+ {[200857174,202346999,198151642,202068224,202640397],7},
+ {[197448102,200284214,197180313,200077327,193885836],9},
+ {[196401648,194380975,194877175,200838831,197389910],11},
+ {[204183294,202688052,202843724,205534212,199538376],13},
+ {[206211886,207906182,204393111,204337654,205211722],15},
+ {[214912214,220911049,215256200,223366664,213747236],17},
+ {[225173600,226534859,227061441,224729944,225993836],19},
+ {[236361608,231259767,230966586,233808475,237167765],21},
+ {[239925718,234191798,237472303,238523798,237718828],23},
+ {[217762815,250071243,257174008,252779975,254780936],25},
+ {[284210258,280286516,291888111,279258373,284793388],27},
+ {[277794597,254161464,256001600,259502975,257685458],29}]
+================
+
+
 1000 nodes
+
+==========================souffle=========================
+
+unit is second
+[23.398774342029355, 23.271165946032852, 23.15432874695398, 23.184138880926184, 23.159505206975155]
+
+
+=======================distributed========================
 
 times for 5 runs in this round is [2476490515,2380364744,2318651808, 2416587388,2355847319]
 
-[{[2030027.428,1934609.381,1882308.266,1887702.119,1999376.023], 16},
+[{[2030,027,428,1934609.381,1882308.266,1887702.119,1999376.023], 16},
 
 
  {[1989257188,2264864341,2284074388,2276363040,2271413641],
@@ -11,7 +172,9 @@ times for 5 runs in this round is [2476490515,2380364744,2318651808, 2416587388,
  {[2476490515,2380364744,2318651808,2416587388,2355847319],
   20}]
 
-time used in millisecond is 981683.483
+========================serial=============================
+
+time used in millisecond is 981,683,483
 time used in millisecond is 924164.635
 time used in millisecond is 1096319.724
 time used in millisecond is 999730.308
@@ -20,11 +183,21 @@ time used in millisecond is 985753.617
 
 2000 nodes
 
+
+souffle
+
+[96.67802486906294, 97.70499950903468, 97.24728764698375, 96.98543406196404, 97.1396741970675]
+
+single
+
 time used in millisecond is 8202526.055
 time used in millisecond is 8547508.768
 time used in millisecond is 9174541.207
 time used in millisecond is 8521315.233
 time used in millisecond is 8863537.103
+
+
+distributed
 
 eval finished at stage 7
 time used in millisecond is 10744950.012
@@ -37,6 +210,11 @@ time used in millisecond is 10650090.143
 
 
 3000 nodes
+
+souffle
+
+[248.57892678596545, 248.84132542903535, 251.00231510598678, 247.1214661730919, 249.77032777108252]
+
 
 1> timing:start(single).
 time used in millisecond is 25952409.009
