@@ -3,7 +3,7 @@
 %% @end
 %%%-------------------------------------------------------------------
 
--module(erlog_worker).
+-module(erlog_runner).
 
 -include_lib("kernel/include/logger.hrl").
 
