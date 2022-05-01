@@ -3,7 +3,8 @@
 -export([project/2, join/5, get_rel_by_name/2, get_rel_by_name_and_rest/2, rename_pred/2,
          get_rel_by_pred/2]).
 -export([new/0, singleton/1, fold/3, map/2, is_empty/1, subtract/2, filteri/2, filter/2,
-         foreach/2, split_args/2, equal/2, union/2, from_list/1, flatten/1, size/1]).
+         foreach/2, split_args/2, equal/2, union/2, from_list/1, flatten/1, size/1,
+         add_element/2]).
 -export([to_string/1]).
 -export([read_db/1, read_db/2, write_db/2, write_db/3]).
 
@@ -233,6 +234,10 @@ equal(DB1, DB2) ->
 -spec union(dl_db_instance(), dl_db_instance()) -> dl_db_instance().
 union(CurDB, NewDB) ->
   gb_sets:union(CurDB, NewDB).
+
+-spec add_element(term(), dl_db_instance()) -> dl_db_instance().
+add_element(Ele, CurDB) ->
+  gb_sets:add_element(Ele, CurDB).
 
 -spec from_list([dl_atom()]) -> dl_db_instance().
 from_list(L) ->

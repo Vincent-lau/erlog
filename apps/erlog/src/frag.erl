@@ -161,14 +161,27 @@ get_part_cols(Rules) ->
 -spec hash_frag(dl_db_instance(), [dl_rule()], integer()) -> [dl_db_instance()].
 hash_frag(DB, Rules, TotTasks) ->
   PartCols = get_part_cols(Rules),
-  lists:map(fun(N) ->
-             dbs:filter(fun(Atom) ->
-                           Cols =
-                             maps:get(
-                               dl_repr:get_atom_name(Atom), PartCols, [1]),
-                           ToHash = dl_repr:get_atom_args_by_index(Cols, Atom),
-                           N == erlang:phash2(ToHash, TotTasks) + 1
-                        end,
-                        DB)
-          end,
-          lists:seq(1, TotTasks)).
+  DBLists = dbs:fold(fun(Atom, AccIn) ->
+              Cols =
+                maps:get(
+                  dl_repr:get_atom_name(Atom), PartCols, [1]),
+              ToHash = dl_repr:get_atom_args_by_index(Cols, Atom),
+              Hash = erlang:phash2(ToHash, TotTasks) + 1,
+              {value, {N, DBN}} = lists:keysearch(Hash, 1, AccIn),
+              lists:keyreplace(Hash, 1, AccIn, {N, dbs:add_element(Atom, DBN)})
+           end,
+           [{K, dbs:new()} || K <- lists:seq(1, TotTasks)],
+           DB),
+  lists:map(fun ({_N, L}) -> L end, DBLists).
+
+  % lists:map(fun(N) ->
+  %            dbs:filter(fun(Atom) ->
+  %                          Cols =
+  %                            maps:get(
+  %                              dl_repr:get_atom_name(Atom), PartCols, [1]),
+  %                          ToHash = dl_repr:get_atom_args_by_index(Cols, Atom),
+  %                          N == erlang:phash2(ToHash, TotTasks) + 1
+  %                       end,
+  %                       DB)
+  %         end,
+  %         lists:seq(1, TotTasks)).

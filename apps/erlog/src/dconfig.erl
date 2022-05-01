@@ -8,6 +8,12 @@
 
 -include_lib("kernel/include/logger.hrl").
 
+-ifdef(TEST).
+  -define(CONFIG_PATH, "../../extras/config/sys.config").
+-else.
+  -define(CONFIG_PATH, "config/sys.config").
+-endif.
+
 -record(node_config, {nodes :: #{node() => port()}, max_node_no :: integer()}).
 
 -type config() :: #node_config{}.
@@ -70,7 +76,7 @@ start_node(Name, PA) ->
   lager:debug("code path is ~s", [PA]),
   Cmd =
     io_lib:format("erl -noshell -noinput ~s -config ~s -pa ~s",
-                  [NameCmd, "config/sys.config", PA]),
+                  [NameCmd, ?CONFIG_PATH, PA]),
   erlang:open_port({spawn, Cmd}, []).
 
 -spec stop_node(node(), config()) -> true.
