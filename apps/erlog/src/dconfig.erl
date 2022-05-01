@@ -70,7 +70,7 @@ start_node(Name, PA) ->
   lager:debug("code path is ~s", [PA]),
   Cmd =
     io_lib:format("erl -noshell -noinput ~s -config ~s -pa ~s",
-                  [NameCmd, "../../extras/config/sys.config", PA]),
+                  [NameCmd, "config/sys.config", PA]),
   erlang:open_port({spawn, Cmd}, []).
 
 -spec stop_node(node(), config()) -> true.
