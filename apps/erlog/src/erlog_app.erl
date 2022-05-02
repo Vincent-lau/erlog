@@ -9,8 +9,8 @@
 
 -export([start/2, stop/1]).
 
-start(_StartType, _StartArgs) ->
-    erlog_sup:start_link().
+start(_StartType, [ProgName]) ->
+    erlog_sup:start_link(ProgName).
 
 stop(_State) ->
     ok.

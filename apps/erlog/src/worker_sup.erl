@@ -23,14 +23,11 @@ init([]) ->
     SupFlags =
         #{strategy => one_for_one,
           intensity => 0,
-          period => 1,
-          auto_shutdown => any_significant},
+          period => 1},
     ChildSpecs =
         [#{id => main,
            start => {worker, start_link, []},
-           shutdown => 5000,
-           restart => temporary,
-           significant => true}],
+           shutdown => 5000}],
     {ok, {SupFlags, ChildSpecs}}.
 
 %% internal functions

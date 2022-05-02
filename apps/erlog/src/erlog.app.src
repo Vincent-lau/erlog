@@ -2,7 +2,7 @@
  [{description, "A distributed Datalog engine"},
   {vsn, "0.1.0"},
   {registered, [coor]},
-  {mod, {erlog_app, []}},
+  {mod, {erlog_app, ["apps/bench/bench_program/tc_bench.dl"]}},
   {applications,
    [kernel,
     stdlib,
