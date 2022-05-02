@@ -7,13 +7,13 @@
 
 -behaviour(supervisor).
 
--export([start_link/0]).
+-export([start_link/1]).
 -export([init/1]).
 
 -define(SERVER, ?MODULE).
 
-start_link({Mode, ProgName}) ->
-    supervisor:start_link({local, ?SERVER}, ?MODULE, [Mode, ProgName]).
+start_link(ProgName) ->
+    supervisor:start_link({local, ?SERVER}, ?MODULE, [ProgName]).
 
 start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
@@ -27,14 +27,14 @@ start_link() ->
 %%                  shutdown => shutdown(), % optional
 %%                  type => worker(),       % optional
 %%                  modules => modules()}   % optional
-init([]) ->
+init([ProgName]) ->
     SupFlags =
         #{strategy => one_for_all,
           intensity => 0,
           period => 1},
     ChildSpecs =
         [#{id => main,
-           start => {erlog_srv, start_link, []},
+           start => {erlog_srv, start_link, [ProgName]},
            shutdown => 5000}],
     {ok, {SupFlags, ChildSpecs}}.
 
