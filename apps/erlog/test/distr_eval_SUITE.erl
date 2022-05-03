@@ -16,9 +16,9 @@ all() ->
   [{group, negative_dl}, {group, positive_dl}].
 
 groups() ->
-  [{tc_many_workers, [shuffle], [tc4workers, tc3workers, tc6workers]},
+  [{tc_many_workers, [sequence], [tc4workers, tc3workers, tc6workers]},
    {positive_dl,
-    [shuffle],
+    [sequence],
     [{group, tc_many_workers},
      tclarge4workers,
      rsg4workers,
@@ -27,7 +27,7 @@ groups() ->
      marrying4workers,
      tc2_4workers,
      pointsto4workers]},
-   {negative_dl, [], [indirect4workers, unreachable4workers]}].
+   {negative_dl, [sequence], [indirect4workers, unreachable4workers]}].
 
 ets_owner() ->
   receive
@@ -164,7 +164,7 @@ clean_tmp(TmpPath) ->
   ok = file:make_dir(TmpPath).
 
 start_workers(NumWorkers) ->
-  Cfg = dconfig:start_cluster([worker], NumWorkers, "../../lib/erlog/ebin"),
+  Cfg = dconfig:start_cluster([worker], NumWorkers),
   ct:pal("result of starting workers ~p~n", [Cfg]),
   R = dconfig:all_start(Cfg),
   ct:pal("results of all_start ~p~n", [R]),
