@@ -119,7 +119,38 @@ project_args(Args, [C | Cs]) ->
 -spec join(dl_db_instance(), dl_db_instance(), [integer()], [integer()], dl_const()) ->
             dl_db_instance().
 join(DB1, DB2, C1, C2, ResName) ->
-  flatmap(fun(Atom) -> join_one(DB2, Atom, C1, C2, ResName) end, DB1).
+  % we create a data structure that maps the cols to join to a database instance
+  % with atoms that have those particular cols
+  JoinCols =
+    fold(fun(Atom1, AccIn) ->
+            Args1 = nth_args(lists:sort(C1), dl_repr:get_atom_args(Atom1)),
+            ColsDB = maps:get(Args1, AccIn, dbs:new()),
+            NewColsDB = add(Atom1, ColsDB),
+            maps:put(Args1, NewColsDB, AccIn)
+         end,
+         #{},
+         DB1),
+  % then for each atom candidate, we look up from our map to see if there is an atom
+  % that can be joined
+  % We do this to avoid the O(n^2) pass to our two databases to be joined
+  fold(fun(Atom2, AccIn) ->
+          Args2 = nth_args(lists:sort(C2), dl_repr:get_atom_args(Atom2)),
+          case maps:find(Args2, JoinCols) of
+            {ok, ColsDB} ->
+              RemoveJoinColArgs =
+                listsi:filteri(fun(_, I) -> not lists:member(I, C2) end,
+                               dl_repr:get_atom_args(Atom2)),
+              JoinedAtoms =
+                map(fun(Atom1) ->
+                       dl_repr:cons_atom(ResName, dl_repr:get_atom_args(Atom1) ++ RemoveJoinColArgs)
+                    end,
+                    ColsDB),
+              dbs:union(JoinedAtoms, AccIn);
+            error -> AccIn
+          end
+       end,
+       dbs:new(),
+       DB2).
 
 -spec join_one(dl_db_instance(), dl_atom(), [integer()], [integer()], dl_const()) ->
                 dl_db_instance().
@@ -138,6 +169,16 @@ join_one(DlAtoms, #dl_atom{args = Args1}, C1, C2, ResName) ->
   map(fun(#dl_atom{args = Args2}) -> #dl_atom{pred_sym = ResName, args = Args1 ++ Args2}
       end,
       RemoveJoinColArgs).
+
+% -spec select_before_join(dl_db_instance(),
+%                          dl_db_instance(),
+%                          [integer()],
+%                          [integer()],
+%                          dl_const(),
+%                          dl_const()) ->
+%                           dl_db_instance().
+% select_before_join(DB1, DB2, L1, L2, InputName, ResName) ->
+%   SelectedAtoms1 = dbs:get_rel_by_name(InputName, DB1),
 
 %%----------------------------------------------------------------------
 %% operations on atoms in the db
@@ -175,6 +216,10 @@ rename_pred(NewPred, DB) ->
 -spec new() -> dl_db_instance().
 new() ->
   gb_sets:new().
+
+-spec add(term(), dl_db_instance()) -> dl_db_instance().
+add(Ele, DB) ->
+  gb_sets:add(Ele, DB).
 
 -spec is_empty(dl_db_instance()) -> boolean().
 is_empty(DB) ->
