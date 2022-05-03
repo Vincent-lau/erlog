@@ -94,7 +94,6 @@ get_tmp_path() ->
 get_num_tasks() ->
   gen_server:call({global, name()}, num_tasks).
 
-
 assign_task(WorkerNode) ->
   gen_server:call({global, name()}, {assign, WorkerNode}).
 
@@ -472,10 +471,12 @@ gen_new_state_when_task_done(NewTasks,
       of
         [] when ProgNum == length(Programs) ->
           % nothing to generate, and we have evaluted all programs
-          ?LOG_DEBUG(#{evaluation_finished_at_stage => SN}),
-          lager:info("eval finished at stage ~p~n", [SN]),
+          lager:info("eval finished at stage ~p", [SN]),
           FinalDB = collect_results(ProgNum, 1, TmpPath, NumTasks),
-          lager:info("final db is ~n~s~n", [dbs:to_string(FinalDB)]),
+          case dbs:size(FinalDB) > 30 of
+            false -> lager:info("final db is ~n~s", [dbs:to_string(FinalDB)]);
+            true -> lager:debug("final db is ~n~s", [dbs:to_string(FinalDB)])
+          end,
           dbs:write_db(TmpPath ++ "final_db", FinalDB),
           send_done_msg(),
           State#coor_state{tasks = [tasks:new_terminate_task()],
@@ -485,7 +486,7 @@ gen_new_state_when_task_done(NewTasks,
         [] -> % we should go to the next program and start again
           new_program_state(State);
         Ts -> % we enter the next round
-          ?LOG_DEBUG(#{new_tasks_for_round => SN + 1, tasks => Ts}),
+          lager:info("new tasks for stage ~p", [SN + 1]),
           State#coor_state{tasks = Ts,
                            stage_num = SN + 1,
                            task_timeout = NewTimeOut,
@@ -506,10 +507,8 @@ send_done_msg() ->
       done_checker ! {self(), task_done}
   end.
 
-
 collect_results(TaskNum, TmpPath, NumTasks) ->
   collect_results(get_prog_num(), TaskNum, TmpPath, NumTasks).
-
 
 %%----------------------------------------------------------------------
 %% @doc
@@ -626,17 +625,23 @@ check_fixpoint(ProgNum, StageNum, TaskNum, TmpPath) ->
 -spec wait_for_finish(timeout()) -> ok | timeout.
 wait_for_finish(Timeout) ->
   register(done_checker, self()),
-  Res =
-    receive
-      {_Pid, task_done} ->
-        ok;
-      X ->
-        exit(X)
-    after Timeout ->
-      exit(exe_timeout)
-    end,
+  Res = wait_for_finish_rec(Timeout),
   unregister(done_checker),
   Res.
+
+wait_for_finish_rec(Timeout) ->
+  receive
+    {_Pid, task_done} ->
+      ok;
+    {PortId, {data, DataMsg}} ->
+      lager:debug("received data from ~p, msg is ~s", [PortId, DataMsg]),
+      wait_for_finish_rec(Timeout);
+    X ->
+      exit(X)
+  after Timeout ->
+    exit(exe_timeout)
+  end.
+
 
 %% @doc this will find all the dead nodes and reset their tasks
 -spec reset_dead_tasks([mr_task()]) -> [mr_task()].
@@ -653,7 +658,7 @@ reset_dead_tasks(Tasks) ->
                              orelse not sets:is_element(Worker, Alive))
                of
                  true ->
-                   io:format(standard_error, "found dead task ~p~n", [T]),
+                   lager:info("found dead task ~p~n", [T]),
                    tasks:reset_task(T);
                  false -> T
                end
