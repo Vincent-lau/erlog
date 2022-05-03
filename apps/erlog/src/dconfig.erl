@@ -2,10 +2,19 @@
 
 -export([start_cluster/2, start_cluster/3, all_start/1, stop_cluster/1, all_work/1,
          fail_start/2, slow_start/2]).
-
 -export([add_node/1, remove_node/2]).
 
 -compile(nowarn_unused_function).
+
+-ifdef(TEST).
+
+-define(CONFIG_PATH, "../../extras/config/sys.config").
+
+-else.
+
+-define(CONFIG_PATH, "config/sys.config").
+
+-endif.
 
 -include_lib("kernel/include/logger.hrl").
 
@@ -68,7 +77,8 @@ get_name_cmd(NodeName) ->
 -spec start_node(node(), string()) -> port().
 start_node(Name, PA) ->
   NameCmd = get_name_cmd(Name),
-  Cmd = io_lib:format("erl -noshell -noinput ~s -pa ~s", [NameCmd, PA]),
+  Cmd =
+    io_lib:format("erl -noshell -noinput ~s -config ~s -pa ~s", [NameCmd, ?CONFIG_PATH, PA]),
   erlang:open_port({spawn, Cmd}, []).
 
 -spec stop_node(node(), config()) -> true.
@@ -115,7 +125,7 @@ pick_n(M, N, Acc) ->
 %% @end
 %%----------------------------------------------------------------------
 all_start(Cfg) ->
-  multicall(worker, start, [], Cfg).
+  multicall(application, ensure_all_started, [erlog], Cfg).
 
 -spec slow_start(config(), integer()) -> ok.
 slow_start(Cfg, FailNum) ->
@@ -160,7 +170,8 @@ call(Node, Module, Function, Args) ->
 
 get_code_path() ->
   CodePath = code:get_path(),
-  lists:concat(lists:join(" ", CodePath)).
+  lists:concat(
+    lists:join(" ", CodePath)).
 
 start_cluster([BaseName], Num) ->
   start_cluster([BaseName], Num, get_code_path()).
