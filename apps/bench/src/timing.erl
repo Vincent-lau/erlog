@@ -12,7 +12,7 @@ start() ->
   start(success).
 
 start(WorkerSpec) ->
-  io:format("current timing program ~p~n", [?PROG]),
+  lager:info("current timing program ~p~n", [?PROG]),
   time_against_workers(wallclock, WorkerSpec, 5, 8, 2).
 
 % start(single) ->
@@ -56,10 +56,10 @@ time_against_workers(_TimeType, WSpec, NumWorkers, MinWorkers, MaxWorkers, Repea
   Res;
 time_against_workers(TimeType, WorkerSpec, NumWorkers, MinWorkers, MaxWorkers, Repeats, Acc)
   when NumWorkers =< MaxWorkers ->
-  io:format("currently ~p number of workers~n", [NumWorkers]),
+  lager:info("currently ~p number of workers~n", [NumWorkers]),
   Time =
     repeat_times(distr, TimeType, WorkerSpec, Repeats, NumWorkers, trunc(MaxWorkers * 1.5)),
-  io:format("times for ~p runs in this round is ~p~n", [Repeats, Time]),
+  lager:notice("times for ~p runs in this round is ~p~n", [Repeats, Time]),
   time_against_workers(TimeType,
                        WorkerSpec,
                        NumWorkers + 2,
@@ -101,7 +101,7 @@ repeat_times(single, _TimeType, Repeats) ->
 time_single_node() ->
   QryName = preproc:get_output_name(file, ?PROG),
   {Time, _R} = timer:tc(erlog_runner, run_program, [single, ?PROG, QryName]),
-  io:format("time used in millisecond is ~p~n", [Time / 1000]),
+  lager:info("time used in millisecond is ~p~n", [Time / 1000]),
   Time.
 
 -spec time_distr_nodes(TimeType, integer(), integer()) -> integer()
@@ -113,22 +113,22 @@ time_distr_nodes(TimeType, NumWorkers, NumTasks) ->
   when TimeType :: wallclock | cpu.
 time_distr_nodes(wallclock, WorkerSpec, NumWorkers, NumTasks) ->
   Cfg = erlog_runner:distr_setup(?PROG, NumWorkers, NumTasks, ?tmp_path, WorkerSpec),
-  io:format("set up complete~n"),
+  lager:info("set up complete~n"),
   QryName = preproc:get_output_name(file, ?PROG),
   {Time, _R} = timer:tc(erlog_runner, distr_run, [Cfg, QryName, ?tmp_path]),
   ?LOG_DEBUG("ready to clean up~n"),
   erlog_runner:distr_clean(Cfg),
-  io:format("time used in millisecond is ~p~n", [Time / 1000]),
+  lager:info("time used in millisecond is ~p~n", [Time / 1000]),
   Time;
 time_distr_nodes(cpu, WorkerSpec, NumWorkers, NumTasks) ->
   Cfg = erlog_runner:distr_setup(?PROG, NumWorkers, NumTasks, ?tmp_path, WorkerSpec),
-  io:format("set up complete~n"),
+  lager:info("set up complete~n"),
   S1 = statistics(runtime),
-  io:format("stats 1 ~p~n", [S1]),
+  lager:info("stats 1 ~p~n", [S1]),
   QryName = preproc:get_output_name(file, ?PROG),
   erlog_runner:distr_run(Cfg, QryName, ?tmp_path),
   {_TotTime, TimeSince} = statistics(runtime),
   ?LOG_DEBUG("ready to clean up~n"),
   erlog_runner:distr_clean(Cfg),
-  io:format("time used in millisecond is ~p~n", [TimeSince]),
+  lager:info("time used in millisecond is ~p~n", [TimeSince]),
   TimeSince.
