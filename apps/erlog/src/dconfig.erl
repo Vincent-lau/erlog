@@ -77,7 +77,7 @@ get_name_cmd(NodeName) ->
 -spec start_node(node(), string()) -> port().
 start_node(Name, PA) ->
   NameCmd = get_name_cmd(Name),
-  {ok, CWD} = file:get_cwd(),
+  {ok, CWD} = file:list_dir("../../"),
   io:format(standard_error, "testing cwd ~p~n", [CWD]),
   Cmd =
     io_lib:format("erl -noshell -noinput ~s -config ~s -pa ~s", [NameCmd, ?CONFIG_PATH, PA]),
