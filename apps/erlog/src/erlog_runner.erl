@@ -60,10 +60,10 @@ distr_setup(ProgName, NumWorkers, NumTasks, TmpPath, Spec) ->
     success ->
       dconfig:all_start(Cfg);
     {failure, Percent} ->
-      io:format("worker working in failure mode and the failure percent is ~p~n", [Percent]),
+      lager:info("worker working in failure mode and the failure percent is ~p~n", [Percent]),
       dconfig:fail_start(Cfg, abnormal_worker:num_failures(NumWorkers, Percent));
     {straggle, Percent} ->
-      io:format("worker working in straggle mode and the straggle percent is "
+      lager:info("worker working in straggle mode and the straggle percent is "
                 "~p~n",
                 [Percent]),
       dconfig:slow_start(Cfg, abnormal_worker:num_stragglers(NumWorkers, Percent))
@@ -79,7 +79,7 @@ distr_clean(Cfg) ->
 distr_run(Cfg, QryName, TmpPath) ->
   dconfig:all_work(Cfg),
   coordinator:wait_for_finish(?WAIT_TIME),
-  NumTasks = coordinator:get_num_tasks(),
-  FinalDB = coordinator:collect_results(1, TmpPath, NumTasks),
+  ProgNum = coordinator:get_prog_num(),
+  FinalDB = coordinator:collect_results(TmpPath, ProgNum),
   FinalDBQ = dbs:get_rel_by_name(QryName, FinalDB),
   ?LOG_DEBUG(#{eval_mode => distributed, result_db => dbs:to_string(FinalDBQ)}).

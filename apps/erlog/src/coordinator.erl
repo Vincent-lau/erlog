@@ -9,14 +9,16 @@
 -import(dl_repr, [get_rule_headname/1]).
 
 -export([start_link/3, start_link/2, start_link/1, get_tmp_path/0, get_num_tasks/0,
-         get_current_stage_num/0, assign_task/1, finish_task/2, done/0, stop/0, reg_worker/1]).
+         get_current_stage_num/0, get_prog_num/0, assign_task/1, finish_task/2, done/0, stop/0,
+         reg_worker/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
--export([collect_results/3, collect_results/4, wait_for_finish/1]).
+-export([collect_results/2, wait_for_finish/1]).
 
 -record(coor_state,
         {tasks :: [mr_task()],
          num_tasks :: non_neg_integer(),
+         qry_names :: [string()],
          programs :: [[dl_program()]],
          prog_num :: integer(),
          stage_num :: integer(),
@@ -113,8 +115,10 @@ init([ProgName, TmpPath, NumTasks]) ->
   % we check the freshness of tmp just in case
   clean_tmp(TmpPath),
   ok = file:make_dir(TmpPath),
+  lager:info("number of tasks is ~p", [NumTasks]),
   {Facts, Rules} = preproc:lex_and_parse(file, ProgName),
   % preprocess rules
+  QryNames = preproc:get_output_name(ProgName),
   Program = preproc:process_rules(Rules),
   Programs = neg:compute_stratification(allorder, Program),
   ?LOG_DEBUG(#{input_prog => dl_repr:program_to_string(Program)}),
@@ -126,6 +130,7 @@ init([ProgName, TmpPath, NumTasks]) ->
   {ok,
    #coor_state{tasks = Tasks,
                num_tasks = NumTasks,
+               qry_names = QryNames,
                programs = Programs,
                prog_num = 1,
                stage_num = 1,
@@ -410,12 +415,13 @@ program_to_tasks(EDB, Program, ProgNum, NumTasks, TmpPath) ->
   EDBProg = eval:get_edb_program(Program),
   DeltaDB = eval:imm_conseq(EDBProg, EDB, dbs:new()),
   FullDB = dbs:union(DeltaDB, EDB),
-  frag:hash_frag(FullDB, Program, ProgNum, 1, NumTasks, TmpPath ++ "fulldb"),
+  FullDBPath = io_lib:format("~s-~w", [TmpPath ++ "fulldb", ProgNum]),
+  dbs:write_db(FullDBPath, FullDB),
   % similar to what I did in eval_seminaive, we put DeltaDB union EDB as the
   % DeltaDB in case the input contain "idb" predicates
   frag:hash_frag(FullDB, Program, ProgNum, 1, NumTasks, TmpPath ++ "task"),
   Tasks = generate_one_stage_tasks(ProgNum, [Program], 1, TmpPath, NumTasks),
-  ?LOG_DEBUG(#{tasks_after_coor_initialisation => Tasks}),
+  lager:debug("tasks_after_coor_initialisation ~p", [Tasks]),
   Tasks.
 
 %% @doc Given the current task, generate a new state with the new program.
@@ -427,7 +433,7 @@ new_program_state(State =
                                 nodes_rate = NodesRate,
                                 nodes_tasks = NodesTasks,
                                 tmp_path = TmpPath}) ->
-  FinalDB = collect_results(ProgNum, 1, TmpPath, NumTasks),
+  FinalDB = collect_results(TmpPath, ProgNum),
   NewProgNum = ProgNum + 1,
   Tasks =
     programs_to_tasks(FinalDB,
@@ -458,11 +464,11 @@ gen_new_state_when_task_done(NewTasks,
                                            tmp_path = TmpPath,
                                            num_tasks = NumTasks,
                                            prog_num = ProgNum,
+                                           qry_names = QryNames,
                                            programs = Programs,
                                            nodes_rate = NodesRate}) ->
   case check_all_finished(NewTasks) of
     true ->
-      ?LOG_DEBUG(#{finished_stage => SN}),
       case generate_one_stage_tasks(ProgNum,
                                     lists:nth(ProgNum, Programs),
                                     SN + 1,
@@ -472,12 +478,9 @@ gen_new_state_when_task_done(NewTasks,
         [] when ProgNum == length(Programs) ->
           % nothing to generate, and we have evaluted all programs
           lager:info("eval finished at stage ~p", [SN]),
-          FinalDB = collect_results(ProgNum, 1, TmpPath, NumTasks),
-          case dbs:size(FinalDB) > 30 of
-            false -> lager:info("final db is ~n~s", [dbs:to_string(FinalDB)]);
-            true -> lager:debug("final db is ~n~s", [dbs:to_string(FinalDB)])
-          end,
-          dbs:write_db(TmpPath ++ "final_db", FinalDB),
+          FinalDB = collect_results(TmpPath, ProgNum),
+          QryRes = extract_results(FinalDB, QryNames),
+          dbs:write_db(TmpPath ++ "final_db", QryRes),
           send_done_msg(),
           State#coor_state{tasks = [tasks:new_terminate_task()],
                            stage_num = SN + 1,
@@ -486,7 +489,7 @@ gen_new_state_when_task_done(NewTasks,
         [] -> % we should go to the next program and start again
           new_program_state(State);
         Ts -> % we enter the next round
-          lager:info("new tasks for stage ~p", [SN + 1]),
+          lager:debug("new tasks for stage ~p", [SN + 1]),
           State#coor_state{tasks = Ts,
                            stage_num = SN + 1,
                            task_timeout = NewTimeOut,
@@ -499,6 +502,23 @@ gen_new_state_when_task_done(NewTasks,
                        nodes_rate = NodesRate#{WorkerNode := NewProgRate}}
   end.
 
+-spec extract_results(dl_db_instance(), [string()]) -> dl_db_instance().
+extract_results(DB, QryNames) ->
+  ResQL =
+    lists:foldl(fun(QryName, AccIn) ->
+                   TmpDB = dbs:get_rel_by_name(QryName, DB),
+                   dbs:union(TmpDB, AccIn)
+                end,
+                dbs:new(),
+                QryNames),
+  case dbs:size(ResQL) > 30 of
+    false ->
+      lager:info("final db is ~n~s", [dbs:to_string(ResQL)]);
+    true ->
+      lager:debug("final db is ~n~s", [dbs:to_string(ResQL)])
+  end,
+  ResQL.
+
 send_done_msg() ->
   case whereis(done_checker) of
     undefined ->
@@ -507,28 +527,11 @@ send_done_msg() ->
       done_checker ! {self(), task_done}
   end.
 
-collect_results(TaskNum, TmpPath, NumTasks) ->
-  collect_results(get_prog_num(), TaskNum, TmpPath, NumTasks).
+%% @doc Collect all results that have been generated in the full db.
+collect_results(TmpPath, ProgNum) ->
+  FileName = io_lib:format("~s-~w", [TmpPath ++ "fulldb", ProgNum]),
+  dbs:read_db(FileName).
 
-%%----------------------------------------------------------------------
-%% @doc
-%% Collect all results that have been generated in the full db.
-%%
-%% @returns the aggregated results
-%%
-%% @end
-%%----------------------------------------------------------------------
--spec collect_results(integer(), integer(), file:filename(), integer()) ->
-                       dl_db_instance().
-collect_results(ProgNum, TaskNum, TmpPath, NumTasks) ->
-  case TaskNum > NumTasks of
-    true ->
-      dbs:new();
-    false ->
-      FileName = io_lib:format("~s-~w-1-~w", [TmpPath ++ "fulldb", ProgNum, TaskNum]),
-      DB = dbs:read_db(FileName),
-      dbs:union(DB, collect_results(ProgNum, TaskNum + 1, TmpPath, NumTasks))
-  end.
 
 %%----------------------------------------------------------------------
 %% @doc
@@ -641,7 +644,6 @@ wait_for_finish_rec(Timeout) ->
   after Timeout ->
     exit(exe_timeout)
   end.
-
 
 %% @doc this will find all the dead nodes and reset their tasks
 -spec reset_dead_tasks([mr_task()]) -> [mr_task()].

@@ -45,14 +45,12 @@ start_working() ->
 
 start_working_sync() ->
   {ok, NumTasks} = application:get_env(erlog, num_tasks),
-  {ok, TmpPath} =  application:get_env(erlog, inter_dir),
-  work(#worker_state{
-    num_tasks = NumTasks,
-    tmp_path = TmpPath,
-    task_num = 0,
-    stage_num = 0,
-    mode = success
-  }).
+  {ok, TmpPath} = application:get_env(erlog, inter_dir),
+  work(#worker_state{num_tasks = NumTasks,
+                     tmp_path = TmpPath,
+                     task_num = 0,
+                     stage_num = 0,
+                     mode = success}).
 
 stop() ->
   gen_server:call(name(), terminate).
@@ -123,24 +121,12 @@ work(State =
       % written to the delta and indeed used in previous iterations are not necessarily
       % from that worker, but there is no way for the generating worker to know
       % that atom has already been generated.
-      FullDBs =
-        [dbs:read_db(
-           io_lib:format("~s-~w-~w-~w", [TmpPath ++ "fulldb", ProgNum, 1, X]))
-         || X <- lists:seq(1, NumTasks)],
-      % DeltaDBs =
-      %   [dbs:read_db(
-      %      io_lib:format("~s-~w-~w-~w", [TmpPath ++ "task", ProgNum, StageNum, X]))
-      %    || X <- lists:seq(1, NumTasks)],
-      case Mode of
-        straggle ->
-          abnormal_worker:straggler();
-        _ ->
-          ok
-      end,
+      FullDBPath = io_lib:format("~s-~w", [TmpPath ++ "fulldb", ProgNum]),
+      FullDB = dbs:read_db(FullDBPath),
+
+      check_straggle(Mode),
       % we need the old delta db because we might want the delta db generated from
       % other workers
-      % OldDeltaDB = lists:foldl(fun(DB, Acc) -> dbs:union(DB, Acc) end, dbs:new(), DeltaDBs),
-      FullDB = lists:foldl(fun(DB, Acc) -> dbs:union(DB, Acc) end, dbs:new(), FullDBs),
       lager:debug("worker_node ~p, reading_fulldb_from_file_named ~p", [node(), FName1]),
       FName2 = io_lib:format("~stask-~w-~w-~w", [TmpPath, ProgNum, StageNum, TaskNum]),
       % we need to take the diff between this delta and the FullDB because our delta
@@ -152,13 +138,15 @@ work(State =
       % need to store FullDB somewhere for later stages of evaluation
       % and this is not a static state, it changes every iteration
       % and is potentially huge, so this cost might be quite large
-      {NewFullDB, NewDeltaDB} = eval:eval_seminaive_one(Program, FullDB , DeltaDB),
+      {NewFullDB, NewDeltaDB} = eval:eval_seminaive_one(Program, FullDB, DeltaDB),
       lager:debug("new_db ~p", [dbs:to_string(NewDeltaDB)]),
       % hash the new DB locally and write to disk
       % with only tuples that have not been generated before
       frag:hash_frag(NewDeltaDB, Program, ProgNum, StageNum + 1, NumTasks, TmpPath ++ "task"),
-      FullDBToWrite = dbs:subtract(dbs:union(NewFullDB, DeltaDB), FullDB),
-      frag:hash_frag(FullDBToWrite, Program, ProgNum, 1, NumTasks, TmpPath ++ "fulldb"),
+      FullDBToWrite =
+        dbs:subtract(
+          dbs:union(NewFullDB, DeltaDB), FullDB),
+      dbs:write_db(FullDBPath, FullDBToWrite),
       % call finish task on coordinator
       finish_task(T),
       lager:debug("~p rpc results for finish at stage ~p task ~p", [node(), StageNum, TaskNum]),
@@ -215,3 +203,8 @@ check_coor() ->
     {nodedown, ?coor_node} ->
       stop()
   end.
+
+check_straggle(straggle) ->
+  abnormal_worker:straggler();
+check_straggle(_Other) ->
+  ok.

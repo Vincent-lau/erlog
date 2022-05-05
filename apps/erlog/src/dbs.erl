@@ -62,13 +62,18 @@ cons_db_from_data(Data, AtomName) ->
 %%----------------------------------------------------------------------
 -spec write_db(file:filename(), dl_db_instance()) -> ok.
 write_db(FileName, DB) ->
-  write_db(FileName, DB, [write]).
+  write_db(FileName, DB, [append]).
 
 -spec write_db(file:filename(), dl_db_instance(), [file:mode()]) -> ok | {error, term()}.
 write_db(FileName, DB, Modes) ->
-  {ok, Stream} = file:open(FileName, Modes),
-  io:format(Stream, "~s~n", [to_string(DB)]),
-  file:close(Stream).
+  case dbs:size(DB) of
+    0 ->
+      ok;
+    _N ->
+      {ok, Stream} = file:open(FileName, Modes),
+      io:format(Stream, "~s~n", [to_string(DB)]),
+      file:close(Stream)
+  end.
 
 %%----------------------------------------------------------------------
 %% RA operations
@@ -301,5 +306,10 @@ singleton(Key) ->
 
 -spec to_string(dl_db_instance()) -> string().
 to_string(DB) ->
-  L = gb_sets:to_list(DB),
-  lists:join(".\n", lists:map(fun(Atom) -> dl_repr:atom_to_string(Atom) end, L)) ++ ".".
+  case dbs:size(DB) of
+    0 ->
+      "";
+    _N ->
+      L = gb_sets:to_list(DB),
+      lists:join(".\n", lists:map(fun(Atom) -> dl_repr:atom_to_string(Atom) end, L)) ++ "."
+  end.
