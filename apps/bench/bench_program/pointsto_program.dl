@@ -11,6 +11,10 @@
 .decl varPointsTo(var:Variable, heap:Allocation) output
 .decl alias(x:Variable,y:Variable) output
 
+.output alias
+.output varPointsTo
+.output assign
+
 assign(Var1, Var2) :- primitiveAssign(Var1,Var2). 
 
 alias(InstanceVar, IVar) :- varPointsTo(InstanceVar, InstanceHeap), varPointsTo(IVar, InstanceHeap).
