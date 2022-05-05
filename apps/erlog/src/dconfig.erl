@@ -78,7 +78,6 @@ get_name_cmd(NodeName) ->
 start_node(Name, PA) ->
   NameCmd = get_name_cmd(Name),
   {ok, CWD} = file:list_dir("../../"),
-  io:format(standard_error, "testing cwd ~p~n", [CWD]),
   Cmd =
     io_lib:format("erl -noshell -noinput ~s -config ~s -pa ~s", [NameCmd, ?CONFIG_PATH, PA]),
   erlang:open_port({spawn, Cmd}, []).
@@ -146,7 +145,7 @@ fail_start(Cfg, FailNum) ->
 -spec abnormal_start(config(), integer(), failure | straggle) -> ok.
 abnormal_start(Cfg, FailNum, Mode) ->
   FailIndices = pick_n(FailNum, get_num_nodes(Cfg)),
-  io:format(standard_error, "~p indices ~p~n", [Mode, sets:to_list(FailIndices)]),
+  lager:info("~p indices ~p~n", [Mode, sets:to_list(FailIndices)]),
   Nodes = get_nodes(Cfg),
   listsi:mapi(fun(Node, Idx) ->
                  case sets:is_element(Idx, FailIndices) of
