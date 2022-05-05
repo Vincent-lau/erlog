@@ -113,7 +113,7 @@ time_distr_nodes(TimeType, NumWorkers, NumTasks) ->
   when TimeType :: wallclock | cpu.
 time_distr_nodes(wallclock, WorkerSpec, NumWorkers, NumTasks) ->
   Cfg = erlog_runner:distr_setup(?PROG, NumWorkers, NumTasks, ?tmp_path, WorkerSpec),
-  lager:info("set up complete~n"),
+  lager:info("set up complete"),
   QryName = preproc:get_output_name(file, ?PROG),
   {Time, _R} = timer:tc(erlog_runner, distr_run, [Cfg, QryName, ?tmp_path]),
   ?LOG_DEBUG("ready to clean up~n"),
@@ -122,7 +122,7 @@ time_distr_nodes(wallclock, WorkerSpec, NumWorkers, NumTasks) ->
   Time;
 time_distr_nodes(cpu, WorkerSpec, NumWorkers, NumTasks) ->
   Cfg = erlog_runner:distr_setup(?PROG, NumWorkers, NumTasks, ?tmp_path, WorkerSpec),
-  lager:info("set up complete~n"),
+  lager:info("set up complete"),
   S1 = statistics(runtime),
   lager:info("stats 1 ~p~n", [S1]),
   QryName = preproc:get_output_name(file, ?PROG),
