@@ -206,7 +206,7 @@ wait_for_stop(NodeNames) ->
 wait_for_nodes(_N, _WT, N, MaxTry) when N >= MaxTry ->
   exit(waited_too_long);
 wait_for_nodes(NodeNames, WaitType, N, MaxTry) when N < MaxTry ->
-  timer:sleep(2000),
+  timer:sleep(1000),
   PingRes = lists:map(fun(Node) -> net_adm:ping(Node) end, NodeNames),
   case lists:all(fun(R) -> R =:= WaitType end, PingRes) of
     true ->
