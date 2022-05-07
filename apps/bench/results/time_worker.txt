@@ -1,5 +1,19 @@
+======================1000 nodes======================
 
-1000 nodes
+----------------------distributed--------------------------
+
+10:46:02.445 [info] time used in millisecond is 432210.147
+10:53:12.293 [info] time used in millisecond is 422397.692
+11:00:24.945 [info] time used in millisecond is 426536.523
+11:07:10.468 [info] time used in millisecond is 398916.811
+11:14:12.839 [info] time used in millisecond is 415008.811
+
+
+[432210.147, 422397.692, 426536.523, 398916.811, 415008.811]
+
+
+
+old
 
 times for 5 runs in this round is [2476490515,2380364744,2318651808, 2416587388,2355847319]
 
@@ -11,6 +25,8 @@ times for 5 runs in this round is [2476490515,2380364744,2318651808, 2416587388,
  {[2476490515,2380364744,2318651808,2416587388,2355847319],
   20}]
 
+----------------------serial--------------------------
+
 time used in millisecond is 981683.483
 time used in millisecond is 924164.635
 time used in millisecond is 1096319.724
@@ -18,13 +34,20 @@ time used in millisecond is 999730.308
 time used in millisecond is 985753.617
 
 
-2000 nodes
+=====================2000 nodes========================
+
+----------------------serial--------------------------
 
 time used in millisecond is 8202526.055
 time used in millisecond is 8547508.768
 time used in millisecond is 9174541.207
 time used in millisecond is 8521315.233
 time used in millisecond is 8863537.103
+
+
+----------------------distributed--------------------------
+[{[2109506.259,1926203818,1942029903,1946191979,2003525292], 16}]
+
 
 eval finished at stage 7
 time used in millisecond is 10744950.012
@@ -36,7 +59,9 @@ eval finished at stage 7
 time used in millisecond is 10650090.143
 
 
-3000 nodes
+====================3000 nodes=========================
+
+----------------------serial--------------------------
 
 1> timing:start(single).
 time used in millisecond is 25952409.009
@@ -46,10 +71,12 @@ time used in millisecond is 26045359.595
 time used in millisecond is 35867935.8
 
 
+----------------------distributed--------------------------
 1> time:start().
 set up complete
 eval finished at stage 7
 time used in millisecond is 22470972.965
+                             6035319.665
 eval finished at stage 7
 time used in millisecond is 26593363.154
 set up complete
@@ -65,22 +92,13 @@ set up complete
 eval finished at stage 7
 time used in millisecond is 24939219.456
 
+19:12:10.781 [info] time used in millisecond is 5567576.548
+17:39:11.384 [info] time used in millisecond is 5593760.952
+16:05:46.057 [info] time used in millisecond is 6035319.665
+00:42:36.745 [info] time used in millisecond is 5882689.725
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+==========================================================
 
 
 pointsto 1000
