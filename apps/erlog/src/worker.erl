@@ -115,7 +115,7 @@ work(State =
               prog_num = ProgNum} ->
       % HACK no need to distinguish different stages for the FullDB, just keep adding
       FName1 = io_lib:format("~sfulldb-~w-~w-~w", [TmpPath, ProgNum, 1, TaskNum]),
-      % TODO so here we are combining all full_dbs together, so when we generate
+      % here we are combining all full_dbs together, so when we generate
       % new atoms at each worker, we can avoid duplicates being written to the
       % deltas. The need for this is due to the fact that one atom that has been
       % written to the delta and indeed used in previous iterations are not necessarily
