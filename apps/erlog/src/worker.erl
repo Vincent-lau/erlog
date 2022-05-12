@@ -1,6 +1,7 @@
 -module(worker).
 
--export([start_link/0, start/0, start/1, start_link/1, start_working/0, stop/0]).
+-export([start_link/0, start/0, start/1, start_link/1, start_working/0,
+         start_working_sync/0, stop/0]).
 -export([init/1, handle_cast/2, handle_call/3, terminate/2]).
 
 -include("../include/task_repr.hrl").
@@ -45,6 +46,9 @@ start_link(Mode) ->
 start_working() ->
   gen_server:cast(name(), work).
 
+start_working_sync() ->
+  gen_server:call(name(), work_sync).
+
 stop() ->
   gen_server:call(name(), terminate).
 
@@ -65,6 +69,8 @@ init([Mode]) ->
                  stage_num = 0,
                  mode = Mode}}.
 
+handle_call(work_sync, _From, State) ->
+  work(State);
 handle_call(terminate, _From, State) ->
   {stop, normal, ok, State}.
 
@@ -127,11 +133,15 @@ work(State =
       % hash the new DB locally and write to disk
       % with only tuples that have not been generated before
       finish_task(T, {NewFullDB, NewDeltaDB}),
-      lager:debug("~p rpc results for finish at stage ~p task ~p", [node(), TaskStageNum, TaskNum]),
+      lager:debug("~p rpc results for finish at stage ~p task ~p",
+                  [node(), TaskStageNum, TaskNum]),
       % request new tasks
       lager:debug("~p stage-~w task-~w finished, requesting new task",
                   [node(), TaskStageNum, TaskNum]),
-      NewState = State#worker_state{task_num = TaskNum, stage_num = TaskStageNum, full_db = CurFullDB},
+      NewState =
+        State#worker_state{task_num = TaskNum,
+                           stage_num = TaskStageNum,
+                           full_db = CurFullDB},
       lager:debug("worker_node ~p, new_state ~p", [node(), NewState]),
       work(NewState);
     #task{type = wait} ->
@@ -146,7 +156,6 @@ work(State =
   end.
 
 %%% Private functions
-
 
 call_coor(Function, Args) ->
   call_coor(Function, Args, 1000).
