@@ -35,7 +35,7 @@ prof_single(worker) ->
          ++ "worker.out"
          ++ " > "
          ++ ?BENCH_DIR
-         ++ "worker_flame.svg");
+         ++ "worker_flame_persist.svg");
 prof_single(fprof_worker) ->
   fprof:trace(start, ?BENCH_DIR ++ "worker_opt.trace"),
   worker:start_working_sync(),
