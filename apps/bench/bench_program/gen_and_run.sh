@@ -122,7 +122,7 @@ N=$1
 cd apps/bench/bench_program
 . ./utils.sh
 
-Gen_unreachable
+Gen_tc
 echo "\n==============new timings===================" >> ../results/timing_res.txt
 echo "graph size $N" >> ../results/timing_res.txt
 
