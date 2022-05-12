@@ -23,6 +23,12 @@
     "tclarge",
     "tmpname",
     "trunc",
-    "vincembp"
+    "vincembp",
+    "preproc",
+    "foldl",
+    "erlog",
+    "frag",
+    "repr",
+    "whereis"
   ]
 }
