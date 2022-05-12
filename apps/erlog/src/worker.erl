@@ -1,7 +1,7 @@
 -module(worker).
 
 -export([start_link/0, start/0, start/1, start_link/1, start_working/0,
-         start_working_sync/0, stop/0]).
+         start_working_sync/0,  get_state/0, stop/0]).
 -export([init/1, handle_cast/2, handle_call/3, terminate/2]).
 
 -include("../include/task_repr.hrl").
@@ -46,8 +46,11 @@ start_link(Mode) ->
 start_working() ->
   gen_server:cast(name(), work).
 
+get_state() ->
+  gen_server:call(name(), state).
+
 start_working_sync() ->
-  gen_server:call(name(), work_sync).
+  work(get_state()).
 
 stop() ->
   gen_server:call(name(), terminate).
@@ -69,8 +72,8 @@ init([Mode]) ->
                  stage_num = 0,
                  mode = Mode}}.
 
-handle_call(work_sync, _From, State) ->
-  work(State);
+handle_call(state, _From, State) ->
+  {reply, State, State};
 handle_call(terminate, _From, State) ->
   {stop, normal, ok, State}.
 
@@ -89,7 +92,7 @@ terminate(normal, _State) ->
   net_kernel:stop(),
   init:stop();
 terminate(coor_down, State) ->
-  io:format("coordinator is down, terminate as well~n"),
+  lager:info("coordinator is down, terminate as well~n"),
   terminate(normal, State).
 
 %%% Private functions
