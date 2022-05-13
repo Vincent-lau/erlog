@@ -28,18 +28,18 @@ num_stragglers(N) ->
 
 crasher() ->
   T = rand:uniform(?MAX_HEALTHY_TIME) + 1000,
-  io:format("sleeping time before fail ~p~n", [T]),
+  lager:debug("sleeping time before fail ~p~n", [T]),
   timer:sleep(T),
-  io:format(standard_error, "damn, I am dying ~p~n", [node()]),
+  lager:debug("damn, I am dying ~p~n", [node()]),
   erlang:halt().
 
 straggler() ->
   T = rand:uniform(trunc(?MAX_STRAGGLE_TIME / 2)) + trunc(?MAX_STRAGGLE_TIME / 2),
   case rand:uniform() < ?STRAGGLE_PROB of
     true ->
-      io:format(standard_error, "hey I am a straggler, I will sleep ~p ms first~n", [T]),
+      lager:debug("hey I am a straggler, I will sleep ~p ms first~n", [T]),
       timer:sleep(T),
-      io:format("straggler waking up~n");
+      lager:debug("straggler waking up~n");
     false ->
       ok
   end.

@@ -15,11 +15,11 @@
 -define(TEST_TIMEOUT, 1000 * 60 * 2).
 
 all() ->
-  [{group, worker_straggle}, {group, worker_fail}].
+  [{group, worker_fail}, {group, worker_straggle}].
 
 groups() ->
-  [{worker_fail, [{repeat, 3}, shuffle, sequence], all_tests()},
-   {worker_straggle, [{repeat, 3}, shuffle], all_tests()}].
+  [{worker_fail, [{repeat, 5}, sequence], all_tests()},
+   {worker_straggle, [{repeat, 5}, shuffle], all_tests()}].
 
 all_tests() ->
   [tc4workers,
@@ -31,25 +31,13 @@ all_tests() ->
    tc2_4workers,
    pointsto4workers].
 
-
-ets_owner() ->
-  receive
-    stop ->
-      exit(normal);
-    _Other ->
-      ets_owner()
-  end.
-
 init_per_suite(Config) ->
-  application:start(erlog),
+  application:ensure_all_started(erlog),
   net_kernel:start(['coor@127.0.0.1', longnames]),
-  Pid = spawn(fun ets_owner/0),
-  TabId = ets:new(dl_atom_names, [named_table, public, {heir, Pid, []}]),
   ProgramDir = ?config(data_dir, Config) ++ "../test_program/",
-  [{table, TabId}, {table_owner, Pid}, {program_dir, ProgramDir} | Config].
+  [{program_dir, ProgramDir} | Config].
 
-end_per_suite(Config) ->
-  ?config(table_owner, Config) ! stop,
+end_per_suite(_Config) ->
   net_kernel:stop(),
   application:stop(erlog).
 
@@ -106,34 +94,34 @@ end_per_testcase(pointsto4workers, Config) ->
   multi_worker_stop(Config).
 
 nonlinear4workers(Config) ->
-  dist_eval_tests(Config, "ancestor").
+  dist_eval_tests(Config).
 
 marrying4workers(Config) ->
-  dist_eval_tests(Config, "grandfather").
+  dist_eval_tests(Config).
 
 rsg4workers(Config) ->
-  dist_eval_tests(Config, "rsg").
+  dist_eval_tests(Config).
 
 tclarge10workers(Config) ->
-  dist_eval_tests(Config, "tc_large").
+  dist_eval_tests(Config).
 
 tc2_4workers(Config) ->
-  dist_eval_tests(Config, "reachable").
+  dist_eval_tests(Config).
 
 tc3workers(Config) ->
-  dist_eval_tests(Config, "reachable").
+  dist_eval_tests(Config).
 
 tc4workers(Config) ->
-  dist_eval_tests(Config, "reachable").
+  dist_eval_tests(Config).
 
 tc6workers(Config) ->
-  dist_eval_tests(Config, "reachable").
+  dist_eval_tests(Config).
 
 scc4workers(Config) ->
-  dist_eval_tests(Config, "scc").
+  dist_eval_tests(Config).
 
 pointsto4workers(Config) ->
-  dist_eval_tests(Config, ["alias", "assign"]).
+  dist_eval_tests(Config).
 
 multi_worker_init(NumWorkers, ProgName, Config) ->
   TmpDir = get_tmp_dir(ProgName, NumWorkers, Config),
@@ -176,7 +164,7 @@ slow_start_workers(NumWorkers) ->
 
 start_workers(NumWorkers, Mode) ->
   ct:pal("current path~p~n", [file:get_cwd()]),
-  Cfg = dconfig:start_cluster([worker], NumWorkers, "../../lib/erlog/ebin"),
+  Cfg = dconfig:start_cluster([worker], NumWorkers),
   ct:pal("result of starting workers ~p~n", [Cfg]),
   R = case Mode of
         failure ->
@@ -191,9 +179,12 @@ stop_workers(Config) ->
   R = dconfig:stop_cluster(?config(worker_cfg, Config)),
   ct:pal("results of stopping workers ~p~n", [R]).
 
-dist_eval_tests(Config, QryNames) when is_list(hd(QryNames)) ->
+dist_eval_tests(Config) ->
   WorkerCfg = ?config(worker_cfg, Config),
+  QryNames =
+    preproc:get_output_name(?config(program_dir, Config) ++ ?config(prog_name, Config)),
   dconfig:all_work(WorkerCfg),
+
   ok = coordinator:wait_for_finish(?TEST_TIMEOUT),
   Res = dbs:read_db(?config(tmp_dir, Config) ++ "final_db"),
   ct:pal("Total result db is~n~s~n", [dbs:to_string(Res)]),
@@ -211,6 +202,4 @@ dist_eval_tests(Config, QryNames) when is_list(hd(QryNames)) ->
 
   ct:pal("Ans db is ~n~s~n", [lists:map(fun dbs:to_string/1, AnsL)]),
 
-  true = lists:all(fun({ResQ, Ans}) -> dbs:equal(Ans, ResQ) end, lists:zip(ResQL, AnsL));
-dist_eval_tests(Config, QryName) ->
-  dist_eval_tests(Config, [QryName]).
+  true = lists:all(fun({ResQ, Ans}) -> dbs:equal(Ans, ResQ) end, lists:zip(ResQL, AnsL)).
