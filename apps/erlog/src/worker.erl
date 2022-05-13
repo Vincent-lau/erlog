@@ -90,7 +90,6 @@ handle_cast(work, State = #worker_state{mode = Mode}) ->
     _Other ->
       ok
   end,
-  % TODO better use a supervisor approach
   spawn(fun() -> work(State) end),
   {noreply, State}.
 
@@ -192,7 +191,6 @@ call_coor(Function, Args, Timeout) ->
 finish_task(Task) ->
   call_coor(finish_task, [Task, node()]).
 
-% TODO is this worker's responsability or its supervisor's responsibility
 % we need to terminate top down from the supervisor of this worker
 % the better way is to ask a higher level supervisor to see that the coordinator
 % has died and hence stop worker_sup

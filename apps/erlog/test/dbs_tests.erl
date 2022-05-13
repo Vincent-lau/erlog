@@ -10,7 +10,6 @@
 %%% TESTS DESCRIPTIONS %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% TODO consider rename
 join_test_() ->
   [{"Simple joining of database instances",
     {setup, fun start/0, fun join_singleton_list/1}},

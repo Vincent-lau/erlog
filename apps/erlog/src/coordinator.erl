@@ -292,7 +292,7 @@ near_completion(Tasks) ->
 %%  if a task can be assigned that means
 %%  <ol>
 %%    <li>it is idle </li>
-%%    <li>@todo the worker has timed out </li>
+%%    <li>the worker has timed out </li>
 %%  </ol>
 %% if there is none available, then give a wait task
 %% @param WorkerNode is the node that is requesting the task

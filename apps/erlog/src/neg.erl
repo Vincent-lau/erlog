@@ -45,7 +45,6 @@ gen_all_rec(AtomName, Arity, Domain, CurArgs) when length(CurArgs) < Arity ->
 %%----------------------------------------------------------------------
 -spec active_domain(dl_db_instance(), string()) -> domain().
 active_domain(EDB, AtomName) ->
-  % TODO we want to find the domain for one atom or the whole db instance?
   Atoms = dbs:get_rel_by_name(AtomName, EDB),
   AllArgs = dbs:map(fun dl_repr:get_atom_args/1, Atoms),
   dbs:fold(fun(Args, Acc) -> gb_sets:union(Acc, gb_sets:from_list(Args)) end,
