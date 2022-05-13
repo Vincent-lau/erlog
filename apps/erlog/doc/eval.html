@@ -15,13 +15,12 @@
 
 <h2><a name="index">Function Index</a></h2>
 <table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#eval_all-2">eval_all/2</a></td><td></td></tr>
-<tr><td valign="top"><a href="#eval_one_rule-3">eval_one_rule/3</a></td><td>Equivalent to <a href="#eval_one_rule-4"><tt>eval_one_rule(Rule, Program, DB, DB)</tt></a>.
-</td></tr>
+<tr><td valign="top"><a href="#eval_one_rule-3">eval_one_rule/3</a></td><td>@equiv eval_one_rule(Rule, Program, DB, DB).</td></tr>
 <tr><td valign="top"><a href="#eval_seminaive-2">eval_seminaive/2</a></td><td>
   Using seminaive evaluation to evaluate a program
   <ol>
-  <li> We first P' such that it only contains rules with no idb predicate in
-  its body </li>
+  <li> We first compute P' such that it only contains rules with no idb
+  predicate in its body </li>
   <li> then we compute the deltas based on the edb program </li>
   </ol>
  
@@ -30,7 +29,7 @@
   <pre>  link(a, b).
   link(b, c).
   reachable(c, d).</pre><p>
-  Then the final <code>reachable(c, d)</code> is also an edb predicate, as we can potentially
+  Then the last <code>reachable(c, d)</code> is also an edb predicate, as we can potentially
   treat it like <code>reachable_edb(c, d)</code> and have a new rule saying that
   <code>reachable(X, Y) :- reachable_edb(c, d).</code></p>
  
@@ -38,6 +37,7 @@
   as an edb predicate, and add them to the delta.</td></tr>
 <tr><td valign="top"><a href="#eval_seminaive_one-3">eval_seminaive_one/3</a></td><td>  
 Do one iteration of semi-naive evaluation, following the pseudocode.</td></tr>
+<tr><td valign="top"><a href="#eval_stratified-2">eval_stratified/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#get_edb_program-1">get_edb_program/1</a></td><td>
   Given a datalog program, find all rules that does not have a idb predicate
   as its body, quoting the textbook
@@ -57,6 +57,8 @@ e.g.</td></tr>
 <tr><td valign="top"><a href="#imm_conseq-2">imm_conseq/2</a></td><td>Equivalent to <a href="#imm_conseq-3"><tt>imm_conseq(Program, DB, DB)</tt></a>.
 </td></tr>
 <tr><td valign="top"><a href="#imm_conseq-3">imm_conseq/3</a></td><td></td></tr>
+<tr><td valign="top"><a href="#is_idb_pred-2">is_idb_pred/2</a></td><td>  
+Given an atom, return whether it is an idb predicate.</td></tr>
 </table>
 
 <h2><a name="functions">Function Details</a></h2>
@@ -69,10 +71,9 @@ e.g.</td></tr>
 
 <h3 class="function"><a name="eval_one_rule-3">eval_one_rule/3</a></h3>
 <div class="spec">
-<p><tt>eval_one_rule(Rule, Program, DB) -&gt; any()</tt></p>
+<p><tt>eval_one_rule(Rule::<a href="#type-dl_rule">dl_rule()</a>, Program::<a href="#type-dl_program">dl_program()</a>, DB::<a href="#type-dl_db_instance">dl_db_instance()</a>) -&gt; <a href="#type-dl_db_instance">dl_db_instance()</a></tt><br></p>
 <p> </p>
-</div><p>Equivalent to <a href="#eval_one_rule-4"><tt>eval_one_rule(Rule, Program, DB, DB)</tt></a>.</p>
-
+</div><p>@equiv eval_one_rule(Rule, Program, DB, DB)</p>
 
 <h3 class="function"><a name="eval_seminaive-2">eval_seminaive/2</a></h3>
 <div class="spec">
@@ -81,8 +82,8 @@ e.g.</td></tr>
 </div><p>
   Using seminaive evaluation to evaluate a program
   <ol>
-  <li> We first P' such that it only contains rules with no idb predicate in
-  its body </li>
+  <li> We first compute P' such that it only contains rules with no idb
+  predicate in its body </li>
   <li> then we compute the deltas based on the edb program </li>
   </ol>
  
@@ -91,7 +92,7 @@ e.g.</td></tr>
   <pre>  link(a, b).
   link(b, c).
   reachable(c, d).</pre><p>
-  Then the final <code>reachable(c, d)</code> is also an edb predicate, as we can potentially
+  Then the last <code>reachable(c, d)</code> is also an edb predicate, as we can potentially
   treat it like <code>reachable_edb(c, d)</code> and have a new rule saying that
   <code>reachable(X, Y) :- reachable_edb(c, d).</code></p>
  
@@ -108,6 +109,12 @@ Do one iteration of semi-naive evaluation, following the pseudocode</p>
   FullDB = FullDB union DeltaDB
   DeltaDB = T_p(FullDB, DeltaDB) - FullDB
  </p>
+
+<h3 class="function"><a name="eval_stratified-2">eval_stratified/2</a></h3>
+<div class="spec">
+<p><tt>eval_stratified(Program::<a href="#type-dl_program">dl_program()</a>, EDB::<a href="#type-dl_db_instance">dl_db_instance()</a>) -&gt; <a href="#type-dl_db_instance">dl_db_instance()</a></tt><br></p>
+<p> </p>
+</div>
 
 <h3 class="function"><a name="get_edb_program-1">get_edb_program/1</a></h3>
 <div class="spec">
@@ -160,6 +167,20 @@ column 1, and then the return value of this function should be [2, 1]</p>
 <p><tt>imm_conseq(Program::<a href="#type-dl_program">dl_program()</a>, FullDB::<a href="#type-dl_db_instance">dl_db_instance()</a>, DeltaDB::<a href="#type-dl_db_instance">dl_db_instance()</a>) -&gt; <a href="#type-dl_db_instance">dl_db_instance()</a></tt><br></p>
 <p> </p>
 </div>
+
+<h3 class="function"><a name="is_idb_pred-2">is_idb_pred/2</a></h3>
+<div class="spec">
+<p><tt>is_idb_pred(Atom::<a href="#type-dl_atom">dl_atom()</a> | <a href="#type-dl_pred">dl_pred()</a>, Rules::<a href="#type-dl_program">dl_program()</a>) -&gt; boolean()</tt><br></p>
+<p> </p>
+</div><p><p>  
+Given an atom, return whether it is an idb predicate</p>
+ 
+  <p>
+  An edb relation is one that <em>only</em> appears in the body of
+  the rules. An intensional relation is a relation occurring in the
+  head of some rule of P.
+  </p>
+ </p>
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>

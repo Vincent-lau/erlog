@@ -18,10 +18,7 @@
   Purpose: Takes a list of list of args, flatten the list and unique all
   args according to the order they appear
   Args: A list of lists of args.</td></tr>
-<tr><td valign="top"><a href="#combine_atoms-1">combine_atoms/1</a></td><td>
-  Purpose: Takes a list of atoms, generate a head atom that has all the args
-  and the head atom has a random name
-  Args: A list of atoms.</td></tr>
+<tr><td valign="top"><a href="#get_output_name-1">get_output_name/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#get_output_name-2">get_output_name/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#lex_and_parse-2">lex_and_parse/2</a></td><td>
   Given a file name as a string or a stream or a string of the program
@@ -47,15 +44,11 @@ smaller rules e.g.</td></tr>
   args according to the order they appear
   Args: A list of lists of args</p>
 
-<h3 class="function"><a name="combine_atoms-1">combine_atoms/1</a></h3>
+<h3 class="function"><a name="get_output_name-1">get_output_name/1</a></h3>
 <div class="spec">
-<p><tt>combine_atoms(Atoms::[<a href="#type-dl_atom">dl_atom()</a>]) -&gt; <a href="#type-dl_rule">dl_rule()</a></tt><br></p>
+<p><tt>get_output_name(Input::<a href="/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/kernel/doc/file.html#type-filename">file:filename()</a>) -&gt; [string()] | no_output</tt><br></p>
 <p> </p>
-<p>returns:  A rule</p>
-</div><p>
-  Purpose: Takes a list of atoms, generate a head atom that has all the args
-  and the head atom has a random name
-  Args: A list of atoms</p>
+</div>
 
 <h3 class="function"><a name="get_output_name-2">get_output_name/2</a></h3>
 <div class="spec">

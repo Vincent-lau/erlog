@@ -17,37 +17,39 @@
 <h2><a name="types">Data Types</a></h2>
 
 <h3 class="typedecl"><a name="type-state">state()</a></h3>
-<p><tt>state() = #coor_state{tasks = [<a href="#type-mr_task">mr_task()</a>], num_tasks = non_neg_integer(), prog = <a href="#type-dl_program">dl_program()</a>, stage_num = integer(), tmp_path = <a href="/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/kernel/doc/file.html#type-filename">file:filename()</a>}</tt></p>
+<p><tt>state() = #coor_state{tasks = [<a href="#type-mr_task">mr_task()</a>], num_tasks = non_neg_integer(), qry_names = [string()], programs = [[<a href="#type-dl_program">dl_program()</a>]], prog_num = integer(), stage_num = integer(), tmp_path = <a href="/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/kernel/doc/file.html#type-filename">file:filename()</a>, task_timeout = timeout(), nodes_rate = #{node() =&gt; number()}, nodes_tasks = #{node() =&gt; <a href="#type-mr_task">mr_task()</a>}}</tt></p>
 
 
 <h2><a name="index">Function Index</a></h2>
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#assign_task-0">assign_task/0</a></td><td></td></tr>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#assign_task-1">assign_task/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#code_change-3">code_change/3</a></td><td></td></tr>
-<tr><td valign="top"><a href="#collect_results-3">collect_results/3</a></td><td>
-  Collect all results that have been generated in the full db.</td></tr>
+<tr><td valign="top"><a href="#collect_results-2">collect_results/2</a></td><td>Collect all results that have been generated in the full db.</td></tr>
 <tr><td valign="top"><a href="#done-0">done/0</a></td><td></td></tr>
-<tr><td valign="top"><a href="#finish_task-1">finish_task/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#finish_task-2">finish_task/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#get_current_stage_num-0">get_current_stage_num/0</a></td><td></td></tr>
 <tr><td valign="top"><a href="#get_num_tasks-0">get_num_tasks/0</a></td><td></td></tr>
-<tr><td valign="top"><a href="#get_prog-0">get_prog/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_prog_num-0">get_prog_num/0</a></td><td></td></tr>
 <tr><td valign="top"><a href="#get_tmp_path-0">get_tmp_path/0</a></td><td></td></tr>
 <tr><td valign="top"><a href="#handle_call-3">handle_call/3</a></td><td></td></tr>
 <tr><td valign="top"><a href="#handle_cast-2">handle_cast/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#handle_info-2">handle_info/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#init-1">init/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#reg_worker-1">reg_worker/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#start_link-1">start_link/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#start_link-2">start_link/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#start_link-3">start_link/3</a></td><td></td></tr>
 <tr><td valign="top"><a href="#stop-0">stop/0</a></td><td></td></tr>
 <tr><td valign="top"><a href="#terminate-2">terminate/2</a></td><td></td></tr>
-<tr><td valign="top"><a href="#wait_for_finish-2">wait_for_finish/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#wait_for_finish-1">wait_for_finish/1</a></td><td>
+  This function will synchronously wait and return only if the master
+  has finished its job.</td></tr>
 </table>
 
 <h2><a name="functions">Function Details</a></h2>
 
-<h3 class="function"><a name="assign_task-0">assign_task/0</a></h3>
+<h3 class="function"><a name="assign_task-1">assign_task/1</a></h3>
 <div class="spec">
-<p><tt>assign_task() -&gt; any()</tt></p>
+<p><tt>assign_task(WorkerNode) -&gt; any()</tt></p>
 <p> </p>
 </div>
 
@@ -57,15 +59,11 @@
 <p> </p>
 </div>
 
-<h3 class="function"><a name="collect_results-3">collect_results/3</a></h3>
+<h3 class="function"><a name="collect_results-2">collect_results/2</a></h3>
 <div class="spec">
-<p><tt>collect_results(TaskNum::integer(), TmpPath::<a href="/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/kernel/doc/file.html#type-filename">file:filename()</a>, NumTasks::integer()) -&gt; <a href="#type-dl_db_instance">dl_db_instance()</a></tt><br></p>
+<p><tt>collect_results(TmpPath, ProgNum) -&gt; any()</tt></p>
 <p> </p>
-<p>returns: the aggregated results
- </p>
-</div><p>
-  Collect all results that have been generated in the full db.
- </p>
+</div><p>Collect all results that have been generated in the full db.</p>
 
 <h3 class="function"><a name="done-0">done/0</a></h3>
 <div class="spec">
@@ -73,9 +71,9 @@
 <p> </p>
 </div>
 
-<h3 class="function"><a name="finish_task-1">finish_task/1</a></h3>
+<h3 class="function"><a name="finish_task-2">finish_task/2</a></h3>
 <div class="spec">
-<p><tt>finish_task(Task) -&gt; any()</tt></p>
+<p><tt>finish_task(Task, WorkerNode) -&gt; any()</tt></p>
 <p> </p>
 </div>
 
@@ -91,9 +89,9 @@
 <p> </p>
 </div>
 
-<h3 class="function"><a name="get_prog-0">get_prog/0</a></h3>
+<h3 class="function"><a name="get_prog_num-0">get_prog_num/0</a></h3>
 <div class="spec">
-<p><tt>get_prog() -&gt; any()</tt></p>
+<p><tt>get_prog_num() -&gt; any()</tt></p>
 <p> </p>
 </div>
 
@@ -127,6 +125,12 @@
 <p> </p>
 </div>
 
+<h3 class="function"><a name="reg_worker-1">reg_worker/1</a></h3>
+<div class="spec">
+<p><tt>reg_worker(WorkerNode) -&gt; any()</tt></p>
+<p> </p>
+</div>
+
 <h3 class="function"><a name="start_link-1">start_link/1</a></h3>
 <div class="spec">
 <p><tt>start_link(ProgName::<a href="/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/kernel/doc/file.html#type-filename">file:filename()</a>) -&gt; {ok, pid()}</tt><br></p>
@@ -157,11 +161,13 @@
 <p> </p>
 </div>
 
-<h3 class="function"><a name="wait_for_finish-2">wait_for_finish/2</a></h3>
+<h3 class="function"><a name="wait_for_finish-1">wait_for_finish/1</a></h3>
 <div class="spec">
-<p><tt>wait_for_finish(Timeout::timeout(), Freq::timeout()) -&gt; ok | timeout</tt><br></p>
+<p><tt>wait_for_finish(Timeout::timeout()) -&gt; ok | timeout</tt><br></p>
 <p> </p>
-</div>
+</div><p>
+  This function will synchronously wait and return only if the master
+  has finished its job.</p>
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>

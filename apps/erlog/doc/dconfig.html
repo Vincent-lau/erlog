@@ -10,8 +10,89 @@
 <hr>
 
 <h1>Module dconfig</h1>
+<ul class="index"><li><a href="#types">Data Types</a></li><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>
 
 
+<h2><a name="types">Data Types</a></h2>
+
+<h3 class="typedecl"><a name="type-config">config()</a></h3>
+<p><tt>config() = #node_config{nodes = #{node() =&gt; port()}, max_node_no = integer()}</tt></p>
+
+
+<h2><a name="index">Function Index</a></h2>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_node-1">add_node/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#all_start-1">all_start/1</a></td><td>
+  Just start normally.</td></tr>
+<tr><td valign="top"><a href="#all_work-1">all_work/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#fail_start-2">fail_start/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#remove_node-2">remove_node/2</a></td><td>
+  This function will remove the node from the cluster if it is present,
+  and cleanup all the resources that the node has used.</td></tr>
+<tr><td valign="top"><a href="#slow_start-2">slow_start/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#start_cluster-2">start_cluster/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#start_cluster-3">start_cluster/3</a></td><td></td></tr>
+<tr><td valign="top"><a href="#stop_cluster-1">stop_cluster/1</a></td><td></td></tr>
+</table>
+
+<h2><a name="functions">Function Details</a></h2>
+
+<h3 class="function"><a name="add_node-1">add_node/1</a></h3>
+<div class="spec">
+<p><tt>add_node(Node_config::<a href="#type-config">config()</a>) -&gt; <a href="#type-config">config()</a></tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="all_start-1">all_start/1</a></h3>
+<div class="spec">
+<p><tt>all_start(Cfg) -&gt; any()</tt></p>
+<p> </p>
+</div><p>
+  Just start normally</p>
+
+<h3 class="function"><a name="all_work-1">all_work/1</a></h3>
+<div class="spec">
+<p><tt>all_work(Cfg) -&gt; any()</tt></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="fail_start-2">fail_start/2</a></h3>
+<div class="spec">
+<p><tt>fail_start(Cfg::<a href="#type-config">config()</a>, FailNum::integer()) -&gt; ok</tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="remove_node-2">remove_node/2</a></h3>
+<div class="spec">
+<p><tt>remove_node(NodeName::node(), Cfg::<a href="#type-config">config()</a>) -&gt; <a href="#type-config">config()</a></tt><br></p>
+<p> </p>
+</div><p>
+  This function will remove the node from the cluster if it is present,
+  and cleanup all the resources that the node has used.</p>
+
+<h3 class="function"><a name="slow_start-2">slow_start/2</a></h3>
+<div class="spec">
+<p><tt>slow_start(Cfg::<a href="#type-config">config()</a>, FailNum::integer()) -&gt; ok</tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="start_cluster-2">start_cluster/2</a></h3>
+<div class="spec">
+<p><tt>start_cluster(X1, Num) -&gt; any()</tt></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="start_cluster-3">start_cluster/3</a></h3>
+<div class="spec">
+<p><tt>start_cluster(X1::list(), Num::integer(), PA::string()) -&gt; <a href="#type-config">config()</a></tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="stop_cluster-1">stop_cluster/1</a></h3>
+<div class="spec">
+<p><tt>stop_cluster(Cfg::<a href="#type-config">config()</a>) -&gt; StopRes</tt>
+<ul class="definitions"><li><tt>StopRes = list()</tt></li></ul></p>
+<p> </p>
+</div>
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>

@@ -14,18 +14,20 @@
 
 
 <h2><a name="index">Function Index</a></h2>
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#diff-2">diff/2</a></td><td></td></tr>
-<tr><td valign="top"><a href="#equal-2">equal/2</a></td><td></td></tr>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#equal-2">equal/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#filteri-2">filteri/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#flatten-1">flatten/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#fold-3">fold/3</a></td><td></td></tr>
 <tr><td valign="top"><a href="#foreach-2">foreach/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#from_list-1">from_list/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_rel_by_name-2">get_rel_by_name/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_rel_by_name_and_rest-2">get_rel_by_name_and_rest/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#get_rel_by_pred-2">get_rel_by_pred/2</a></td><td></td></tr>
-<tr><td valign="top"><a href="#get_rel_by_pred_and_rest-2">get_rel_by_pred_and_rest/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#is_empty-1">is_empty/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#join-5">join/5</a></td><td>
   Given two database instances, and the columns on which we wise to join,
   join them together to get a new db.</td></tr>
+<tr><td valign="top"><a href="#map-2">map/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#new-0">new/0</a></td><td></td></tr>
 <tr><td valign="top"><a href="#project-2">project/2</a></td><td>  
 Given a db instance, and columns to project, output the db  
@@ -36,7 +38,10 @@ with all atoms projected.</td></tr>
   Read from a file of atoms without predicate symbols, and construct the
   database based on the name QryName.</td></tr>
 <tr><td valign="top"><a href="#rename_pred-2">rename_pred/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#singleton-1">singleton/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#size-1">size/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#split_args-2">split_args/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#subtract-2">subtract/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#to_string-1">to_string/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#union-2">union/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#write_db-2">write_db/2</a></td><td>Equivalent to <a href="#write_db-3"><tt>write_db(FileName, DB, [write])</tt></a>.
@@ -45,12 +50,6 @@ with all atoms projected.</td></tr>
 </table>
 
 <h2><a name="functions">Function Details</a></h2>
-
-<h3 class="function"><a name="diff-2">diff/2</a></h3>
-<div class="spec">
-<p><tt>diff(DB1::<a href="#type-dl_db_instance">dl_db_instance()</a>, DB2::<a href="#type-dl_db_instance">dl_db_instance()</a>) -&gt; <a href="#type-dl_db_instance">dl_db_instance()</a></tt><br></p>
-<p> </p>
-</div>
 
 <h3 class="function"><a name="equal-2">equal/2</a></h3>
 <div class="spec">
@@ -70,6 +69,12 @@ with all atoms projected.</td></tr>
 <p> </p>
 </div>
 
+<h3 class="function"><a name="fold-3">fold/3</a></h3>
+<div class="spec">
+<p><tt>fold(Fun::fun((term(), term()) -&gt; term()), Acc::term(), Set::<a href="/Users/vincent/Documents/Cambridge/CST/II/partii-project/erlog/apps/stdlib/doc/gb_sets.html#type-set">gb_sets:set()</a>) -&gt; term()</tt><br></p>
+<p> </p>
+</div>
+
 <h3 class="function"><a name="foreach-2">foreach/2</a></h3>
 <div class="spec">
 <p><tt>foreach(Fun, Set) -&gt; any()</tt></p>
@@ -82,15 +87,21 @@ with all atoms projected.</td></tr>
 <p> </p>
 </div>
 
-<h3 class="function"><a name="get_rel_by_pred-2">get_rel_by_pred/2</a></h3>
+<h3 class="function"><a name="get_rel_by_name-2">get_rel_by_name/2</a></h3>
 <div class="spec">
-<p><tt>get_rel_by_pred(Name::string(), DBInstance::<a href="#type-dl_db_instance">dl_db_instance()</a>) -&gt; <a href="#type-dl_db_instance">dl_db_instance()</a></tt><br></p>
+<p><tt>get_rel_by_name(Name::string(), DBInstance::<a href="#type-dl_db_instance">dl_db_instance()</a>) -&gt; <a href="#type-dl_db_instance">dl_db_instance()</a></tt><br></p>
 <p> </p>
 </div>
 
-<h3 class="function"><a name="get_rel_by_pred_and_rest-2">get_rel_by_pred_and_rest/2</a></h3>
+<h3 class="function"><a name="get_rel_by_name_and_rest-2">get_rel_by_name_and_rest/2</a></h3>
 <div class="spec">
-<p><tt>get_rel_by_pred_and_rest(Name::string(), DBInstance::<a href="#type-dl_db_instance">dl_db_instance()</a>) -&gt; {<a href="#type-dl_db_instance">dl_db_instance()</a>, <a href="#type-dl_db_instance">dl_db_instance()</a>}</tt><br></p>
+<p><tt>get_rel_by_name_and_rest(Name::string(), DBInstance::<a href="#type-dl_db_instance">dl_db_instance()</a>) -&gt; {<a href="#type-dl_db_instance">dl_db_instance()</a>, <a href="#type-dl_db_instance">dl_db_instance()</a>}</tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="get_rel_by_pred-2">get_rel_by_pred/2</a></h3>
+<div class="spec">
+<p><tt>get_rel_by_pred(Pred::<a href="#type-dl_pred">dl_pred()</a>, DBInstance::<a href="#type-dl_db_instance">dl_db_instance()</a>) -&gt; <a href="#type-dl_db_instance">dl_db_instance()</a></tt><br></p>
 <p> </p>
 </div>
 
@@ -107,6 +118,12 @@ with all atoms projected.</td></tr>
 </div><p>
   Given two database instances, and the columns on which we wise to join,
   join them together to get a new db.</p>
+
+<h3 class="function"><a name="map-2">map/2</a></h3>
+<div class="spec">
+<p><tt>map(Fun::fun((<a href="#type-dl_atom">dl_atom()</a>) -&gt; <a href="#type-dl_atom">dl_atom()</a>), Set::<a href="#type-dl_db_instance">dl_db_instance()</a>) -&gt; <a href="#type-dl_db_instance">dl_db_instance()</a></tt><br></p>
+<p> </p>
+</div>
 
 <h3 class="function"><a name="new-0">new/0</a></h3>
 <div class="spec">
@@ -149,9 +166,27 @@ with all atoms projected. This needs to be order preserving.</p>
 <p> </p>
 </div>
 
+<h3 class="function"><a name="singleton-1">singleton/1</a></h3>
+<div class="spec">
+<p><tt>singleton(Key::<a href="#type-dl_atom">dl_atom()</a>) -&gt; <a href="#type-dl_db_instance">dl_db_instance()</a></tt><br></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="size-1">size/1</a></h3>
+<div class="spec">
+<p><tt>size(DB::<a href="#type-dl_db_instance">dl_db_instance()</a>) -&gt; integer()</tt><br></p>
+<p> </p>
+</div>
+
 <h3 class="function"><a name="split_args-2">split_args/2</a></h3>
 <div class="spec">
 <p><tt>split_args(N, Args) -&gt; any()</tt></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="subtract-2">subtract/2</a></h3>
+<div class="spec">
+<p><tt>subtract(DB1::<a href="#type-dl_db_instance">dl_db_instance()</a>, DB2::<a href="#type-dl_db_instance">dl_db_instance()</a>) -&gt; <a href="#type-dl_db_instance">dl_db_instance()</a></tt><br></p>
 <p> </p>
 </div>
 

@@ -10,9 +10,15 @@
 <hr>
 
 <h1>Module worker</h1>
-<ul class="index"><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>
+<ul class="index"><li><a href="#types">Data Types</a></li><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>
 
 <p><b>Behaviours:</b> <a href="gen_server.html"><tt>gen_server</tt></a>.</p>
+
+<h2><a name="types">Data Types</a></h2>
+
+<h3 class="typedecl"><a name="type-worker_spec">worker_spec()</a></h3>
+<p><tt>worker_spec() = success | {failure, float()} | {straggle, float()}</tt></p>
+
 
 <h2><a name="index">Function Index</a></h2>
 <table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#handle_call-3">handle_call/3</a></td><td></td></tr>
@@ -23,6 +29,7 @@
 <tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td></td></tr>
 <tr><td valign="top"><a href="#start_link-1">start_link/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#start_working-0">start_working/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#start_working_sync-0">start_working_sync/0</a></td><td></td></tr>
 <tr><td valign="top"><a href="#stop-0">stop/0</a></td><td></td></tr>
 <tr><td valign="top"><a href="#terminate-2">terminate/2</a></td><td></td></tr>
 </table>
@@ -74,6 +81,12 @@
 <h3 class="function"><a name="start_working-0">start_working/0</a></h3>
 <div class="spec">
 <p><tt>start_working() -&gt; any()</tt></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="start_working_sync-0">start_working_sync/0</a></h3>
+<div class="spec">
+<p><tt>start_working_sync() -&gt; any()</tt></p>
 <p> </p>
 </div>
 
