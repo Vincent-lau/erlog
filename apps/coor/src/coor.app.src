@@ -1,0 +1,17 @@
+{application, coor,
+ [{description, "Coordinator of the erlog engine"},
+  {vsn, "0.1.0"},
+  {registered, [coor]},
+  {mod, {coor_app, ["apps/coor/doc/examples/tc.dl"]}},
+  {applications,
+   [kernel,
+    stdlib,
+    dl_lib,
+    lager
+   ]},
+  {env,[{colored, true}, {num_tasks, 4}, {inter_dir, "tmp/"}, {coor_name, coor}]},
+  {modules, []},
+
+  {licenses, ["Apache 2.0"]},
+  {links, []}
+ ]}.

@@ -1,0 +1,13 @@
+.decl advisor(a: symbol, b:symbol)
+.decl ancestor(a: symbol, b:symbol)
+.output ancestor
+
+
+advisor("andrew_Rice", "mistral_Contrastin").
+advisor("dominic_Orchard", "mistral_Contrastin").
+advisor("andy_Hopper", "andrew_Rice").
+advisor("david_Wheeler", "andy_Hopper").
+advisor("alan_Mycroft", "dominic_Orchard").
+
+ancestor(X,Y) :- advisor(X,Y).
+ancestor(X,Z) :- ancestor(X,Y), ancestor(Y,Z).

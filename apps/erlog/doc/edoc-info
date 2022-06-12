@@ -1,5 +1,0 @@
-%% encoding: UTF-8
-{application,erlog}.
-{modules,[abnormal_worker,coor_sup,coordinator,dbs,dconfig,dl_lexer,dl_repr,
-          erlog_app,erlog_runner,erlog_srv,erlog_sup,eval,foo_test,frag,
-          listsi,neg,preproc,tasks,utils,worker,worker_sup]}.
