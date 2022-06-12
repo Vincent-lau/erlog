@@ -37,6 +37,12 @@ This is setup the cluster and once these Erlang nodes are up, run `erlog_srv:sta
 
 To test the engine, use Erlang's Eunit and Common test framework
 
-```bash 
+```bash
 rebar3 do eunit, ct
 ```
+
+## Note
+
+An alternative way of structuring this code can be found in the two-app branch,
+where I separated one application into two to avoid the need for distinguishing
+two different types roles in the engine: coordinator and worker.
