@@ -17,21 +17,23 @@ also modify the `num_tasks` env variable to control how many tasks you want to s
 the original input into.
 
 Then open up a few shells, and use one of them as the coordinator, and the rest of 
-workers. For example, you can do
+workers. You can do this by invoking the script `start_coor.sh` and `start_worker.sh`.
+For example, you can do
 
 ```bash
 # shell 1
-rebar3 shell --name 'coor@127.0.0.1'
+./start_col.sh
 
 # shell 2
-rebar3 shell --name 'worker1@127.0.0.1'
+./start_worker 1 # is the worker number
 
 # shell 3
-rebar3 shell --name 'worker2@127.0.0.1'
+./start_worker 2
 
 ```
 
-This is setup the cluster and once these Erlang nodes are up, run `erlog_srv:start_working()` in the coordinator node and the engine should now start to computing your program!
+This is setup the cluster and once these Erlang nodes are up, run `coordinator:start_working()`
+in the coordinator node and the engine should now start to computing your program!
 
 ## Tests
 
