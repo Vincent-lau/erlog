@@ -28,8 +28,8 @@ init(Args) ->
           intensity => 0,
           period => 1},
     ChildSpecs =
-        [#{id => main,
-           start => {coordinator, start_link, Args},
+        [#{id => coordinator,
+           start => {coordinator, start_link, [self() | Args]},
            shutdown => 5000}],
     {ok, {SupFlags, ChildSpecs}}.
 

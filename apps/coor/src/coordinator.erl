@@ -17,6 +17,7 @@
 
 -record(coor_state,
         {tasks :: [mr_task()],
+         task_sup :: pid(),
          num_tasks :: non_neg_integer(),
          qry_names :: [string()],
          programs :: [[dl_program()]],
@@ -38,6 +39,14 @@
 -compile(export_all).
 
 -endif.
+
+-define(SPEC(MFA),
+        {task_coor_sup,
+         {task_coor_sup, start_link, [MFA]},
+         temporary,
+         10000,
+         supervisor,
+         [task_coor_sup]}).
 
 -define(INITIAL_TIMEOUT, 240 * 1000).
 % higher alpha discounts older observations faster
@@ -82,17 +91,16 @@ start_link(ProgName, TmpPath, NumTasks) ->
 %% Synchronous call
 
 worker_nodes() ->
-  lists:filter(fun (Node) ->
-      case string:slice(hd(string:tokens(atom_to_list(Node), "@")), 0, 4) of
-        "work" -> true;
-        _Other -> false
-      end
-   end, nodes()).
-
+  lists:filter(fun(Node) ->
+                  case string:slice(hd(string:tokens(atom_to_list(Node), "@")), 0, 4) of
+                    "work" -> true;
+                    _Other -> false
+                  end
+               end,
+               nodes()).
 
 start_working() ->
   gen_server:cast({global, name()}, compute).
-
 
 reg_worker(WorkerNode) ->
   gen_server:cast({global, name()}, {reg, WorkerNode}).
@@ -124,10 +132,12 @@ done() ->
 %%% Server functions
 
 -spec init([string()]) -> {ok, state()}.
-init([ProgName, TmpPath, NumTasks]) ->
+init([Sup, ProgName, TmpPath, NumTasks]) ->
   % we check the freshness of tmp just in case
   clean_tmp(TmpPath),
   ok = file:make_dir(TmpPath),
+
+
   ets:new(dl_atom_names, [named_table, public]),
   lager:info("number of tasks is ~p", [NumTasks]),
   {Facts, Rules} = preproc:lex_and_parse(file, ProgName),
@@ -141,8 +151,10 @@ init([ProgName, TmpPath, NumTasks]) ->
   EDB = dbs:from_list(Facts),
   Tasks = programs_to_tasks(EDB, hd(Programs), 1, NumTasks, TmpPath),
 
+  self() ! {start_task_coor_supervisor, Sup, {task_coor_sup, start_link, Tasks}},
+
   {ok,
-   #coor_state{tasks = Tasks,
+   #coor_state{tasks = TaskMach,
                num_tasks = NumTasks,
                qry_names = QryNames,
                programs = Programs,
@@ -152,9 +164,6 @@ init([ProgName, TmpPath, NumTasks]) ->
                task_timeout = ?INITIAL_TIMEOUT,
                nodes_rate = maps:new(),
                nodes_tasks = maps:new()}}.
-
-
-
 
 handle_call(stage_num, _From, State = #coor_state{stage_num = StageNum}) ->
   {reply, StageNum, State};
@@ -203,13 +212,16 @@ handle_cast({reg, WorkerNode},
 handle_cast(compute, State) ->
   R1 = erpc:multicall(worker_nodes(), worker, start_working, []),
   lager:info("worker start_working rpc results ~p~n", [R1]),
-  spawn(fun () ->
-    Time = timer:tc(coordinator, wait_for_finish, [1000 * 60]),
-    lager:info("time is ~p~n", [Time])
-    end
-  ),
+  spawn(fun() ->
+           Time = timer:tc(coordinator, wait_for_finish, [1000 * 60]),
+           lager:info("time is ~p~n", [Time])
+        end),
   {noreply, State}.
 
+handle_info({start_task_coor_supervisor, Sup, MFA}, S = #coor_state{}) ->
+  {ok, Pid} = supervisor:start_child(Sup, ?SPEC(MFA)),
+  link(Pid),
+  {noreply, S#coor_state{task_sup = Pid}};
 handle_info(Msg, State) ->
   ?LOG_NOTICE("Unexpected message: ~p~n", [Msg]),
   {noreply, State}.
@@ -246,7 +258,7 @@ timed_out_task(_T,
 find_set_idle_task(Tasks, WorkerNode) ->
   case lists:splitwith(fun(T) -> not tasks:is_idle(T) end, Tasks) of
     {NonIdle, [IdleH | IdleT]} ->
-      NewTask = tasks:set_in_prog(IdleH),
+      NewTask = task_coor:request_task(IdleH),
       AssignedTask = tasks:set_worker(NewTask, WorkerNode),
       {AssignedTask, NonIdle ++ [AssignedTask | IdleT]};
     {_NonIdle, []} ->
@@ -381,8 +393,6 @@ find_next_task(State =
       end
   end.
 
-          % end
-
 %%----------------------------------------------------------------------
 %% @doc
 %% Given a task and the server state, set the given task to be finished.
@@ -402,7 +412,7 @@ update_finished_task(Task = #task{assigned_worker = WorkerNode},
                        #coor_state{tasks = Tasks,
                                    task_timeout = TimeOut,
                                    nodes_rate = NodesRate}) ->
-  ?LOG_DEBUG(#{task_finished => Task}),
+  lager:debug("task_finished ~p~n", [Task]),
   case lists:splitwith(fun(T) -> not tasks:equals(T, Task) end, Tasks) of
     {_L, []} -> % the finished task is not in stage, ignore it
       % io:format("ignoring task with wrong stage ~p and current stage is ~p~n", [Task, SN]),
@@ -558,7 +568,6 @@ send_done_msg() ->
 collect_results(TmpPath, ProgNum) ->
   FileName = io_lib:format("~s-~w", [TmpPath ++ "fulldb", ProgNum]),
   dbs:read_db(FileName).
-
 
 %%----------------------------------------------------------------------
 %% @doc

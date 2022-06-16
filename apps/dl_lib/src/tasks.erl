@@ -3,7 +3,7 @@
 -export([set_finished/1, set_idle/1, set_in_prog/1, set_worker/2, reset_time/1,
          set_size/2]).
 -export([is_idle/1, is_finished/1, is_in_progress/1, is_eval/1, is_assigned/1, equals/2]).
--export([new_dummy_task/0, new_task/4, new_task/5, new_task/7, new_wait_task/0,
+-export([new_dummy_task/0, new_task/5, new_task/6, new_task/7, new_wait_task/0,
          new_terminate_task/0, reset_task/1]).
 -export([get_start_time/1]).
 
@@ -20,30 +20,28 @@ get_start_time(#task{start_time = ST}) ->
 %%----------------------------------------------------------------------
 -spec equals(mr_task(), mr_task()) -> boolean().
 equals(#task{task_num = TN1,
-             stage_num = SN1,
-             state = S1},
+             stage_num = SN1},
        #task{task_num = TN2,
-             stage_num = SN2,
-             state = S2}) ->
-  TN1 == TN2 andalso SN1 == SN2 andalso S1 =:= S2.
+             stage_num = SN2}) ->
+  TN1 == TN2 andalso SN1 == SN2.
+
+
+-spec get_task_state(mr_task()) -> idle | in_progress | finished.
+get_task_state(#task{statem = StateM}) ->
+  element(1, sys:get_state(StateM)).
 
 -spec is_idle(mr_task()) -> boolean().
-is_idle(#task{state = S}) when S =:= idle ->
-  true;
-is_idle(#task{}) ->
-  false.
+is_idle(T = #task{}) ->
+  get_task_state(T) =:= idle.
+
 
 -spec is_finished(mr_task()) -> boolean().
-is_finished(#task{state = finished}) ->
-  true;
-is_finished(#task{}) ->
-  false.
+is_finished(T = #task{}) ->
+  get_task_state(T) =:= finished.
 
 -spec is_in_progress(mr_task()) -> boolean().
-is_in_progress(#task{state = in_progress}) ->
-  true;
-is_in_progress(#task{}) ->
-  false.
+is_in_progress(T = #task{}) ->
+  get_task_state(T) =:= in_progress.
 
 -spec is_eval(mr_task()) -> boolean().
 is_eval(#task{type = evaluate}) ->
@@ -57,17 +55,17 @@ is_assigned(#task{assigned_worker = none}) ->
 is_assigned(#task{}) ->
   true.
 
--spec set_finished(mr_task()) -> mr_task().
-set_finished(T = #task{}) ->
-  T#task{state = finished}.
+-spec set_finished(mr_task()) -> ok.
+set_finished(#task{statem = StateM}) ->
+  ok = task_coor:finish_task(StateM).
 
--spec set_idle(mr_task()) -> mr_task().
-set_idle(T = #task{}) ->
-  T#task{state = idle}.
+-spec set_idle(mr_task()) -> ok.
+set_idle(#task{statem = StateM}) ->
+  ok = task_coor:reset_task(StateM).
 
--spec set_in_prog(mr_task()) -> mr_task().
-set_in_prog(T = #task{}) ->
-  T#task{state = in_progress}.
+-spec set_in_prog(mr_task()) -> ok.
+set_in_prog(#task{statem = StateM}) ->
+  ok = task_coor:request_task(StateM).
 
 set_worker(T = #task{}, WorkerNode) ->
   T#task{assigned_worker = WorkerNode}.
@@ -96,7 +94,7 @@ reset_task(T = #task{}) ->
 %% @doc generate a dummy task
 -spec new_dummy_task() -> mr_task().
 new_dummy_task() ->
-  new_task([], 0, 0, 0, idle, evaluate, 0).
+  new_task([], 0, 0, 0, 0, evaluate, 0).
 
 -spec new_wait_task() -> mr_task().
 new_wait_task() ->
@@ -109,48 +107,64 @@ new_terminate_task() ->
   T#task{type = terminate}.
 
 %% @doc generate a new eval idle task
--spec new_task(dl_program(), integer(), integer(), integer()) -> mr_task().
-new_task(Program, ProgNum, StageNum, TaskNum) ->
-  new_task(Program, ProgNum, StageNum, TaskNum, idle, evaluate, 0).
+-spec new_task(dl_program(), integer(), integer(), integer(), pid()) -> mr_task().
+new_task(Program, ProgNum, StageNum, TaskNum, TaskSup) ->
+  new_task(Program, ProgNum, StageNum, TaskNum, TaskSup, evaluate, 0).
 
 -spec new_task(dl_program(),
                integer(),
                integer(),
                integer(),
+               pid(),
                integer() | file:filename()) ->
                 mr_task().
-new_task(Program, ProgNum, StageNum, TaskNum, Size) when is_integer(Size) ->
-  new_task(Program, ProgNum, StageNum, TaskNum, idle, evaluate, Size);
-new_task(Program, ProgNum, StageNum, TaskNum, TaskPath) when is_list(TaskPath) ->
-  new_task(Program, ProgNum, StageNum, TaskNum, idle, evaluate, TaskPath).
+new_task(Program, ProgNum, StageNum, TaskNum, TaskSup, Size) when is_integer(Size) ->
+  new_task(Program, ProgNum, StageNum, TaskNum, TaskSup, evaluate, Size);
+new_task(Program, ProgNum, StageNum, TaskNum, TaskSup, TaskPath) when is_list(TaskPath) ->
+  new_task(Program, ProgNum, StageNum, TaskNum, TaskSup, evaluate, TaskPath).
 
 -spec new_task(dl_program(),
                integer(),
                integer(),
                integer(),
-               task_state(),
+               pid(),
                task_category(),
                number() | file:filename()) ->
                 mr_task().
-new_task(Program, ProgNum, StageNum, TaskNum, TaskState, TaskType, Size)
+new_task(Program, ProgNum, StageNum, TaskNum, 0, TaskType, Size) ->
+  % dummy task, no need for state machine
+  #task{prog = Program,
+        prog_num = ProgNum,
+        task_num = TaskNum,
+        stage_num = StageNum,
+        type = TaskType,
+        start_time = erlang:monotonic_time(millisecond),
+        assigned_worker = none,
+        size = Size};
+new_task(Program, ProgNum, StageNum, TaskNum, TaskSup, TaskType, Size)
   when is_number(Size) ->
   #task{prog = Program,
         prog_num = ProgNum,
         task_num = TaskNum,
         stage_num = StageNum,
-        state = TaskState,
+        statem = start_task_statem(TaskSup),
         type = TaskType,
         start_time = erlang:monotonic_time(millisecond),
         assigned_worker = none,
         size = Size};
-new_task(Program, ProgNum, StageNum, TaskNum, TaskState, TaskType, TaskPath)
+new_task(Program, ProgNum, StageNum, TaskNum, TaskSup, TaskType, TaskPath)
   when is_list(TaskPath) ->
   #task{prog = Program,
         prog_num = ProgNum,
         task_num = TaskNum,
         stage_num = StageNum,
-        state = TaskState,
+        statem = start_task_statem(TaskSup),
         type = TaskType,
         start_time = erlang:monotonic_time(millisecond),
         assigned_worker = none,
         size = find_task_size(StageNum, TaskNum, TaskPath)}.
+
+
+-spec start_task_statem(pid()) -> pid().
+start_task_statem(Sup) ->
+  pass.
