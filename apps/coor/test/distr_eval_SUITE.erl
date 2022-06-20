@@ -13,7 +13,7 @@
 -define(TEST_TIMEOUT, 1000 * 60 * 2).
 
 all() ->
-  [{group, positive_dl}, {group, negative_dl}].
+  [{group, positive_dl}].
 
 groups() ->
   [{tc_many_workers, [sequence], [tc4workers, tc3workers, tc6workers]},
@@ -25,20 +25,18 @@ groups() ->
      nonlinear4workers,
      scc4workers,
      tc2_4workers,
-     pointsto4workers,
-     marrying4workers]},
+     pointsto4workers
+     ]},
    {negative_dl, [sequence], [indirect4workers, unreachable4workers]}].
 
 
 init_per_suite(Config) ->
-  application:ensure_all_started(coor),
   net_kernel:start(['coor@127.0.0.1', longnames]),
   ProgramDir = ?config(data_dir, Config) ++ "../test_program/",
   [{program_dir, ProgramDir} | Config].
 
 end_per_suite(_Config) ->
-  net_kernel:stop(),
-  application:stop(coor).
+  net_kernel:stop().
 
 init_per_testcase(nonlinear4workers, Config) ->
   multi_worker_init(4, "non-linear-ancestor.dl", Config);
@@ -130,13 +128,14 @@ multi_worker_init(NumWorkers, ProgName, Config) ->
   TmpDir = get_tmp_dir(ProgName, NumWorkers, Config),
   clean_tmp(TmpDir),
   ct:pal("program name ~p~n", [?config(program_dir, Config) ++ ProgName]),
-  {ok, Pid} = coordinator:start_link(?config(program_dir, Config) ++ ProgName, TmpDir),
+  {ok, Pid} = coor_sup:start_link(?config(program_dir, Config) ++ ProgName, TmpDir, 4),
+  ct:pal("coor_sup started with Pid ~p~n", [Pid]),
   Cfg = start_workers(NumWorkers),
-  [{prog_name, ProgName}, {worker_cfg, Cfg}, {tmp_dir, TmpDir}, {coor_pid, Pid} | Config].
+  [{prog_name, ProgName}, {worker_cfg, Cfg}, {tmp_dir, TmpDir}| Config].
 
 multi_worker_stop(Config) ->
   stop_workers(Config),
-  coordinator:stop().
+  coor_sup:stop().
 
 get_tmp_dir(ProgName, NumWorkers, Config) ->
   BaseName = filename:basename(ProgName, ".dl"),
