@@ -2,27 +2,36 @@
 
 -behaviour(gen_statem).
 
--compile(export_all).
+-export([start_link/3, finish_task/1, request_task/1, reset_task/1]).
+-export([terminate/3, init/1, callback_mode/0]).
+-export([idle/3, in_progress/3, finished/3]).
 
+-spec get_name(integer(), integer(), integer()) -> atom().
+get_name(ProgNum, TaskNum, ProgNum2) ->
+  N = list_to_atom(atom_to_list(task_coor)
+               ++ "-"
+               ++ integer_to_list(ProgNum)
+               ++ "-"
+               ++ integer_to_list(ProgNum2)
+               ++ "-"
+               ++ integer_to_list(TaskNum)),
+  io:format("name is ~p~n", [N]),
+  N.
 
--spec get_name(integer()) -> atom().
-get_name(TaskNum) ->
-  list_to_atom(atom_to_list(task_coor) ++ integer_to_list(TaskNum)).
+start_link(ProgNum, TaskNum, ProgNum2) ->
+  gen_statem:start_link({local, get_name(ProgNum, TaskNum, ProgNum2)}, ?MODULE, [], []).
 
-
-start_link(TaskNum) ->
-  gen_statem:start_link({local, get_name(TaskNum)}, ?MODULE, TaskNum, []).
-
-
-
-finish_task(ServerRef) -> 
+-spec finish_task(gen_statem:server_ref()) -> ok | invalid.
+finish_task(ServerRef) ->
   gen_statem:call(ServerRef, finish).
-request_task(ServerRef) -> 
+
+-spec request_task(gen_statem:server_ref()) -> ok | invalid.
+request_task(ServerRef) ->
   gen_statem:call(ServerRef, request).
+
+-spec reset_task(gen_statem:server_ref()) -> ok | invalid.
 reset_task(ServerRef) ->
   gen_statem:call(ServerRef, reset).
-
-
 
 idle({call, From}, request, Data) ->
   % TODO link to the worker to track status of worker, remotely link??
@@ -35,25 +44,21 @@ in_progress({call, From}, finish, Data) ->
 in_progress({call, From}, reset, Data) ->
   {next_state, idle, Data, {reply, From, ok}};
 in_progress({call, From}, request, _Data) ->
-  % TODO more complex decision making involves the timing info
   {keep_state_and_data, {reply, From, invalid}}.
 
 finished({call, From}, finish, _Data) ->
   % duplicate finish message
   {keep_state_and_data, {reply, From, ok}};
-finished({call, From}, _State, _Data) -> 
+finished({call, From}, _State, _Data) ->
   % we have a request or reset, might want to allow reset finished tasks
   {keep_state_and_data, {reply, From, invalid}}.
 
-
-init(TaskNum) ->
-  io:format("starting state machine for task ~p~n", [TaskNum]),
+init([]) ->
   Data = #{},
   {ok, idle, Data}.
 
 callback_mode() ->
   state_functions.
-
 
 terminate(_Reason, finish, _Data) ->
   io:format("correct termination~n"),
