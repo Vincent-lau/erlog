@@ -3,9 +3,10 @@
 -export([set_finished/1, set_idle/1, set_in_prog/1, set_worker/2, reset_time/1,
          set_size/2]).
 -export([is_idle/1, is_finished/1, is_in_progress/1, is_eval/1, is_assigned/1, equals/2]).
--export([new_dummy_task/0, new_task/5, new_task/6, new_task/7, new_wait_task/0,
+-export([new_dummy_task/0, new_task/5, new_task/6, new_task/7, new_task/8, new_wait_task/0,
          new_terminate_task/0, reset_task/1]).
 -export([get_start_time/1]).
+-export([stop_all_statem/1]).
 
 -include("../include/task_repr.hrl").
 
@@ -19,12 +20,8 @@ get_start_time(#task{start_time = ST}) ->
 %% @end
 %%----------------------------------------------------------------------
 -spec equals(mr_task(), mr_task()) -> boolean().
-equals(#task{task_num = TN1,
-             stage_num = SN1},
-       #task{task_num = TN2,
-             stage_num = SN2}) ->
+equals(#task{task_num = TN1, stage_num = SN1}, #task{task_num = TN2, stage_num = SN2}) ->
   TN1 == TN2 andalso SN1 == SN2.
-
 
 -spec get_task_state(mr_task()) -> idle | in_progress | finished.
 get_task_state(#task{statem = StateM}) ->
@@ -33,7 +30,6 @@ get_task_state(#task{statem = StateM}) ->
 -spec is_idle(mr_task()) -> boolean().
 is_idle(T = #task{}) ->
   get_task_state(T) =:= idle.
-
 
 -spec is_finished(mr_task()) -> boolean().
 is_finished(T = #task{}) ->
@@ -89,12 +85,14 @@ reset_time(T = #task{}) ->
 %% @doc this is to reset the state of the task when the assigned worker dies
 -spec reset_task(mr_task()) -> mr_task().
 reset_task(T = #task{}) ->
-  set_worker(reset_time(set_idle(T)), none).
+  set_idle(T),
+  T2 = reset_time(T),
+  set_worker(T2, none).
 
 %% @doc generate a dummy task
 -spec new_dummy_task() -> mr_task().
 new_dummy_task() ->
-  new_task([], 0, 0, 0, 0, evaluate, 0).
+  new_task([], 0, 0, 0, undefined, evaluate, 0).
 
 -spec new_wait_task() -> mr_task().
 new_wait_task() ->
@@ -127,16 +125,17 @@ new_task(Program, ProgNum, StageNum, TaskNum, TaskSup, TaskPath) when is_list(Ta
                integer(),
                integer(),
                integer(),
-               pid(),
+               pid() | undefined,
                task_category(),
                number() | file:filename()) ->
                 mr_task().
-new_task(Program, ProgNum, StageNum, TaskNum, 0, TaskType, Size) ->
+new_task(Program, ProgNum, StageNum, TaskNum, undefined, TaskType, Size) ->
   % dummy task, no need for state machine
   #task{prog = Program,
         prog_num = ProgNum,
         task_num = TaskNum,
         stage_num = StageNum,
+        statem = undefined,
         type = TaskType,
         start_time = erlang:monotonic_time(millisecond),
         assigned_worker = none,
@@ -147,7 +146,7 @@ new_task(Program, ProgNum, StageNum, TaskNum, TaskSup, TaskType, Size)
         prog_num = ProgNum,
         task_num = TaskNum,
         stage_num = StageNum,
-        statem = start_task_statem(TaskSup),
+        statem = start_task_statem(TaskSup, ProgNum, TaskNum),
         type = TaskType,
         start_time = erlang:monotonic_time(millisecond),
         assigned_worker = none,
@@ -158,13 +157,42 @@ new_task(Program, ProgNum, StageNum, TaskNum, TaskSup, TaskType, TaskPath)
         prog_num = ProgNum,
         task_num = TaskNum,
         stage_num = StageNum,
-        statem = start_task_statem(TaskSup),
+        statem = start_task_statem(TaskSup, ProgNum, TaskNum),
         type = TaskType,
         start_time = erlang:monotonic_time(millisecond),
         assigned_worker = none,
         size = find_task_size(StageNum, TaskNum, TaskPath)}.
 
 
--spec start_task_statem(pid()) -> pid().
-start_task_statem(Sup) ->
-  pass.
+new_task(Program, ProgNum, ProgNum2, StageNum, TaskNum, TaskSup, TaskType, TaskPath)
+  when is_list(TaskPath) ->
+  #task{prog = Program,
+        prog_num = ProgNum,
+        task_num = TaskNum,
+        stage_num = StageNum,
+        statem = start_task_statem(TaskSup, ProgNum, TaskNum, ProgNum2),
+        type = TaskType,
+        start_time = erlang:monotonic_time(millisecond),
+        assigned_worker = none,
+        size = find_task_size(StageNum, TaskNum, TaskPath)}.
+
+
+
+start_task_statem(Sup, ProgNum, TaskNum) ->
+  start_task_statem(Sup, ProgNum, TaskNum, 0).
+    
+
+-spec start_task_statem(pid(), integer(), integer(), integer()) -> pid().
+start_task_statem(Sup, ProgNum, TaskNum, ProgNum2) ->
+  {ok, Pid} = supervisor:start_child(Sup, [ProgNum, TaskNum, ProgNum2]),
+  Pid.
+
+
+-spec stop_all_statem(pid()) -> ok.
+stop_all_statem(Sup) ->
+  Children = supervisor:which_children(Sup),
+  R = lists:map(fun({_, Child, _, _}) -> supervisor:terminate_child(Sup, Child) end,
+                Children),
+  io:format("termination results is ~p~n", [R]),
+  ok.
+

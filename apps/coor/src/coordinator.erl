@@ -8,9 +8,9 @@
 
 -import(dl_repr, [get_rule_headname/1]).
 
--export([start_link/3, start_link/2, start_link/1, get_tmp_path/0, get_num_tasks/0,
+-export([start_link/4, start_link/3, start_link/2, get_tmp_path/0, get_num_tasks/0,
          get_current_stage_num/0, get_prog_num/0, assign_task/1, finish_task/2, done/0, stop/0,
-         reg_worker/1, start_working/0]).
+         reg_worker/1, start_working/0, set_tmp_dir/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 -export([collect_results/2, wait_for_finish/1]).
@@ -40,14 +40,13 @@
 
 -endif.
 
--define(SPEC(MFA),
-        {task_coor_sup,
-         {task_coor_sup, start_link, [MFA]},
-         temporary,
-         10000,
-         supervisor,
-         [task_coor_sup]}).
-
+-define(SPEC,
+        #{id => task_coor_sup,
+          start => {task_coor_sup, start_link, []},
+          restart => temporary,
+          shutdown => 10000,
+          type => supervisor,
+          modules => [task_coor_sup]}).
 -define(INITIAL_TIMEOUT, 240 * 1000).
 % higher alpha discounts older observations faster
 -define(TIMEOUT_ALPHA, 0.5).
@@ -65,28 +64,23 @@ avg_timeout(TimeTaken, CurTimeOut) ->
 exp_avg(NewNum, CurNum) ->
   ?TIMEOUT_ALPHA * NewNum + (1 - ?TIMEOUT_ALPHA) * CurNum.
 
-% currently no backoff_timeout due to existence of stragglers affecting execution time
--spec backoff_timeout(timeout()) -> timeout().
-backoff_timeout(TimeOut) ->
-  TimeOut.
-
 name() ->
   coor.
 
 %%% Client API
--spec start_link(file:filename()) -> {ok, pid()}.
-start_link(ProgName) ->
+-spec start_link(pid(), file:filename()) -> {ok, pid()}.
+start_link(Sup, ProgName) ->
   {ok, TmpPath} = application:get_env(coor, inter_dir),
-  start_link(ProgName, TmpPath).
+  start_link(Sup, ProgName, TmpPath).
 
--spec start_link(file:filename(), file:filename()) -> {ok, pid()}.
-start_link(ProgName, TmpPath) ->
+-spec start_link(pid(), file:filename(), file:filename()) -> {ok, pid()}.
+start_link(Sup, ProgName, TmpPath) ->
   {ok, NumTasks} = application:get_env(coor, num_tasks),
-  start_link(ProgName, TmpPath, NumTasks).
+  start_link(Sup, ProgName, TmpPath, NumTasks).
 
--spec start_link(file:filename(), file:filename(), integer()) -> {ok, pid()}.
-start_link(ProgName, TmpPath, NumTasks) ->
-  gen_server:start_link({global, name()}, ?MODULE, [ProgName, TmpPath, NumTasks], []).
+-spec start_link(pid(), file:filename(), file:filename(), integer()) -> {ok, pid()}.
+start_link(Sup, ProgName, TmpPath, NumTasks) ->
+  gen_server:start_link({global, name()}, ?MODULE, [Sup, ProgName, TmpPath, NumTasks], []).
 
 %% Synchronous call
 
@@ -104,6 +98,11 @@ start_working() ->
 
 reg_worker(WorkerNode) ->
   gen_server:cast({global, name()}, {reg, WorkerNode}).
+
+
+
+set_tmp_dir(TmpDir) ->
+  gen_server:call({global, name()}, {set_tmp, TmpDir}).
 
 get_current_stage_num() ->
   gen_server:call({global, name()}, stage_num).
@@ -137,7 +136,6 @@ init([Sup, ProgName, TmpPath, NumTasks]) ->
   clean_tmp(TmpPath),
   ok = file:make_dir(TmpPath),
 
-
   ets:new(dl_atom_names, [named_table, public]),
   lager:info("number of tasks is ~p", [NumTasks]),
   {Facts, Rules} = preproc:lex_and_parse(file, ProgName),
@@ -149,13 +147,12 @@ init([Sup, ProgName, TmpPath, NumTasks]) ->
   ?LOG_DEBUG(#{input_data => Facts}),
   % create EDB from input relations
   EDB = dbs:from_list(Facts),
-  Tasks = programs_to_tasks(EDB, hd(Programs), 1, NumTasks, TmpPath),
 
-  self() ! {start_task_coor_supervisor, Sup, {task_coor_sup, start_link, Tasks}},
+  self() ! {start_task_coor_supervisor, Sup},
+  self() ! {generate_tasks, {EDB, Programs, NumTasks, TmpPath}},
 
   {ok,
-   #coor_state{tasks = TaskMach,
-               num_tasks = NumTasks,
+   #coor_state{num_tasks = NumTasks,
                qry_names = QryNames,
                programs = Programs,
                prog_num = 1,
@@ -165,6 +162,9 @@ init([Sup, ProgName, TmpPath, NumTasks]) ->
                nodes_rate = maps:new(),
                nodes_tasks = maps:new()}}.
 
+
+handle_call({set_tmp, TmpDir}, _From, State = #coor_state{}) ->
+  {reply, ok, State#coor_state{tmp_path = TmpDir}};
 handle_call(stage_num, _From, State = #coor_state{stage_num = StageNum}) ->
   {reply, StageNum, State};
 handle_call(tmp_path, _From, State = #coor_state{tmp_path = TmpPath}) ->
@@ -218,19 +218,27 @@ handle_cast(compute, State) ->
         end),
   {noreply, State}.
 
-handle_info({start_task_coor_supervisor, Sup, MFA}, S = #coor_state{}) ->
-  {ok, Pid} = supervisor:start_child(Sup, ?SPEC(MFA)),
+handle_info({start_task_coor_supervisor, Sup}, S = #coor_state{}) ->
+  {ok, Pid} = supervisor:start_child(Sup, ?SPEC),
+  true = register(task_coor_sup, Pid),
   link(Pid),
   {noreply, S#coor_state{task_sup = Pid}};
+handle_info({generate_tasks, {EDB, Programs, NumTasks, TmpPath}},
+            S = #coor_state{task_sup = TaskSup})
+  when TaskSup =/= undefined ->
+  Tasks = programs_to_tasks(EDB, hd(Programs), 1, NumTasks, TmpPath, TaskSup),
+  {noreply, S#coor_state{tasks = Tasks}};
 handle_info(Msg, State) ->
-  ?LOG_NOTICE("Unexpected message: ~p~n", [Msg]),
+  lager:notice("Unexpected message: ~p~n", [Msg]),
   {noreply, State}.
 
 terminate(normal, #coor_state{tmp_path = TmpPath}) ->
   ets:delete(dl_atom_names),
   clean_tmp(TmpPath),
   ?LOG_DEBUG("coordinator terminated~n", []),
-  ok.
+  ok;
+terminate(Err, S = #coor_state{}) ->
+  lager:notice("error is ~p state is ~p~n", [Err, S]).
 
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
@@ -246,52 +254,35 @@ clean_tmp(TmpPath) ->
       ok
   end.
 
--spec timed_out_task(mr_task(), timeout()) -> boolean().
-timed_out_task(#task{state = in_progress, start_time = StartTime}, TimeOut) ->
-  erlang:monotonic_time(millisecond) - StartTime > TimeOut;
-timed_out_task(_T,
-               _TimeOut) -> % if the task is not in progress, then it has not timed out
-  false.
-
 %% @doc this function will find an idle task, and if found, set its state appropriately
 -spec find_set_idle_task([mr_task()], node()) -> {mr_task(), [mr_task()]} | none.
 find_set_idle_task(Tasks, WorkerNode) ->
   case lists:splitwith(fun(T) -> not tasks:is_idle(T) end, Tasks) of
     {NonIdle, [IdleH | IdleT]} ->
-      NewTask = task_coor:request_task(IdleH),
-      AssignedTask = tasks:set_worker(NewTask, WorkerNode),
+      ok = task_coor:request_task(IdleH#task.statem),
+      AssignedTask = tasks:set_worker(IdleH, WorkerNode),
       {AssignedTask, NonIdle ++ [AssignedTask | IdleT]};
     {_NonIdle, []} ->
       none
   end.
 
--spec find_set_timed_out_task([mr_task()], node(), timeout()) ->
-                               {mr_task(), [mr_task()]} | none.
-find_set_timed_out_task(Tasks, WorkerNode, TimeOut) ->
-  case lists:splitwith(fun(T) -> not timed_out_task(T, TimeOut) end, Tasks) of
-    {TimedIn, [TimedOutH | TimedOutT]} ->
-      NewTask = tasks:reset_time(TimedOutH),
-      AssignedTask = tasks:set_worker(NewTask, WorkerNode),
-      {AssignedTask, TimedIn ++ [AssignedTask | TimedOutT]};
-    {_TimedIn, []} ->
-      none
-  end.
-
 -spec possibly_faster(mr_task(), number(), number()) -> boolean().
-possibly_faster(#task{size = Size,
-                      start_time = StartTime,
-                      state = in_progress},
+possibly_faster(T = #task{size = Size, start_time = StartTime},
                 AssignedWorkerRate,
                 NewWorkerRate) ->
-  EstCompletion = Size / NewWorkerRate,
-  EstRemaining =
-    Size / AssignedWorkerRate - (erlang:monotonic_time(millisecond) - StartTime),
-  % io:format("estimated remaining time is~p~n", [EstRemaining]),
-  case EstRemaining < 0 of
+  case tasks:is_in_progress(T) of
     true ->
-      true;
+      EstCompletion = Size / NewWorkerRate,
+      EstRemaining =
+        Size / AssignedWorkerRate - (erlang:monotonic_time(millisecond) - StartTime),
+      case EstRemaining < 0 of
+        true ->
+          true;
+        false ->
+          EstCompletion < EstRemaining
+      end;
     false ->
-      EstCompletion < EstRemaining
+      false
   end;
 possibly_faster(_T, _A, _N) ->
   false.
@@ -415,27 +406,27 @@ update_finished_task(Task = #task{assigned_worker = WorkerNode},
   lager:debug("task_finished ~p~n", [Task]),
   case lists:splitwith(fun(T) -> not tasks:equals(T, Task) end, Tasks) of
     {_L, []} -> % the finished task is not in stage, ignore it
-      % io:format("ignoring task with wrong stage ~p and current stage is ~p~n", [Task, SN]),
       State;
-    {L1, [L2H | L2T]} ->
+    {_L1, [L2H | _L2T]} ->
       TimeTaken = erlang:monotonic_time(millisecond) - tasks:get_start_time(L2H),
-      L2H2 = tasks:set_finished(L2H),
+      ok = tasks:set_finished(L2H),
 
       NewTimeOut = avg_timeout(TimeTaken, TimeOut),
       ProgRate = L2H#task.size / (TimeTaken + 2000),
       NewProgRate = exp_avg(ProgRate, maps:get(WorkerNode, NodesRate)),
-      NewTasks = L1 ++ [L2H2 | L2T],
-      gen_new_state_when_task_done(NewTasks, NewProgRate, NewTimeOut, WorkerNode, State)
+      gen_new_state_when_task_done(Tasks, NewProgRate, NewTimeOut, WorkerNode, State)
   end.
 
 -spec programs_to_tasks(dl_db_instance(),
                         [dl_program()],
                         integer(),
                         integer(),
-                        file:filename()) ->
+                        file:filename(),
+                        pid()) ->
                          [mr_task()].
-programs_to_tasks(EDB, Programs, ProgNum, NumTasks, TmpPath) ->
-  lists:flatmap(fun(Program) -> program_to_tasks(EDB, Program, ProgNum, NumTasks, TmpPath)
+programs_to_tasks(EDB, Programs, ProgNum, NumTasks, TmpPath, Sup) ->
+  lists:flatmap(fun(Program) ->
+                   program_to_tasks(EDB, Program, ProgNum, NumTasks, TmpPath, Sup)
                 end,
                 Programs).
 
@@ -444,9 +435,10 @@ programs_to_tasks(EDB, Programs, ProgNum, NumTasks, TmpPath) ->
                        dl_program(),
                        integer(),
                        integer(),
-                       file:filename()) ->
+                       file:filename(),
+                       pid()) ->
                         [mr_task()].
-program_to_tasks(EDB, Program, ProgNum, NumTasks, TmpPath) ->
+program_to_tasks(EDB, Program, ProgNum, NumTasks, TmpPath, TaskSup) ->
   % the coordinator would do a first round of evaluation to find all deltas for
   % first stage of seminaive eval
   EDBProg = eval:get_edb_program(Program),
@@ -457,7 +449,7 @@ program_to_tasks(EDB, Program, ProgNum, NumTasks, TmpPath) ->
   % similar to what I did in eval_seminaive, we put DeltaDB union EDB as the
   % DeltaDB in case the input contain "idb" predicates
   frag:hash_frag(FullDB, Program, ProgNum, 1, NumTasks, TmpPath ++ "task"),
-  Tasks = generate_one_stage_tasks(ProgNum, [Program], 1, TmpPath, NumTasks),
+  Tasks = generate_one_stage_tasks(ProgNum, [Program], 1, TmpPath, NumTasks, TaskSup),
   lager:debug("tasks_after_coor_initialisation ~p", [Tasks]),
   Tasks.
 
@@ -465,6 +457,7 @@ program_to_tasks(EDB, Program, ProgNum, NumTasks, TmpPath) ->
 -spec new_program_state(state()) -> state().
 new_program_state(State =
                     #coor_state{prog_num = ProgNum,
+                                task_sup = TaskSup,
                                 programs = Programs,
                                 num_tasks = NumTasks,
                                 nodes_rate = NodesRate,
@@ -477,7 +470,8 @@ new_program_state(State =
                       lists:nth(NewProgNum, Programs),
                       NewProgNum,
                       NumTasks,
-                      TmpPath),
+                      TmpPath,
+                      TaskSup),
   State#coor_state{tasks = Tasks,
                    prog_num = NewProgNum,
                    stage_num = 1,
@@ -498,6 +492,7 @@ gen_new_state_when_task_done(NewTasks,
                              WorkerNode,
                              State =
                                #coor_state{stage_num = SN,
+                                           task_sup = TaskSup,
                                            tmp_path = TmpPath,
                                            num_tasks = NumTasks,
                                            prog_num = ProgNum,
@@ -506,11 +501,13 @@ gen_new_state_when_task_done(NewTasks,
                                            nodes_rate = NodesRate}) ->
   case check_all_finished(NewTasks) of
     true ->
+      ok = tasks:stop_all_statem(TaskSup),
       case generate_one_stage_tasks(ProgNum,
                                     lists:nth(ProgNum, Programs),
                                     SN + 1,
                                     TmpPath,
-                                    NumTasks)
+                                    NumTasks,
+                                    TaskSup)
       of
         [] when ProgNum == length(Programs) ->
           % nothing to generate, and we have evaluted all programs
@@ -607,9 +604,10 @@ check_all_finished(Tasks) ->
                                [dl_program()],
                                integer(),
                                file:filename(),
-                               integer()) ->
+                               integer(),
+                               pid()) ->
                                 [mr_task()].
-generate_one_stage_tasks(ProgNum, Programs, StageNum, TmpPath, NumTasks)
+generate_one_stage_tasks(ProgNum, Programs, StageNum, TmpPath, NumTasks, Sup)
   when StageNum > 1 ->
   lists:flatmap(fun(Program) ->
                    lists:filtermap(fun(TaskNum) ->
@@ -621,16 +619,17 @@ generate_one_stage_tasks(ProgNum, Programs, StageNum, TmpPath, NumTasks)
                                                           ProgNum,
                                                           StageNum,
                                                           TaskNum,
+                                                          Sup,
                                                           TmpPath)}
                                       end
                                    end,
                                    lists:seq(1, NumTasks))
                 end,
                 Programs);
-generate_one_stage_tasks(ProgNum, Programs, StageNum, TmpPath, NumTasks)
+generate_one_stage_tasks(ProgNum, Programs, StageNum, TmpPath, NumTasks, Sup)
   when StageNum == 1 ->
   lists:flatmap(fun(Program) ->
-                   [tasks:new_task(Program, ProgNum, StageNum, TaskNum, TmpPath)
+                   [tasks:new_task(Program, ProgNum, StageNum, TaskNum, Sup, TmpPath)
                     || TaskNum <- lists:seq(1, NumTasks)]
                 end,
                 Programs).
