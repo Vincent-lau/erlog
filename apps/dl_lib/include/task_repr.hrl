@@ -10,7 +10,7 @@
          statem :: pid() | undefined,
          type :: task_category(),
          start_time :: integer(),
-         assigned_worker :: node(),
+         assigned_worker :: pid(),
          size :: number()}).
 
 -type mr_task() :: #task{}.

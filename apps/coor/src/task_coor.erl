@@ -6,17 +6,15 @@
 -export([terminate/3, init/1, callback_mode/0]).
 -export([idle/3, in_progress/3, finished/3]).
 
-
+-record(state, {worker_pid :: pid() | undefined}).
 
 -spec get_name(integer(), integer()) -> atom().
 get_name(ProgNum, TaskNum) ->
-  N = list_to_atom(atom_to_list(task_coor)
+  list_to_atom(atom_to_list(task_coor)
                ++ "-"
                ++ integer_to_list(ProgNum)
                ++ "-"
-               ++ integer_to_list(TaskNum)),
-  io:format("name is ~p~n", [N]),
-  N.
+               ++ integer_to_list(TaskNum)).
 
 start_link(ProgNum, TaskNum) ->
   gen_statem:start_link({local, get_name(ProgNum, TaskNum)}, ?MODULE, [], []).
@@ -33,20 +31,24 @@ request_task(ServerRef, Pid) ->
 reset_task(ServerRef) ->
   gen_statem:call(ServerRef, reset).
 
-idle({call, From}, {request, Pid}, Data) ->
+idle({call, From}, {request, Pid}, Data = #state{}) ->
   link(Pid),
-  {next_state, in_progress, Data, {reply, From, ok}};
+  {next_state, in_progress, Data#state{worker_pid = Pid}, {reply, From, ok}};
 idle({call, From}, finish, _Data) ->
   {keep_state_and_data, {reply, From, invalid}}.
 
-in_progress({call, From}, finish, Data) ->
-  {next_state, finished, Data, {reply, From, ok}};
-in_progress({call, From}, reset, Data) ->
-  {next_state, idle, Data, {reply, From, ok}};
+in_progress({call, From}, finish, Data = #state{worker_pid = Pid}) ->
+  unlink(Pid),
+  {next_state, finished, Data#state{worker_pid = undefined}, {reply, From, ok}};
+in_progress({call, From}, reset, Data = #state{worker_pid = Pid}) ->
+  unlink(Pid),
+  {next_state, idle, Data#state{worker_pid = undefined}, {reply, From, ok}};
 in_progress({call, From}, request, _Data) ->
   {keep_state_and_data, {reply, From, invalid}};
 in_progress(EventType, EventContent, Data) ->
   handle_event(EventType, EventContent, Data).
+
+% TODO add timeout
 
 finished({call, From}, finish, _Data) ->
   % duplicate finish message
@@ -59,23 +61,23 @@ finished(EventType, EventContent, Data) ->
 
 init([]) ->
   process_flag(trap_exit, true),
-  Data = #{},
+  Data = #state{worker_pid = undefined},
   {ok, idle, Data}.
 
 callback_mode() ->
   state_functions.
 
 terminate(_Reason, finish, _Data) ->
-  io:format("correct termination~n"),
+  lager:debug("correct termination~n"),
   ok;
-terminate(_Reason, _State, _Data) ->
-  io:format("terminated before completion~n").
-
+terminate(Reason, State, _Data) ->
+  lager:debug("terminated with reason ~p and state ~p", [Reason, State]).
 
 handle_event(info, {'EXIT', Pid, Reason}, Data) ->
+  % the worker process has exited
   lager:notice("worker process ~p died with reason ~p", [Pid, Reason]),
-  {next_state, idle, Data};
+  ok = coordinator:reset_worker(Pid),
+  {next_state, idle, Data#state{worker_pid = undefined}};
 handle_event(EventType, EventContent, Data) ->
   lager:warning("unknown event ~p ~p", [EventType, EventContent]),
   {keep_state, Data}.
-

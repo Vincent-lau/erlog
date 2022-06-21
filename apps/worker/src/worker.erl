@@ -60,7 +60,6 @@ stop() ->
 init([Mode]) ->
   true = net_kernel:connect_node(?coor_node),
   global:sync(), % make sure that worker sees the registered name
-  erpc:cast(?coor_node, coordinator, reg_worker, [node()]),
   NumTasks = call_coor(get_num_tasks, []),
   TmpPath = call_coor(get_tmp_path, []),
   spawn_link(fun check_coor/0),
@@ -106,7 +105,8 @@ work(State =
        #worker_state{num_tasks = NumTasks,
                      tmp_path = TmpPath,
                      mode = Mode}) ->
-  case call_coor(assign_task, [node()]) of
+  ok = erpc:call(?coor_node, coordinator, reg_worker, [self()]),
+  case call_coor(assign_task, [self()]) of
     T = #task{type = evaluate,
               task_num = TaskNum,
               stage_num = StageNum,
@@ -163,7 +163,9 @@ work(State =
       lager:debug("~p all done, time to relax", [node()]);
     Other ->
       lager:info("~p some other stuff ~p~n", [node(), Other])
-  end.
+  end,
+  ok = erpc:call(?coor_node, coordinator, dereg_worker, [self()]).
+
 
 %%% Private functions
 
