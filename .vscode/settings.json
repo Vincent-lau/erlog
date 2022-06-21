@@ -2,6 +2,8 @@
   "cSpell.words": [
     "badrpc",
     "dconfig",
+    "demonitor",
+    "dereg",
     "distr",
     "ebin",
     "eflame",
@@ -24,8 +26,8 @@
     "repr",
     "sfulldb",
     "sname",
-    "statem",
     "stask",
+    "statem",
     "stratifiable",
     "tclarge",
     "tmpname",
