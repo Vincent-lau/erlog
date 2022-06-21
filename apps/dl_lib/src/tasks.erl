@@ -1,9 +1,9 @@
 -module(tasks).
 
--export([set_finished/1, set_idle/1, set_in_prog/1, set_worker/2, reset_time/1,
+-export([set_finished/1, set_idle/1, set_in_prog/2, set_worker/2, reset_time/1,
          set_size/2]).
 -export([is_idle/1, is_finished/1, is_in_progress/1, is_eval/1, is_assigned/1, equals/2]).
--export([new_dummy_task/0, new_task/5, new_task/6, new_task/7, new_task/8, new_wait_task/0,
+-export([new_dummy_task/0, new_task/5, new_task/6, new_task/7, new_wait_task/0,
          new_terminate_task/0, reset_task/1]).
 -export([get_start_time/1]).
 -export([stop_all_statem/1]).
@@ -59,9 +59,9 @@ set_finished(#task{statem = StateM}) ->
 set_idle(#task{statem = StateM}) ->
   ok = task_coor:reset_task(StateM).
 
--spec set_in_prog(mr_task()) -> ok.
-set_in_prog(#task{statem = StateM}) ->
-  ok = task_coor:request_task(StateM).
+-spec set_in_prog(mr_task(), pid()) -> ok.
+set_in_prog(#task{statem = StateM}, Pid) ->
+  ok = task_coor:request_task(StateM, Pid).
 
 set_worker(T = #task{}, WorkerNode) ->
   T#task{assigned_worker = WorkerNode}.
@@ -164,27 +164,9 @@ new_task(Program, ProgNum, StageNum, TaskNum, TaskSup, TaskType, TaskPath)
         size = find_task_size(StageNum, TaskNum, TaskPath)}.
 
 
-new_task(Program, ProgNum, ProgNum2, StageNum, TaskNum, TaskSup, TaskType, TaskPath)
-  when is_list(TaskPath) ->
-  #task{prog = Program,
-        prog_num = ProgNum,
-        task_num = TaskNum,
-        stage_num = StageNum,
-        statem = start_task_statem(TaskSup, ProgNum, TaskNum, ProgNum2),
-        type = TaskType,
-        start_time = erlang:monotonic_time(millisecond),
-        assigned_worker = none,
-        size = find_task_size(StageNum, TaskNum, TaskPath)}.
-
-
-
+-spec start_task_statem(pid(), integer(), integer()) -> pid().
 start_task_statem(Sup, ProgNum, TaskNum) ->
-  start_task_statem(Sup, ProgNum, TaskNum, 0).
-    
-
--spec start_task_statem(pid(), integer(), integer(), integer()) -> pid().
-start_task_statem(Sup, ProgNum, TaskNum, ProgNum2) ->
-  {ok, Pid} = supervisor:start_child(Sup, [ProgNum, TaskNum, ProgNum2]),
+  {ok, Pid} = supervisor:start_child(Sup, [ProgNum, TaskNum]),
   Pid.
 
 
@@ -193,6 +175,6 @@ stop_all_statem(Sup) ->
   Children = supervisor:which_children(Sup),
   R = lists:map(fun({_, Child, _, _}) -> supervisor:terminate_child(Sup, Child) end,
                 Children),
-  io:format("termination results is ~p~n", [R]),
+  lager:debug("termination results is ~p~n", [R]),
   ok.
 
